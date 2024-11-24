@@ -2,9 +2,9 @@
 
 *Woof woof!* A [ResoniteModLoader](https://github.com/resonite-modding-group/ResoniteModLoader) mod for [Resonite](https://resonite.com/) that adds customizable animated textures to ProtoFlux wires! 🐾
 
-| Example | Closeup | Texture |
-|:-------------:|:-------------:|:-------------:|
-| <img src="ProtoWireScroll/Images/FluxPreview.png" alt="Preview of animated ProtoFlux wires" width="300"/> | <img src="ProtoWireScroll/Images/SmallPreview.png" alt="Preview of animated ProtoFlux wires" width="300"/> | <img src="ProtoWireScroll/Images/Texture.png" alt="Preview of animated ProtoFlux wires" width="60"/> |
+| Example | Closeup | Modified | Original |
+|:-------------:|:-------------:|:-------------:|:-------------:|
+| <img src="ProtoWireScroll/Images/FluxPreview.png" alt="Preview of animated ProtoFlux wires" width="300"/> | <img src="ProtoWireScroll/Images/SmallPreview.png" alt="Preview of animated ProtoFlux wires" width="300"/> | <img src="ProtoWireScroll/Images/Texture.png" alt="Preview of animated ProtoFlux wires" width="60"/> | <img src="ProtoWireScroll/Images/OriginalTexture.png" alt="Preview of animated ProtoFlux wires" width="60"/> |
 
 ## 🦴 Features
 
