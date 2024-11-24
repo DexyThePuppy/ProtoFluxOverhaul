@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
-		<RootNamespace>ExampleMod</RootNamespace>
-		<AssemblyName>ExampleMod</AssemblyName>
+		<RootNamespace>ProtoWireScroll</RootNamespace>
+		<AssemblyName>ProtoWireScroll</AssemblyName>
 		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
 		<TargetFramework>net472</TargetFramework>
 		<FileAlignment>512</FileAlignment>
@@ -18,6 +18,7 @@
 		<ResonitePath>$(MSBuildThisFileDirectory)Resonite/</ResonitePath>
 		<ResonitePath Condition="Exists('C:\Program Files (x86)\Steam\steamapps\common\Resonite\')">C:\Program Files (x86)\Steam\steamapps\common\Resonite\</ResonitePath>
 		<ResonitePath Condition="Exists('$(HOME)/.steam/steam/steamapps/common/Resonite/')">$(HOME)/.steam/steam/steamapps/common/Resonite/</ResonitePath>
+		<ResonitePath Condition="Exists('G:\SteamLibrary\steamapps\common\Resonite\')">G:\SteamLibrary\steamapps\common\Resonite\</ResonitePath>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -32,6 +33,22 @@
 		</Reference>
 		<Reference Include="FrooxEngine">
 		    <HintPath>$(ResonitePath)Resonite_Data\Managed\FrooxEngine.dll</HintPath>
+		    <Private>False</Private>
+		</Reference>
+		<Reference Include="Elements.Core">
+		    <HintPath>$(ResonitePath)Resonite_Data\Managed\Elements.Core.dll</HintPath>
+		    <Private>False</Private>
+		</Reference>
+		<Reference Include="System">
+		    <HintPath>$(ResonitePath)Resonite_Data\Managed\System.dll</HintPath>
+		    <Private>False</Private>
+		</Reference>
+		<Reference Include="System.Numerics">
+		    <HintPath>$(ResonitePath)Resonite_Data\Managed\System.Numerics.dll</HintPath>
+		    <Private>False</Private>
+		</Reference>
+		<Reference Include="Elements.Assets">
+		    <HintPath>$(ResonitePath)Resonite_Data\Managed\Elements.Assets.dll</HintPath>
 		    <Private>False</Private>
 		</Reference>
 	</ItemGroup>
