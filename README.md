@@ -2,7 +2,7 @@
 
 *Woof woof!* A [ResoniteModLoader](https://github.com/resonite-modding-group/ResoniteModLoader) mod for [Resonite](https://resonite.com/) that adds customizable animated textures to ProtoFlux wires! 🐾
 
-![Preview of animated ProtoFlux wires](Images/FluxPreview.png)
+![Preview of animated ProtoFlux wires](ProtoWireScroll/Images/FluxPreview.png)
 
 ## 🦴 Features
 
