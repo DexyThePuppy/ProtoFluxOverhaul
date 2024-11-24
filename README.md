@@ -1,13 +1,15 @@
-# 🎮 ProtoWireScroll
+# ProtoWireScroll
 
-*Woof woof!* A [ResoniteModLoader](https://github.com/resonite-modding-group/ResoniteModLoader) mod for [Resonite](https://resonite.com/) that makes ProtoFlux wires more fun and optimized! 🐾
+*Woof woof!* A [ResoniteModLoader](https://github.com/resonite-modding-group/ResoniteModLoader) mod for [Resonite](https://resonite.com/) that adds customizable animated textures to ProtoFlux wires! 🐾
+
+![Preview of animated ProtoFlux wires](Images/FluxPreview.png)
 
 ## 🦴 Features
 
 - Optimizes wire rendering with shared materials
 - Adds customizable scrolling animations to wire textures
 - Configurable animation speed and direction
-- Toggle animations on/off through RML config
+- Customizable wire texture appearance options
 - Fixes temporary wire connection issues
 
 ## 🐕 Installation
