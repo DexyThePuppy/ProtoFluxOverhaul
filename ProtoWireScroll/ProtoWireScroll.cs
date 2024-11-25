@@ -76,62 +76,40 @@ public class ProtoWireScroll : ResoniteMod {
 
 	public override void OnEngineInit() {
 		Config = GetConfiguration();
-		if (Config == null) {
-			Error("Failed to get mod configuration! *sad puppy whimpers*");
-			return;
-		}
-
 		Config.Save(true); // Save default config values
-		Config.OnThisConfigurationChanged += OnConfigChanged;
 
-		try {
-			Harmony harmony = new Harmony("com.Dexy.ProtoWireScroll");
-			harmony.PatchAll();
-			Msg("🐾 ProtoWireScroll successfully loaded and patched! Woof!");
-		}
-		catch (Exception e) {
-			Error($"🐾 ProtoWireScroll failed to initialize! Error: {e.Message}");
-			Error(e.StackTrace);
-		}
-	}
-
-	private static void OnConfigChanged(ConfigurationChangedEvent configEvent) {
-		if (!Config.GetValue(ENABLED) || Config == null) return;  // Early return if Config is null or mod is Disabled
+		Harmony harmony = new Harmony("com.Dexy.ProtoWireScroll");
+		harmony.PatchAll();
+		Msg("🐾 ProtoWireScroll successfully loaded and patched! Woof!");
 		
-		foreach (var kvp in pannerCache) {
-			var panner = kvp.Value;
-			if (panner == null) continue;
+		Config.OnThisConfigurationChanged += (k) => {
+			if (k.Key != ENABLED) {
+				foreach (var kvp in pannerCache) {
+					var panner = kvp.Value;
+					if (panner == null) continue;
 
-			if (Config.TryGetValue(SCROLL_SPEED, out var speed)) {
-				panner.Speed = speed;
-			}
-			if (Config.TryGetValue(SCROLL_REPEAT, out var repeat)) {
-				panner.Repeat = repeat;
-			}
-			if (Config.TryGetValue(PING_PONG, out var pingPong)) {
-				panner.PingPong.Value = pingPong;
-			}
+					panner.Speed = Config.GetValue(SCROLL_SPEED);
+					panner.Repeat = Config.GetValue(SCROLL_REPEAT);
+					panner.PingPong.Value = Config.GetValue(PING_PONG);
 
-			// Get the FresnelMaterial
-			var fresnelMaterial = kvp.Key.GetComponent<FresnelMaterial>();
-			if (fresnelMaterial != null) {
-				if (Config.TryGetValue(FAR_TEXTURE, out var farTextureUrl) && farTextureUrl != null) {
-					var farTexture = GetOrCreateSharedTexture(fresnelMaterial.Slot, farTextureUrl);
-					fresnelMaterial.FarTexture.Target = farTexture;
+					// Get the FresnelMaterial
+					var fresnelMaterial = kvp.Key.GetComponent<FresnelMaterial>();
+					if (fresnelMaterial != null) {
+						var farTexture = GetOrCreateSharedTexture(fresnelMaterial.Slot, Config.GetValue(FAR_TEXTURE));
+						fresnelMaterial.FarTexture.Target = farTexture;
+						
+						var nearTexture = GetOrCreateSharedTexture(fresnelMaterial.Slot, Config.GetValue(NEAR_TEXTURE));
+						fresnelMaterial.NearTexture.Target = nearTexture;
+					}
 				}
-				if (Config.TryGetValue(NEAR_TEXTURE, out var nearTextureUrl) && nearTextureUrl != null) {
-					var nearTexture = GetOrCreateSharedTexture(fresnelMaterial.Slot, nearTextureUrl);
-					fresnelMaterial.NearTexture.Target = nearTexture;
-				}
-			}
-		}
-		Msg("🐾 Updated all ProtoWireScroll settings! *happy tail wag*");
+			} 
+		};
 	}
 
 	[HarmonyPatch(typeof(ProtoFluxWireManager), "OnChanges")]
 	class ProtoFluxWireManager_OnChanges_Patch {
 		public static void Postfix(ProtoFluxWireManager __instance, SyncRef<MeshRenderer> ____renderer, SyncRef<StripeWireMesh> ____wireMesh) {
-			if (!Config.GetValue(ENABLED) || __instance == null) return;
+			if (!Config.GetValue(ENABLED) || __instance == null || ____renderer?.Target == null) return;
 			
 			// Get the Allocating User
 			__instance.Slot.ReferenceID.ExtractIDs(out ulong position, out byte user);
@@ -139,11 +117,6 @@ public class ProtoWireScroll : ResoniteMod {
 			
 			// Don't run if the Allocating User isn't the LocalUser
 			if (allocatingUser == null || position < allocatingUser.AllocationIDStart || allocatingUser != __instance.LocalUser) return;
-			
-			if (____renderer?.Target == null) {
-				Error($"Renderer reference or target is null! *whimpers*");
-				return;
-			}
 			
 			// Get or Create the Fresnel Material
 			var fresnelMaterial = GetOrCreateSharedMaterial(__instance.Slot);
@@ -153,43 +126,29 @@ public class ProtoWireScroll : ResoniteMod {
 			if (!pannerCache.TryGetValue(fresnelMaterial.Slot, out var panner)) {
 				panner = fresnelMaterial.Slot.GetComponentOrAttach<Panner2D>();
 			
-				if (Config.TryGetValue(SCROLL_SPEED, out var speed)) {
-					panner.Speed = speed;
-				}
-				if (Config.TryGetValue(SCROLL_REPEAT, out var repeat)) {
-					panner.Repeat = repeat;
-				}
-				if (Config.TryGetValue(PING_PONG, out var pingPong)) {
-					panner.PingPong.Value = pingPong;
-				}
+				panner.Speed = Config.GetValue(SCROLL_SPEED);
+				panner.Repeat = Config.GetValue(SCROLL_REPEAT);
+				panner.PingPong.Value = Config.GetValue(PING_PONG);
+				
 				pannerCache[fresnelMaterial.Slot] = panner;
 
 				// Set the textures
-				if (Config.TryGetValue(FAR_TEXTURE, out var farTextureUrl) == true && farTextureUrl != null) {
-					var farTexture = GetOrCreateSharedTexture(fresnelMaterial.Slot, farTextureUrl);
-					fresnelMaterial.FarTexture.Target = farTexture;
-				}
-				if (Config.TryGetValue(NEAR_TEXTURE, out var nearTextureUrl) == true && nearTextureUrl != null) {
-					var nearTexture = GetOrCreateSharedTexture(fresnelMaterial.Slot, nearTextureUrl);
-					fresnelMaterial.NearTexture.Target = nearTexture;
-				}
-
-				Msg($"Created new Panner2D *tail wag*");
+				var farTexture = GetOrCreateSharedTexture(fresnelMaterial.Slot, Config.GetValue(FAR_TEXTURE));
+				fresnelMaterial.FarTexture.Target = farTexture;
+				
+				var nearTexture = GetOrCreateSharedTexture(fresnelMaterial.Slot, Config.GetValue(NEAR_TEXTURE));
+				fresnelMaterial.NearTexture.Target = nearTexture;
 			}
 
 			// Setup texture offset drivers if they don't exist
 			if (!fresnelMaterial.FarTextureOffset.IsLinked) {
-				panner.Target = fresnelMaterial.FarTextureOffset;  // Direct assignment to the IField
-				Msg($"Linked FarTextureOffset to Panner2D! Woof!");
+				panner.Target = fresnelMaterial.FarTextureOffset;
 			}
 
 			if (!fresnelMaterial.NearTextureOffset.IsLinked) {
-				fresnelMaterial.Slot.RunSynchronously(() => {
-					ValueDriver<float2> newNearDrive = fresnelMaterial.Slot.GetComponentOrAttach<ValueDriver<float2>>();
-					newNearDrive.DriveTarget.Target = fresnelMaterial.NearTextureOffset;
-					newNearDrive.ValueSource.Target = panner.Target;
-					Msg($"Created new NearTextureOffset driver! *excited bark*");
-				});
+				ValueDriver<float2> newNearDrive = fresnelMaterial.Slot.GetComponentOrAttach<ValueDriver<float2>>();
+				newNearDrive.DriveTarget.Target = fresnelMaterial.NearTextureOffset;
+				newNearDrive.ValueSource.Target = panner.Target;
 			}
 			
 			// Only flip the texture direction for input wires
@@ -203,7 +162,7 @@ public class ProtoWireScroll : ResoniteMod {
 	class ProtoFluxWireManager_Setup_Patch {
 		public static void Postfix(ProtoFluxWireManager __instance, WireType type, SyncRef<StripeWireMesh> ____wireMesh) {
 			// Only flip the texture direction for input wires
-			if (!Config.GetValue(ENABLED) || __instance == null) return;
+			if (!Config.GetValue(ENABLED) || __instance == null || ____wireMesh.Target == null) return;
 			
 			// Get the Allocating User
 			__instance.Slot.ReferenceID.ExtractIDs(out ulong position, out byte user);
@@ -220,27 +179,24 @@ public class ProtoWireScroll : ResoniteMod {
 	
 	private static FresnelMaterial GetOrCreateSharedMaterial(Slot slot) {
 		// Add the new Material to __TEMP
-		FresnelMaterial fresnel = slot.World.RootSlot.FindChildOrAdd("__TEMP", false).FindChildOrAdd($"{slot.LocalUser.UserName}-Scrolling-ProtofluxWire", false).GetComponentOrAttach<FresnelMaterial>();
+		FresnelMaterial fresnelMaterial = slot.World.RootSlot.FindChildOrAdd("__TEMP", false).FindChildOrAdd($"{slot.LocalUser.UserName}-Scrolling-ProtofluxWire", false).GetComponentOrAttach<FresnelMaterial>();
 		
 		// This is from ProtoFluxWireManager.OnAttach();
-		fresnel.NearColor.Value = new colorX(0.8f);
-		fresnel.FarColor.Value = new colorX(1.4f);
-		fresnel.Sidedness.Value = Sidedness.Double;
-		fresnel.UseVertexColors.Value = true;
-		fresnel.BlendMode.Value = BlendMode.Alpha;
-		fresnel.ZWrite.Value = ZWrite.On;
+		fresnelMaterial.NearColor.Value = new colorX(0.8f);
+		fresnelMaterial.FarColor.Value = new colorX(1.4f);
+		fresnelMaterial.Sidedness.Value = Sidedness.Double;
+		fresnelMaterial.UseVertexColors.Value = true;
+		fresnelMaterial.BlendMode.Value = BlendMode.Alpha;
+		fresnelMaterial.ZWrite.Value = ZWrite.On;
 		
 		// Set the Textures
-		if (Config.TryGetValue(FAR_TEXTURE, out var farTextureUrl) && farTextureUrl != null) {
-			var farTexture = GetOrCreateSharedTexture(fresnel.Slot, farTextureUrl);
-			fresnel.FarTexture.Target = farTexture;
-		}
-		if (Config.TryGetValue(NEAR_TEXTURE, out var nearTextureUrl) && nearTextureUrl != null) {
-			var nearTexture = GetOrCreateSharedTexture(fresnel.Slot, nearTextureUrl);
-			fresnel.NearTexture.Target = nearTexture;
-		}
+		var farTexture = GetOrCreateSharedTexture(fresnelMaterial.Slot, Config.GetValue(FAR_TEXTURE));
+		fresnelMaterial.FarTexture.Target = farTexture;
 		
-		return fresnel;
+		var nearTexture = GetOrCreateSharedTexture(fresnelMaterial.Slot, Config.GetValue(NEAR_TEXTURE));
+		fresnelMaterial.NearTexture.Target = nearTexture;
+		
+		return fresnelMaterial;
 	}
 
 	private static StaticTexture2D GetOrCreateSharedTexture(Slot slot, Uri uri) {
