@@ -111,12 +111,19 @@ public class ProtoWireScroll : ResoniteMod {
 		public static void Postfix(ProtoFluxWireManager __instance, SyncRef<MeshRenderer> ____renderer, SyncRef<StripeWireMesh> ____wireMesh) {
 			if (!Config.GetValue(ENABLED) || __instance == null || ____renderer?.Target == null) return;
 			
-			// Get the Allocating User
+			// Get the AllocUser
 			__instance.Slot.ReferenceID.ExtractIDs(out ulong position, out byte user);
-			User allocatingUser = __instance.World.GetUserByAllocationID(user);
+			User wirePointAllocUser = __instance.World.GetUserByAllocationID(user);
 			
-			// Don't run if the Allocating User isn't the LocalUser
-			if (allocatingUser == null || position < allocatingUser.AllocationIDStart || allocatingUser != __instance.LocalUser) return;
+			// Don't run if the AllocUser of the wirePoint isn't the LocalUser
+			if (wirePointAllocUser == null || position < wirePointAllocUser.AllocationIDStart) {
+				__instance.ReferenceID.ExtractIDs(out ulong position1, out byte user1);
+				User instanceAllocUser = __instance.World.GetUserByAllocationID(user1);
+				
+				// Don't run if the AllocUser of the wirePoint is null or Invalid, and the Instance AllocUser is Null or invalid or isn't the LocalUser
+				if (instanceAllocUser == null || position1 < instanceAllocUser.AllocationIDStart || instanceAllocUser != __instance.LocalUser) return;
+			}
+			else if (wirePointAllocUser != __instance.LocalUser) return;
 			
 			// Get or Create the Fresnel Material
 			var fresnelMaterial = GetOrCreateSharedMaterial(__instance.Slot);
@@ -151,9 +158,15 @@ public class ProtoWireScroll : ResoniteMod {
 				newNearDrive.ValueSource.Target = panner.Target;
 			}
 			
-			// Only flip the texture direction for input wires
 			if (__instance.Type.Value == WireType.Input) {
-				____wireMesh.Target.UVScale.Value = new float2(-1f, ProtoFluxWireManager.WIRE_ATLAS_RATIO);
+				if (!____wireMesh.Target.UVScale.IsDriven) {
+					____wireMesh.Target.UVScale.Value = new float2(-1f, ProtoFluxWireManager.WIRE_ATLAS_RATIO);
+					
+					// This is a fuck you to the Mesh, Stay the correct way.
+					var valueCopy = __instance.Slot.GetComponentOrAttach<ValueCopy<float2>>();
+					valueCopy.Source.Target = ____wireMesh.Target.UVScale;
+					valueCopy.Target.Target = ____wireMesh.Target.UVScale;
+				}
 			}
 		}
 	}
@@ -166,10 +179,16 @@ public class ProtoWireScroll : ResoniteMod {
 			
 			// Get the Allocating User
 			__instance.Slot.ReferenceID.ExtractIDs(out ulong position, out byte user);
-			User allocatingUser = __instance.World.GetUserByAllocationID(user);
+			User wirePointAllocUser = __instance.World.GetUserByAllocationID(user);
 			
-			// Don't run if the Allocating User isn't the LocalUser
-			if (allocatingUser == null || position < allocatingUser.AllocationIDStart || allocatingUser != __instance.LocalUser) return;
+			// Don't run if the Allocating User of the wirePoint isn't the LocalUser
+			if (wirePointAllocUser == null || position < wirePointAllocUser.AllocationIDStart) {
+				__instance.ReferenceID.ExtractIDs(out ulong position1, out byte user1);
+				User instanceAllocUser = __instance.World.GetUserByAllocationID(user1);
+				
+				if (instanceAllocUser == null || position1 < instanceAllocUser.AllocationIDStart || instanceAllocUser != __instance.LocalUser) return;
+			}
+			else if (wirePointAllocUser != __instance.LocalUser) return;
 			
 			if (type == WireType.Input) {
 				____wireMesh.Target.UVScale.Value = new float2(-1f, ProtoFluxWireManager.WIRE_ATLAS_RATIO);
