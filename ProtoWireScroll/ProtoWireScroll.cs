@@ -203,6 +203,7 @@ public class ProtoWireScroll : ResoniteMod {
 	private static FresnelMaterial GetOrCreateSharedMaterial(Slot slot) {
 		// Add the new Material to __TEMP
 		FresnelMaterial fresnelMaterial = slot.World.RootSlot.FindChildOrAdd("__TEMP", false).FindChildOrAdd($"{slot.LocalUser.UserName}-Scrolling-ProtofluxWire", false).GetComponentOrAttach<FresnelMaterial>();
+		fresnelMaterial.Slot.GetComponentOrAttach<DestroyOnUserLeave>().TargetUser.Target = slot.LocalUser;
 		
 		// This is from ProtoFluxWireManager.OnAttach();
 		fresnelMaterial.NearColor.Value = new colorX(0.8f);
