@@ -159,7 +159,7 @@ public class ProtoWireScroll : ResoniteMod {
 	}
 
 	[HarmonyPatch(typeof(ProtoFluxWireManager), "Setup")]
-	class ProtoFluxWireManager_Setup_Patch {
+	class ProtoFluxWireManager_Setup_Patch {		
 		public static void Postfix(ProtoFluxWireManager __instance, WireType type, SyncRef<StripeWireMesh> ____wireMesh) {
 			// Only flip the texture direction for input wires
 			if (!Config.GetValue(ENABLED) || __instance == null || ____wireMesh.Target == null) return;
@@ -173,6 +173,11 @@ public class ProtoWireScroll : ResoniteMod {
 			
 			if (type == WireType.Input) {
 				____wireMesh.Target.UVScale.Value = new float2(-1f, ProtoFluxWireManager.WIRE_ATLAS_RATIO);
+				
+				// This is a fuck you to the Mesh, Stay the correct way.
+				var valueCopy = __instance.Slot.GetComponentOrAttach<ValueCopy<float2>>();
+				valueCopy.Source.Target = ____wireMesh.Target.UVScale;
+				valueCopy.Target.Target = ____wireMesh.Target.UVScale;
 			}
 		}
 	}
