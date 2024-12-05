@@ -17,9 +17,9 @@ namespace ProtoWireScroll {
     public class ProtoFluxNodeVisual_BuildUI_Patch {
         private static readonly Uri ROUNDED_TEXTURE = new Uri("resdb:///3ee5c0335455c19970d877e2b80f7869539df43fccb8fc64b38e320fc44c154f.png");
         private static readonly Uri CONNECTOR_INPUT_TEXTURE = new Uri("https://raw.githubusercontent.com/DexyThePuppy/ProtoFluxWiresThatCanScroll/refs/heads/main/ProtoWireScroll/Images/Connector_Input.png");
-        private static readonly Uri CONNECTOR_OUTPUT_TEXTURE = new Uri("https://raw.githubusercontent.com/DexyThePuppy/ProtoFluxWiresThatCanScroll/refs/heads/main/ProtoWireScroll/Images/Connector_Output.png");
+        private static readonly Uri CONNECTOR_OUTPUT_TEXTURE = new Uri("https://raw.githubusercontent.com/DexyThePuppy/ProtoFluxWiresThatCanScroll/refs/heads/main/ProtoWireScroll/Images/Connector_Output.png"); 
         private static readonly Uri CALL_CONNECTOR_OUTPUT_TEXTURE = new Uri("https://raw.githubusercontent.com/DexyThePuppy/ProtoFluxWiresThatCanScroll/refs/heads/main/ProtoWireScroll/Images/Connector_Output.png");
-        private static readonly Uri CALL_CONNECTOR_INPUT_TEXTURE = new Uri("https://raw.githubusercontent.com/DexyThePuppy/ProtoFluxWiresThatCanScroll/refs/heads/main/ProtoWireScroll/Images/Connector_Call_Input.png");
+        private static readonly Uri CALL_CONNECTOR_INPUT_TEXTURE = new Uri("https://raw.githubusercontent.com/DexyThePuppy/ProtoFluxWiresThatCanScroll/refs/heads/main/ProtoWireScroll/Images/Connector_Input.png");
         
         // ColorMyProtoFlux color settings
         private static readonly colorX NODE_CATEGORY_TEXT_LIGHT_COLOR = new colorX(0.75f);
