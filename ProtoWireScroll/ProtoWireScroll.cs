@@ -40,7 +40,7 @@ public class ProtoWireScroll : ResoniteMod {
 	public static readonly ModConfigurationKey<Uri> NEAR_TEXTURE = new("nearTexture", "Near Texture URL", () => new Uri("resdb:///de2b9dfc4d029bd32ec784078b7511f0a8f18d2690595fc2540729da63a37f0a.webp"));	
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<TextureFilterMode> FILTER_MODE = new("filterMode", "Texture Filter Mode", () => TextureFilterMode.Point);
+	public static readonly ModConfigurationKey<TextureFilterMode> FILTER_MODE = new("filterMode", "Texture Filter Mode", () => TextureFilterMode.Anisotropic);
 
 	[AutoRegisterConfigKey]
 	public static readonly ModConfigurationKey<bool> MIPMAPS = new("mipMaps", "Generate MipMaps", () => false);
@@ -55,7 +55,7 @@ public class ProtoWireScroll : ResoniteMod {
 	public static readonly ModConfigurationKey<bool> FORCE_EXACT_VARIANT = new("forceExactVariant", "Force Exact Variant", () => false);
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<bool> CRUNCH_COMPRESSED = new("crunchCompressed", "Use Crunch Compression", () => false);
+	public static readonly ModConfigurationKey<bool> CRUNCH_COMPRESSED = new("crunchCompressed", "Use Crunch Compression", () => true);
 
 	[AutoRegisterConfigKey]
 	public static readonly ModConfigurationKey<TextureWrapMode> WRAP_MODE_U = new("wrapModeU", "Texture Wrap Mode U", () => TextureWrapMode.Repeat);
@@ -73,7 +73,7 @@ public class ProtoWireScroll : ResoniteMod {
 	public static readonly ModConfigurationKey<bool> READABLE = new("readable", "Readable Texture", () => true);
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<int> ANISOTROPIC_LEVEL = new("anisotropicLevel", "Anisotropic Level", () => 1);
+	public static readonly ModConfigurationKey<int> ANISOTROPIC_LEVEL = new("anisotropicLevel", "Anisotropic Level", () => 8);
 
 
 	public override void OnEngineInit() {
