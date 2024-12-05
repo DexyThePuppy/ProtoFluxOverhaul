@@ -17,7 +17,7 @@ namespace ProtoWireScroll {
     public class ProtoFluxNodeVisual_BuildUI_Patch {
         private static readonly Uri ROUNDED_TEXTURE = new Uri("resdb:///3ee5c0335455c19970d877e2b80f7869539df43fccb8fc64b38e320fc44c154f.png");
         private static readonly Uri CONNECTOR_TEXTURE = new Uri("https://raw.githubusercontent.com/DexyThePuppy/ProtoFluxWiresThatCanScroll/refs/heads/main/ProtoWireScroll/Images/Connector.png");
-        private static readonly Uri CALL_CONNECTOR_TEXTURE = new Uri("https://raw.githubusercontent.com/DexyThePuppy/ProtoFluxWiresThatCanScroll/refs/heads/main/ProtoWireScroll/Images/Connector.png");
+        private static readonly Uri CALL_CONNECTOR_TEXTURE = new Uri("https://raw.githubusercontent.com/DexyThePuppy/ProtoFluxWiresThatCanScroll/refs/heads/main/ProtoWireScroll/Images/Connector_Call.png");
         
         // ColorMyProtoFlux color settings
         private static readonly colorX NODE_CATEGORY_TEXT_LIGHT_COLOR = new colorX(0.75f);
@@ -630,61 +630,35 @@ namespace ProtoWireScroll {
 
     // Patch to sync wire colors with ImpulseType colors
     [HarmonyPatch(typeof(ProtoFluxWireManager), "Setup")]
+    [HarmonyPatch(new Type[] { typeof(WireType), typeof(float), typeof(colorX), typeof(int), typeof(bool), typeof(bool) })]
     public class ProtoFluxWireManager_Setup_Patch {
-        public static void Postfix(ProtoFluxWireManager __instance, ProtoFluxElementProxy from, ProtoFluxElementProxy to, SyncRef<StripeWireMesh> ____wireMesh) {
+        public static void Postfix(
+            ProtoFluxWireManager __instance, 
+            WireType type,
+            float width,
+            colorX startColor,
+            int atlasOffset,
+            bool collider,
+            bool reverseTexture,
+            SyncRef<StripeWireMesh> ____wireMesh) 
+        {
             try {
                 // Skip if disabled
                 if (!ProtoWireScroll.Config.GetValue(ProtoWireScroll.ENABLED)) return;
 
-                // Get the impulse type if this is an impulse wire
-                ImpulseType? impulseType = null;
-                bool isAsync = false;
-
-                // Check if this is an impulse wire
-                if (from is ProtoFluxImpulseProxy impulseProxy) {
-                    impulseType = impulseProxy.ImpulseType.Value;
-                }
-                else if (from is ProtoFluxOperationProxy operationProxy) {
-                    isAsync = operationProxy.IsAsync.Value;
+                // Get the wire color based on the atlas offset
+                // Atlas offset 4 is for flow (impulse/operation) wires
+                colorX wireColor = startColor;
+                if (atlasOffset == 4) {
+                    // This is a flow wire, use flow colors
+                    wireColor = DatatypeColorHelper.SYNC_FLOW_COLOR;
                 }
 
-                // Get the appropriate color based on type
-                colorX wireColor;
-                if (impulseType.HasValue) {
-                    // Use ImpulseType colors from DatatypeColorHelper
-                    switch (impulseType.Value) {
-                        case ImpulseType.Continuation:
-                            wireColor = DatatypeColorHelper.CONTINUATION_COLOR;
-                            break;
-                        case ImpulseType.Call:
-                            wireColor = DatatypeColorHelper.SYNC_FLOW_COLOR;
-                            break;
-                        case ImpulseType.AsyncCall:
-                            wireColor = DatatypeColorHelper.ASYNC_FLOW_COLOR;
-                            break;
-                        case ImpulseType.SyncResumption:
-                            wireColor = DatatypeColorHelper.SYNC_RESUMPTION_COLOR;
-                            break;
-                        case ImpulseType.AsyncResumption:
-                            wireColor = DatatypeColorHelper.ASYNC_RESUMPTION_COLOR;
-                            break;
-                        default:
-                            wireColor = DatatypeColorHelper.SYNC_FLOW_COLOR;
-                            break;
-                    }
-                }
-                else if (from is ProtoFluxOperationProxy) {
-                    // Use operation colors
-                    wireColor = DatatypeColorHelper.GetOperationColor(isAsync);
-                }
-                else {
-                    // For regular data wires, use the type color
-                    var elementType = (from as ProtoFluxOutputProxy)?.OutputType.Value ?? 
-                                    (from as ProtoFluxInputProxy)?.InputType.Value;
-                    wireColor = elementType?.GetTypeColor() ?? colorX.White;
-                }
+                // Apply the color to both start and end of wire
+                __instance.StartColor.Value = wireColor;
+                __instance.EndColor.Value = wireColor;
 
-                // Apply the color to the wire
+                // Also update the wire mesh colors
                 if (____wireMesh?.Target != null) {
                     ____wireMesh.Target.Color0.Value = wireColor;
                     ____wireMesh.Target.Color1.Value = wireColor;
