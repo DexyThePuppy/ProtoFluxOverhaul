@@ -16,8 +16,10 @@ namespace ProtoWireScroll {
     [HarmonyPatch(typeof(ProtoFluxNodeVisual), "BuildUI")]
     public class ProtoFluxNodeVisual_BuildUI_Patch {
         private static readonly Uri ROUNDED_TEXTURE = new Uri("resdb:///3ee5c0335455c19970d877e2b80f7869539df43fccb8fc64b38e320fc44c154f.png");
-        private static readonly Uri CONNECTOR_TEXTURE = new Uri("https://raw.githubusercontent.com/DexyThePuppy/ProtoFluxWiresThatCanScroll/refs/heads/main/ProtoWireScroll/Images/Connector.png");
-        private static readonly Uri CALL_CONNECTOR_TEXTURE = new Uri("https://raw.githubusercontent.com/DexyThePuppy/ProtoFluxWiresThatCanScroll/refs/heads/main/ProtoWireScroll/Images/Connector_Call.png");
+        private static readonly Uri CONNECTOR_INPUT_TEXTURE = new Uri("https://raw.githubusercontent.com/DexyThePuppy/ProtoFluxWiresThatCanScroll/refs/heads/main/ProtoWireScroll/Images/Connector_Input.png");
+        private static readonly Uri CONNECTOR_OUTPUT_TEXTURE = new Uri("https://raw.githubusercontent.com/DexyThePuppy/ProtoFluxWiresThatCanScroll/refs/heads/main/ProtoWireScroll/Images/Connector_Output.png");
+        private static readonly Uri CALL_CONNECTOR_OUTPUT_TEXTURE = new Uri("https://raw.githubusercontent.com/DexyThePuppy/ProtoFluxWiresThatCanScroll/refs/heads/main/ProtoWireScroll/Images/Connector_Output.png");
+        private static readonly Uri CALL_CONNECTOR_INPUT_TEXTURE = new Uri("https://raw.githubusercontent.com/DexyThePuppy/ProtoFluxWiresThatCanScroll/refs/heads/main/ProtoWireScroll/Images/Connector_Call_Input.png");
         
         // ColorMyProtoFlux color settings
         private static readonly colorX NODE_CATEGORY_TEXT_LIGHT_COLOR = new colorX(0.75f);
@@ -73,7 +75,7 @@ namespace ProtoWireScroll {
             // Set up the texture if not already set
             if (spriteProvider.Texture.Target == null) {
                 var texture = spriteProvider.Slot.AttachComponent<StaticTexture2D>();
-                texture.URL.Value = CONNECTOR_TEXTURE;
+                texture.URL.Value = isOutput ? CONNECTOR_OUTPUT_TEXTURE : CONNECTOR_INPUT_TEXTURE;
                 texture.FilterMode.Value = ProtoWireScroll.Config.GetValue(ProtoWireScroll.FILTER_MODE);
                 texture.WrapModeU.Value = TextureWrapMode.Clamp;
                 texture.WrapModeV.Value = TextureWrapMode.Clamp;
@@ -88,11 +90,7 @@ namespace ProtoWireScroll {
                 texture.ForceExactVariant.Value = ProtoWireScroll.Config.GetValue(ProtoWireScroll.FORCE_EXACT_VARIANT);
                 
                 spriteProvider.Texture.Target = texture;
-                // For outputs (right side), keep normal orientation
-                // For inputs (left side), flip horizontally
-                spriteProvider.Rect.Value = !isOutput ? 
-                    new Rect(0f, 0f, 1f, 1f) :    // Inputs (left) normal orientation
-                    new Rect(1f, 0f, -1f, 1f);    // Outputs (right) flipped
+                spriteProvider.Rect.Value = new Rect(0f, 0f, 1f, 1f); // No need to flip since we have separate textures
                 spriteProvider.Scale.Value = 1.0f;
                 spriteProvider.FixedSize.Value = 16f; // Match the RectTransform width
                 spriteProvider.Borders.Value = new float4(0f, 0f, 0.0001f, 0f); // x=0, y=0, z=0.01, w=0
@@ -127,7 +125,7 @@ namespace ProtoWireScroll {
             // Set up the texture if not already set
             if (spriteProvider.Texture.Target == null) {
                 var texture = spriteProvider.Slot.AttachComponent<StaticTexture2D>();
-                texture.URL.Value = CALL_CONNECTOR_TEXTURE;
+                texture.URL.Value = isOutput ? CALL_CONNECTOR_OUTPUT_TEXTURE : CALL_CONNECTOR_INPUT_TEXTURE;
                 texture.FilterMode.Value = ProtoWireScroll.Config.GetValue(ProtoWireScroll.FILTER_MODE);
                 texture.WrapModeU.Value = TextureWrapMode.Clamp;
                 texture.WrapModeV.Value = TextureWrapMode.Clamp;
@@ -142,11 +140,7 @@ namespace ProtoWireScroll {
                 texture.ForceExactVariant.Value = ProtoWireScroll.Config.GetValue(ProtoWireScroll.FORCE_EXACT_VARIANT);
                 
                 spriteProvider.Texture.Target = texture;
-                // For outputs (right side), keep normal orientation
-                // For inputs (left side), flip horizontally
-                spriteProvider.Rect.Value = !isOutput ? 
-                    new Rect(0f, 0f, 1f, 1f) :    // Inputs (left) normal orientation
-                    new Rect(1f, 0f, -1f, 1f);    // Outputs (right) flipped
+                spriteProvider.Rect.Value = new Rect(0f, 0f, 1f, 1f); // No need to flip since we have separate textures
                 spriteProvider.Scale.Value = 1.0f;
                 spriteProvider.FixedSize.Value = 16f; // Match the RectTransform width
                 spriteProvider.Borders.Value = new float4(0f, 0f, 0.0001f, 0f); // x=0, y=0, z=0.01, w=0
@@ -646,22 +640,32 @@ namespace ProtoWireScroll {
                 // Skip if disabled
                 if (!ProtoWireScroll.Config.GetValue(ProtoWireScroll.ENABLED)) return;
 
-                // Get the wire color based on the atlas offset
-                // Atlas offset 4 is for flow (impulse/operation) wires
-                colorX wireColor = startColor;
+                // Get the wire colors based on the atlas offset and type
+                colorX color1 = startColor;
+                colorX color2 = startColor;
+
                 if (atlasOffset == 4) {
-                    // This is a flow wire, use flow colors
-                    wireColor = DatatypeColorHelper.SYNC_FLOW_COLOR;
+                    // This is a flow wire, check if it's async by looking at the color
+                    bool isAsync = startColor.b > startColor.g; // Purple has more blue than green
+
+                    // For flow wires, use the appropriate colors based on sync/async
+                    if (type == WireType.Output) {
+                        color1 = DatatypeColorHelper.GetOperationColor(isAsync);
+                        color2 = startColor; // Keep target color
+                    } else {
+                        color1 = startColor; // Keep source color
+                        color2 = DatatypeColorHelper.GetOperationColor(isAsync);
+                    }
                 }
 
-                // Apply the color to both start and end of wire
-                __instance.StartColor.Value = wireColor;
-                __instance.EndColor.Value = wireColor;
+                // Apply the colors to create a gradient
+                __instance.StartColor.Value = color1;
+                __instance.EndColor.Value = color2;
 
                 // Also update the wire mesh colors
                 if (____wireMesh?.Target != null) {
-                    ____wireMesh.Target.Color0.Value = wireColor;
-                    ____wireMesh.Target.Color1.Value = wireColor;
+                    ____wireMesh.Target.Color0.Value = color1;
+                    ____wireMesh.Target.Color1.Value = color2;
                 }
             }
             catch (System.Exception e) {
