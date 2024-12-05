@@ -53,6 +53,10 @@
 		    <HintPath>$(ResonitePath)Resonite_Data\Managed\Elements.Assets.dll</HintPath>
 		    <Private>False</Private>
 		</Reference>
+		<Reference Include="ProtoFlux.Core">
+		    <HintPath>$(ResonitePath)Resonite_Data\Managed\ProtoFlux.Core.dll</HintPath>
+		    <Private>False</Private>
+		</Reference>
 	</ItemGroup>
 
 	<Target Name="PostBuild" AfterTargets="PostBuildEvent" Condition="'$(CopyToMods)'=='true'">

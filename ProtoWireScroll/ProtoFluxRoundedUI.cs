@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using Elements.Assets;
 using System.Linq;
 using System.Reflection;
+using ProtoFlux.Core;
 
 namespace ProtoWireScroll {
     // Patch to add rounded corners to ProtoFlux node visuals
@@ -16,6 +17,7 @@ namespace ProtoWireScroll {
     public class ProtoFluxNodeVisual_BuildUI_Patch {
         private static readonly Uri ROUNDED_TEXTURE = new Uri("resdb:///3ee5c0335455c19970d877e2b80f7869539df43fccb8fc64b38e320fc44c154f.png");
         private static readonly Uri CONNECTOR_TEXTURE = new Uri("https://raw.githubusercontent.com/DexyThePuppy/ProtoFluxWiresThatCanScroll/refs/heads/main/ProtoWireScroll/Images/Connector.png");
+        private static readonly Uri CALL_CONNECTOR_TEXTURE = new Uri("https://raw.githubusercontent.com/DexyThePuppy/ProtoFluxWiresThatCanScroll/refs/heads/main/ProtoWireScroll/Images/Connector.png");
         
         // ColorMyProtoFlux color settings
         private static readonly colorX NODE_CATEGORY_TEXT_LIGHT_COLOR = new colorX(0.75f);
@@ -24,10 +26,34 @@ namespace ProtoWireScroll {
         // Cache for shared sprite provider
         private static readonly Dictionary<(Slot, bool), SpriteProvider> connectorSpriteCache = new Dictionary<(Slot, bool), SpriteProvider>();
 
+        private static Dictionary<(Slot, bool), SpriteProvider> callConnectorSpriteCache = new Dictionary<(Slot, bool), SpriteProvider>();
+
+        /// <summary>
+        /// Determines if a connector should use the Call sprite based on its type
+        /// </summary>
+        private static bool ShouldUseCallConnector(ImpulseType? impulseType, bool isOperation = false, bool isAsync = false) {
+            // If it's any ImpulseType, use the flow connector
+            if (impulseType.HasValue) {
+                return true;
+            }
+            
+            // For operations, check if it's a flow connector
+            if (isOperation) {
+                return true; // Operations use flow connectors
+            }
+            
+            return false;
+        }
+
         /// <summary>
         /// Creates or retrieves a shared sprite provider for the connector image
         /// </summary>
-        public static SpriteProvider GetOrCreateSharedConnectorSprite(Slot slot, bool isOutput) {
+        public static SpriteProvider GetOrCreateSharedConnectorSprite(Slot slot, bool isOutput, ImpulseType? impulseType = null, bool isOperation = false, bool isAsync = false) {
+            // Check if this should use the Call connector
+            if (ShouldUseCallConnector(impulseType, isOperation, isAsync)) {
+                return GetOrCreateSharedCallConnectorSprite(slot, isOutput);
+            }
+            
             var cacheKey = (slot, isOutput);
             
             // Check cache first
@@ -74,6 +100,60 @@ namespace ProtoWireScroll {
 
             // Cache the provider
             connectorSpriteCache[cacheKey] = spriteProvider;
+
+            return spriteProvider;
+        }
+
+        /// <summary>
+        /// Creates or retrieves a shared sprite provider for the Call connector image
+        /// </summary>
+        public static SpriteProvider GetOrCreateSharedCallConnectorSprite(Slot slot, bool isOutput) {
+            var cacheKey = (slot, isOutput);
+            
+            // Check cache first
+            if (callConnectorSpriteCache.TryGetValue(cacheKey, out var cachedProvider)) {
+                return cachedProvider;
+            }
+
+            // Create sprite in temporary storage
+            SpriteProvider spriteProvider = slot.World.RootSlot
+                .FindChildOrAdd("__TEMP", false)
+                .FindChildOrAdd($"{slot.LocalUser.UserName}-Call-Connector-Sprite-{(isOutput ? "Output" : "Input")}", false)
+                .GetComponentOrAttach<SpriteProvider>();
+
+            // Ensure cleanup when user leaves
+            spriteProvider.Slot.GetComponentOrAttach<DestroyOnUserLeave>().TargetUser.Target = slot.LocalUser;
+
+            // Set up the texture if not already set
+            if (spriteProvider.Texture.Target == null) {
+                var texture = spriteProvider.Slot.AttachComponent<StaticTexture2D>();
+                texture.URL.Value = CALL_CONNECTOR_TEXTURE;
+                texture.FilterMode.Value = ProtoWireScroll.Config.GetValue(ProtoWireScroll.FILTER_MODE);
+                texture.WrapModeU.Value = TextureWrapMode.Clamp;
+                texture.WrapModeV.Value = TextureWrapMode.Clamp;
+                texture.MipMaps.Value = ProtoWireScroll.Config.GetValue(ProtoWireScroll.MIPMAPS);
+                texture.MipMapFilter.Value = ProtoWireScroll.Config.GetValue(ProtoWireScroll.MIPMAP_FILTER);
+                texture.AnisotropicLevel.Value = ProtoWireScroll.Config.GetValue(ProtoWireScroll.ANISOTROPIC_LEVEL);
+                texture.KeepOriginalMipMaps.Value = ProtoWireScroll.Config.GetValue(ProtoWireScroll.KEEP_ORIGINAL_MIPMAPS);
+                texture.CrunchCompressed.Value = ProtoWireScroll.Config.GetValue(ProtoWireScroll.CRUNCH_COMPRESSED);
+                texture.Readable.Value = ProtoWireScroll.Config.GetValue(ProtoWireScroll.READABLE);
+                texture.Uncompressed.Value = ProtoWireScroll.Config.GetValue(ProtoWireScroll.UNCOMPRESSED);
+                texture.DirectLoad.Value = ProtoWireScroll.Config.GetValue(ProtoWireScroll.DIRECT_LOAD);
+                texture.ForceExactVariant.Value = ProtoWireScroll.Config.GetValue(ProtoWireScroll.FORCE_EXACT_VARIANT);
+                
+                spriteProvider.Texture.Target = texture;
+                // For outputs (right side), keep normal orientation
+                // For inputs (left side), flip horizontally
+                spriteProvider.Rect.Value = !isOutput ? 
+                    new Rect(0f, 0f, 1f, 1f) :    // Inputs (left) normal orientation
+                    new Rect(1f, 0f, -1f, 1f);    // Outputs (right) flipped
+                spriteProvider.Scale.Value = 1.0f;
+                spriteProvider.FixedSize.Value = 16f; // Match the RectTransform width
+                spriteProvider.Borders.Value = new float4(0f, 0f, 0.0001f, 0f); // x=0, y=0, z=0.01, w=0
+            }
+
+            // Cache the provider
+            callConnectorSpriteCache[cacheKey] = spriteProvider;
 
             return spriteProvider;
         }
@@ -160,8 +240,24 @@ namespace ProtoWireScroll {
                     // Determine if this is an output connector based on its RectTransform settings
                     bool isOutput = connectorImage.RectTransform.OffsetMin.Value.x < 0;
                     
-                    // Get or create shared sprite provider
-                    var spriteProvider = GetOrCreateSharedConnectorSprite(connectorImage.Slot, isOutput);
+                    // Check for ImpulseType by looking for ImpulseProxy or OperationProxy
+                    var impulseProxy = connectorImage.Slot.GetComponent<ProtoFluxImpulseProxy>();
+                    var operationProxy = connectorImage.Slot.GetComponent<ProtoFluxOperationProxy>();
+                    
+                    ImpulseType? impulseType = null;
+                    bool isOperation = false;
+                    bool isAsync = false;
+                    
+                    if (impulseProxy != null) {
+                        impulseType = impulseProxy.ImpulseType.Value;
+                    }
+                    else if (operationProxy != null) {
+                        isOperation = true;
+                        isAsync = operationProxy.IsAsync.Value;
+                    }
+                    
+                    // Get or create shared sprite provider with the correct type
+                    var spriteProvider = GetOrCreateSharedConnectorSprite(connectorImage.Slot, isOutput, impulseType, isOperation, isAsync);
                     
                     // Apply the sprite provider to the connector image
                     connectorImage.Sprite.Target = spriteProvider;
@@ -367,8 +463,30 @@ namespace ProtoWireScroll {
                     // Determine if this is an output connector based on its position
                     bool isOutput = connectorImage.RectTransform.OffsetMin.Value.x < 0;
                     
-                    // Get or create shared sprite provider
-                    var spriteProvider = ProtoFluxNodeVisual_BuildUI_Patch.GetOrCreateSharedConnectorSprite(connectorImage.Slot, isOutput);
+                    // Check for ImpulseType by looking for ImpulseProxy or OperationProxy
+                    var impulseProxy = connectorImage.Slot.GetComponent<ProtoFluxImpulseProxy>();
+                    var operationProxy = connectorImage.Slot.GetComponent<ProtoFluxOperationProxy>();
+                    
+                    ImpulseType? impulseType = null;
+                    bool isOperation = false;
+                    bool isAsync = false;
+                    
+                    if (impulseProxy != null) {
+                        impulseType = impulseProxy.ImpulseType.Value;
+                    }
+                    else if (operationProxy != null) {
+                        isOperation = true;
+                        isAsync = operationProxy.IsAsync.Value;
+                    }
+                    
+                    // Get or create shared sprite provider with the correct type
+                    var spriteProvider = ProtoFluxNodeVisual_BuildUI_Patch.GetOrCreateSharedConnectorSprite(
+                        connectorImage.Slot, 
+                        isOutput, 
+                        impulseType, 
+                        isOperation, 
+                        isAsync
+                    );
                     
                     // Apply the sprite provider to the connector image
                     connectorImage.Sprite.Target = spriteProvider;
@@ -393,21 +511,43 @@ namespace ProtoWireScroll {
                 // === User Permission Check ===
                 if (!ProtoFluxNodeVisual_BuildUI_Patch.HasPermission(__instance)) return;
 
-                // Find the most recently created connector
+                // Find the most recently added connector
                 var connectorImage = ui.Root.GetComponentsInChildren<Image>()
-                    .LastOrDefault(img => img.Slot.Name == "Connector");
+                    .Where(img => img.Slot.Name == "Connector")
+                    .LastOrDefault();
 
                 if (connectorImage != null) {
                     // Determine if this is an output connector based on its position
                     bool isOutput = connectorImage.RectTransform.OffsetMin.Value.x < 0;
                     
-                    // Get or create shared sprite provider
-                    var spriteProvider = ProtoFluxNodeVisual_BuildUI_Patch.GetOrCreateSharedConnectorSprite(connectorImage.Slot, isOutput);
+                    // Check for ImpulseType by looking for ImpulseProxy or OperationProxy
+                    var impulseProxy = connectorImage.Slot.GetComponent<ProtoFluxImpulseProxy>();
+                    var operationProxy = connectorImage.Slot.GetComponent<ProtoFluxOperationProxy>();
+                    
+                    ImpulseType? impulseType = null;
+                    bool isOperation = false;
+                    bool isAsync = false;
+                    
+                    if (impulseProxy != null) {
+                        impulseType = impulseProxy.ImpulseType.Value;
+                    }
+                    else if (operationProxy != null) {
+                        isOperation = true;
+                        isAsync = operationProxy.IsAsync.Value;
+                    }
+                    
+                    // Get or create shared sprite provider with the correct type
+                    var spriteProvider = ProtoFluxNodeVisual_BuildUI_Patch.GetOrCreateSharedConnectorSprite(
+                        connectorImage.Slot, 
+                        isOutput, 
+                        impulseType, 
+                        isOperation, 
+                        isAsync
+                    );
                     
                     // Apply the sprite provider to the connector image
                     connectorImage.Sprite.Target = spriteProvider;
                     connectorImage.PreserveAspect.Value = true;
-                    connectorImage.FlipHorizontally.Value = false; // We handle flipping in the sprite provider
                 }
             }
             catch (System.Exception e) {
@@ -485,6 +625,74 @@ namespace ProtoWireScroll {
             // Preserve color and tint settings
             image.PreserveAspect.Value = true;
             ProtoWireScroll.Msg("✅ Successfully applied rounded corners to background!");
+        }
+    }
+
+    // Patch to sync wire colors with ImpulseType colors
+    [HarmonyPatch(typeof(ProtoFluxWireManager), "Setup")]
+    public class ProtoFluxWireManager_Setup_Patch {
+        public static void Postfix(ProtoFluxWireManager __instance, ProtoFluxElementProxy from, ProtoFluxElementProxy to, SyncRef<StripeWireMesh> ____wireMesh) {
+            try {
+                // Skip if disabled
+                if (!ProtoWireScroll.Config.GetValue(ProtoWireScroll.ENABLED)) return;
+
+                // Get the impulse type if this is an impulse wire
+                ImpulseType? impulseType = null;
+                bool isAsync = false;
+
+                // Check if this is an impulse wire
+                if (from is ProtoFluxImpulseProxy impulseProxy) {
+                    impulseType = impulseProxy.ImpulseType.Value;
+                }
+                else if (from is ProtoFluxOperationProxy operationProxy) {
+                    isAsync = operationProxy.IsAsync.Value;
+                }
+
+                // Get the appropriate color based on type
+                colorX wireColor;
+                if (impulseType.HasValue) {
+                    // Use ImpulseType colors from DatatypeColorHelper
+                    switch (impulseType.Value) {
+                        case ImpulseType.Continuation:
+                            wireColor = DatatypeColorHelper.CONTINUATION_COLOR;
+                            break;
+                        case ImpulseType.Call:
+                            wireColor = DatatypeColorHelper.SYNC_FLOW_COLOR;
+                            break;
+                        case ImpulseType.AsyncCall:
+                            wireColor = DatatypeColorHelper.ASYNC_FLOW_COLOR;
+                            break;
+                        case ImpulseType.SyncResumption:
+                            wireColor = DatatypeColorHelper.SYNC_RESUMPTION_COLOR;
+                            break;
+                        case ImpulseType.AsyncResumption:
+                            wireColor = DatatypeColorHelper.ASYNC_RESUMPTION_COLOR;
+                            break;
+                        default:
+                            wireColor = DatatypeColorHelper.SYNC_FLOW_COLOR;
+                            break;
+                    }
+                }
+                else if (from is ProtoFluxOperationProxy) {
+                    // Use operation colors
+                    wireColor = DatatypeColorHelper.GetOperationColor(isAsync);
+                }
+                else {
+                    // For regular data wires, use the type color
+                    var elementType = (from as ProtoFluxOutputProxy)?.OutputType.Value ?? 
+                                    (from as ProtoFluxInputProxy)?.InputType.Value;
+                    wireColor = elementType?.GetTypeColor() ?? colorX.White;
+                }
+
+                // Apply the color to the wire
+                if (____wireMesh?.Target != null) {
+                    ____wireMesh.Target.Color0.Value = wireColor;
+                    ____wireMesh.Target.Color1.Value = wireColor;
+                }
+            }
+            catch (System.Exception e) {
+                ProtoWireScroll.Msg($"❌ Error in ProtoFluxWireManager_Setup_Patch: {e.Message}");
+            }
         }
     }
 } 
