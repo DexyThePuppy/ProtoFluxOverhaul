@@ -40,6 +40,27 @@ public class ProtoFluxVisualsOverhaul : ResoniteMod {
 	public static readonly ModConfigurationKey<Uri> NEAR_TEXTURE = new("nearTexture", "Near Texture URL", () => new Uri("resdb:///de2b9dfc4d029bd32ec784078b7511f0a8f18d2690595fc2540729da63a37f0a.webp"));	
 
 	[AutoRegisterConfigKey]
+	public static readonly ModConfigurationKey<Uri> ROUNDED_TEXTURE = new("roundedTexture", "Rounded Texture URL", () => new Uri("resdb:///3ee5c0335455c19970d877e2b80f7869539df43fccb8fc64b38e320fc44c154f.png"));
+
+	[AutoRegisterConfigKey]
+	public static readonly ModConfigurationKey<Uri> CONNECTOR_INPUT_TEXTURE = new("connectorInputTexture", "Connector Input Texture URL", () => new Uri("https://raw.githubusercontent.com/DexyThePuppy/ProtoFluxVisualsOverhaul/refs/heads/main/ProtoFluxVisualsOverhaul/Images/Connector.png"));
+
+	[AutoRegisterConfigKey]
+	public static readonly ModConfigurationKey<Uri> CONNECTOR_OUTPUT_TEXTURE = new("connectorOutputTexture", "Connector Output Texture URL", () => new Uri("https://raw.githubusercontent.com/DexyThePuppy/ProtoFluxVisualsOverhaul/refs/heads/main/ProtoFluxVisualsOverhaul/Images/Connector.png")); 
+
+	[AutoRegisterConfigKey]
+	public static readonly ModConfigurationKey<Uri> CALL_CONNECTOR_OUTPUT_TEXTURE = new("callConnectorOutputTexture", "Call Connector Output Texture URL", () => new Uri("https://raw.githubusercontent.com/DexyThePuppy/ProtoFluxVisualsOverhaul/refs/heads/main/ProtoFluxVisualsOverhaul/Images/Connector_Output.png"));
+
+	[AutoRegisterConfigKey]
+	public static readonly ModConfigurationKey<Uri> CALL_CONNECTOR_INPUT_TEXTURE = new("callConnectorInputTexture", "Call Connector Input Texture URL", () => new Uri("https://raw.githubusercontent.com/DexyThePuppy/ProtoFluxVisualsOverhaul/refs/heads/main/ProtoFluxVisualsOverhaul/Images/Connector_Input.png"));
+
+	[AutoRegisterConfigKey]
+	public static readonly ModConfigurationKey<Uri> NODE_BACKGROUND_TEXTURE = new("nodeBackgroundTexture", "Node Background Texture URL", () => new Uri("https://raw.githubusercontent.com/DexyThePuppy/ProtoFluxVisualsOverhaul/refs/heads/main/ProtoFluxVisualsOverhaul/Images/Node_Background.png"));
+
+	[AutoRegisterConfigKey]
+	public static readonly ModConfigurationKey<Uri> NODE_BACKGROUND_HEADER_TEXTURE = new("nodeBackgroundHeaderTexture", "Node Background Header Texture URL", () => new Uri("https://raw.githubusercontent.com/DexyThePuppy/ProtoFluxVisualsOverhaul/refs/heads/main/ProtoFluxVisualsOverhaul/Images/Node_Header_Background.png"));
+
+	[AutoRegisterConfigKey]
 	public static readonly ModConfigurationKey<TextureFilterMode> FILTER_MODE = new("filterMode", "Texture Filter Mode", () => TextureFilterMode.Anisotropic);
 
 	[AutoRegisterConfigKey]
@@ -52,7 +73,7 @@ public class ProtoFluxVisualsOverhaul : ResoniteMod {
 	public static readonly ModConfigurationKey<bool> DIRECT_LOAD = new("directLoad", "Direct Load", () => false);
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<bool> FORCE_EXACT_VARIANT = new("forceExactVariant", "Force Exact Variant", () => false);
+	public static readonly ModConfigurationKey<bool> FORCE_EXACT_VARIANT = new("forceExactVariant", "Force Exact Variant", () => true);
 
 	[AutoRegisterConfigKey]
 	public static readonly ModConfigurationKey<bool> CRUNCH_COMPRESSED = new("crunchCompressed", "Use Crunch Compression", () => true);
@@ -75,10 +96,16 @@ public class ProtoFluxVisualsOverhaul : ResoniteMod {
 	[AutoRegisterConfigKey]
 	public static readonly ModConfigurationKey<int> ANISOTROPIC_LEVEL = new("anisotropicLevel", "Anisotropic Level", () => 8);
 
+	[AutoRegisterConfigKey]
+	public static readonly ModConfigurationKey<TextureCompression> PREFERRED_FORMAT = new("preferredFormat", "Preferred Texture Format", () => TextureCompression.BC3_Crunched);
+
+	[AutoRegisterConfigKey]
+	public static readonly ModConfigurationKey<ColorProfile> PREFERRED_PROFILE = new("preferredProfile", "Preferred Color Profile", () => ColorProfile.sRGB);
+
 
 	public override void OnEngineInit() {
 		Config = GetConfiguration();
-		Config.Save(true); // Save default config values
+		Config.Save(true);
 
 		Harmony harmony = new Harmony("com.Dexy.ProtoFluxVisualsOverhaul");
 		harmony.PatchAll();
@@ -86,24 +113,27 @@ public class ProtoFluxVisualsOverhaul : ResoniteMod {
 		
 		Config.OnThisConfigurationChanged += (k) => {
 			if (k.Key != ENABLED) {
-				foreach (var kvp in pannerCache) {
-					var panner = kvp.Value;
-					if (panner == null) continue;
+				Engine.Current.GlobalCoroutineManager.StartTask(async () => {
+					await default(ToWorld);
+					foreach (var kvp in pannerCache) {
+						var panner = kvp.Value;
+						if (panner == null) continue;
 
-					panner.Speed = Config.GetValue(SCROLL_SPEED);
-					panner.Repeat = Config.GetValue(SCROLL_REPEAT);
-					panner.PingPong.Value = Config.GetValue(PING_PONG);
+						panner.Speed = Config.GetValue(SCROLL_SPEED);
+						panner.Repeat = Config.GetValue(SCROLL_REPEAT);
+						panner.PingPong.Value = Config.GetValue(PING_PONG);
 
-					// Get the FresnelMaterial
-					var fresnelMaterial = kvp.Key.GetComponent<FresnelMaterial>();
-					if (fresnelMaterial != null) {
-						var farTexture = GetOrCreateSharedTexture(fresnelMaterial.Slot, Config.GetValue(FAR_TEXTURE));
-						fresnelMaterial.FarTexture.Target = farTexture;
-						
-						var nearTexture = GetOrCreateSharedTexture(fresnelMaterial.Slot, Config.GetValue(NEAR_TEXTURE));
-						fresnelMaterial.NearTexture.Target = nearTexture;
+						// Get the FresnelMaterial
+						var fresnelMaterial = kvp.Key.GetComponent<FresnelMaterial>();
+						if (fresnelMaterial != null) {
+							var farTexture = GetOrCreateSharedTexture(fresnelMaterial.Slot, Config.GetValue(FAR_TEXTURE));
+							fresnelMaterial.FarTexture.Target = farTexture;
+							
+							var nearTexture = GetOrCreateSharedTexture(fresnelMaterial.Slot, Config.GetValue(NEAR_TEXTURE));
+							fresnelMaterial.NearTexture.Target = nearTexture;
+						}
 					}
-				}
+				});
 			} 
 		};
 

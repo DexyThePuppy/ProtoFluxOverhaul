@@ -80,12 +80,6 @@ namespace ProtoFluxVisualsOverhaul {
     // Patch to add rounded corners to ProtoFlux node visuals
     [HarmonyPatch(typeof(ProtoFluxNodeVisual), "BuildUI")]
     public class ProtoFluxNodeVisual_BuildUI_Patch {
-        private static readonly Uri ROUNDED_TEXTURE = new Uri("resdb:///3ee5c0335455c19970d877e2b80f7869539df43fccb8fc64b38e320fc44c154f.png");
-        private static readonly Uri CONNECTOR_INPUT_TEXTURE = new Uri("https://raw.githubusercontent.com/DexyThePuppy/ProtoFluxVisualsOverhaul/refs/heads/main/ProtoFluxVisualsOverhaul/Images/Connector.png");
-        private static readonly Uri CONNECTOR_OUTPUT_TEXTURE = new Uri("https://raw.githubusercontent.com/DexyThePuppy/ProtoFluxVisualsOverhaul/refs/heads/main/ProtoFluxVisualsOverhaul/Images/Connector.png"); 
-        private static readonly Uri CALL_CONNECTOR_OUTPUT_TEXTURE = new Uri("https://raw.githubusercontent.com/DexyThePuppy/ProtoFluxVisualsOverhaul/refs/heads/main/ProtoFluxVisualsOverhaul/Images/Connector_Output.png");
-        private static readonly Uri CALL_CONNECTOR_INPUT_TEXTURE = new Uri("https://raw.githubusercontent.com/DexyThePuppy/ProtoFluxVisualsOverhaul/refs/heads/main/ProtoFluxVisualsOverhaul/Images/Connector_Input.png");
-        
         // ColorMyProtoFlux color settings
         private static readonly colorX NODE_CATEGORY_TEXT_LIGHT_COLOR = new colorX(0.75f);
         private static readonly colorX NODE_CATEGORY_TEXT_DARK_COLOR = new colorX(0.25f);
@@ -140,7 +134,9 @@ namespace ProtoFluxVisualsOverhaul {
             // Set up the texture if not already set
             if (spriteProvider.Texture.Target == null) {
                 var texture = spriteProvider.Slot.AttachComponent<StaticTexture2D>();
-                texture.URL.Value = isOutput ? CONNECTOR_OUTPUT_TEXTURE : CONNECTOR_INPUT_TEXTURE;
+                texture.URL.Value = isOutput ? 
+                    ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.CONNECTOR_OUTPUT_TEXTURE) : 
+                    ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.CONNECTOR_INPUT_TEXTURE);
                 texture.FilterMode.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.FILTER_MODE);
                 texture.WrapModeU.Value = TextureWrapMode.Clamp;
                 texture.WrapModeV.Value = TextureWrapMode.Clamp;
@@ -153,6 +149,8 @@ namespace ProtoFluxVisualsOverhaul {
                 texture.Uncompressed.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.UNCOMPRESSED);
                 texture.DirectLoad.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.DIRECT_LOAD);
                 texture.ForceExactVariant.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.FORCE_EXACT_VARIANT);
+                texture.PreferredFormat.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.PREFERRED_FORMAT);
+                texture.PreferredProfile.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.PREFERRED_PROFILE);
                 
                 spriteProvider.Texture.Target = texture;
                 spriteProvider.Rect.Value = !isOutput ? 
@@ -192,7 +190,9 @@ namespace ProtoFluxVisualsOverhaul {
             // Set up the texture if not already set
             if (spriteProvider.Texture.Target == null) {
                 var texture = spriteProvider.Slot.AttachComponent<StaticTexture2D>();
-                texture.URL.Value = isOutput ? CALL_CONNECTOR_OUTPUT_TEXTURE : CALL_CONNECTOR_INPUT_TEXTURE;
+                texture.URL.Value = isOutput ? 
+                    ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.CALL_CONNECTOR_OUTPUT_TEXTURE) : 
+                    ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.CALL_CONNECTOR_INPUT_TEXTURE);
                 texture.FilterMode.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.FILTER_MODE);
                 texture.WrapModeU.Value = TextureWrapMode.Clamp;
                 texture.WrapModeV.Value = TextureWrapMode.Clamp;
@@ -205,6 +205,8 @@ namespace ProtoFluxVisualsOverhaul {
                 texture.Uncompressed.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.UNCOMPRESSED);
                 texture.DirectLoad.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.DIRECT_LOAD);
                 texture.ForceExactVariant.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.FORCE_EXACT_VARIANT);
+                texture.PreferredFormat.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.PREFERRED_FORMAT);
+                texture.PreferredProfile.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.PREFERRED_PROFILE);
                 
                 spriteProvider.Texture.Target = texture;
                 spriteProvider.Rect.Value = !isOutput ? 
@@ -304,10 +306,10 @@ namespace ProtoFluxVisualsOverhaul {
                     
                     // Add overlapping layout to parent with exact settings
                     var overlappingLayout = titleParentSlot.AttachComponent<OverlappingLayout>();
-                    overlappingLayout.PaddingTop.Value = 4f;
-                    overlappingLayout.PaddingRight.Value = 4f;
-                    overlappingLayout.PaddingBottom.Value = 4f;
-                    overlappingLayout.PaddingLeft.Value = 4f;
+                    overlappingLayout.PaddingTop.Value = 5.5f;
+                    overlappingLayout.PaddingRight.Value = 5.5f;
+                    overlappingLayout.PaddingBottom.Value = 2.5f;
+                    overlappingLayout.PaddingLeft.Value = 5.5f;
                     overlappingLayout.HorizontalAlign.Value = LayoutHorizontalAlignment.Center;
                     overlappingLayout.VerticalAlign.Value = LayoutVerticalAlignment.Middle;
                     overlappingLayout.ForceExpandWidth.Value = true;
@@ -340,7 +342,12 @@ namespace ProtoFluxVisualsOverhaul {
                     var newTextSlot = newHeaderSlot.AddSlot("Text");
                     newTextSlot.ActiveSelf = true;
                     var newText = newTextSlot.AttachComponent<Text>();
+                    var textRect = newText.RectTransform;
                     
+                    // Set the anchors to stretch horizontally and vertically
+                    textRect.AnchorMin.Value = new float2(0.028f, 0.098f);  // x:0.028 y:0.098
+                    textRect.AnchorMax.Value = new float2(0.97f, 0.9f);     // x:0.97 y:0.9
+
                     // Apply text settings
                     newText.Size.Value = 64.00f;
                     newText.HorizontalAlign.Value = TextHorizontalAlignment.Center;
@@ -366,6 +373,8 @@ namespace ProtoFluxVisualsOverhaul {
                     // Set text color multiple ways to ensure it takes effect
                     newText.Color.Value = textColor;
                     newText.Color.ForceSet(textColor);
+                    newText.Size.Value = 9.00f;
+                    newText.AutoSizeMin.Value = 4f;
                     
                     // Convert color to hex based on brightness
                     newText.Content.Value = $"<color={(brightness > 0.6f ? "#000000" : "#FFFFFF")}><b>{headerText.Content.Value}</b></color>";
@@ -391,6 +400,17 @@ namespace ProtoFluxVisualsOverhaul {
 
                     ProtoFluxVisualsOverhaul.Msg("✅ Successfully reorganized title layout!");
                 }
+
+                // Find the category text (it's the last Text component with dark gray color)
+                var categoryText = ui.Root.GetComponentsInChildren<Text>()
+                    .LastOrDefault(text => text.Color.Value == colorX.DarkGray);
+                
+                if (categoryText != null) {
+                    categoryText.VerticalAlign.Value = TextVerticalAlignment.Middle;
+                    categoryText.Size.Value = 8.00f;
+                    categoryText.AlignmentMode.Value = AlignmentMode.LineBased;
+                    categoryText.LineHeight.Value = 0.35f;
+                }
             }
             catch (System.Exception e) {
                 ProtoFluxVisualsOverhaul.Msg($"❌ Error in ProtoFluxNodeVisual_BuildUI_Patch: {e.Message}");
@@ -409,7 +429,7 @@ namespace ProtoFluxVisualsOverhaul {
             
             // Set up the texture
             var texture = spriteProvider.Slot.AttachComponent<StaticTexture2D>();
-            texture.URL.Value = ROUNDED_TEXTURE;
+            texture.URL.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.NODE_BACKGROUND_HEADER_TEXTURE);
             texture.FilterMode.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.FILTER_MODE);
             texture.WrapModeU.Value = TextureWrapMode.Clamp;
             texture.WrapModeV.Value = TextureWrapMode.Clamp;
@@ -422,13 +442,15 @@ namespace ProtoFluxVisualsOverhaul {
             texture.Uncompressed.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.UNCOMPRESSED);
             texture.DirectLoad.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.DIRECT_LOAD);
             texture.ForceExactVariant.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.FORCE_EXACT_VARIANT);
+            texture.PreferredFormat.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.PREFERRED_FORMAT);
+            texture.PreferredProfile.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.PREFERRED_PROFILE);
             ProtoFluxVisualsOverhaul.Msg("✅ Set up texture for header");
             
             // Configure the sprite provider based on the image settings
             spriteProvider.Texture.Target = texture;
             spriteProvider.Rect.Value = new Elements.Core.Rect(0f, 0f, 1f, 1f);  // x:0 y:0 width:1 height:1
             spriteProvider.Borders.Value = new float4(0.5f, 0.5f, 0.5f, 0.5f); 
-            spriteProvider.Scale.Value = 0.02f;  // Scale: 0.05
+            spriteProvider.Scale.Value = 0.03f;  // Scale: 0.05
             spriteProvider.FixedSize.Value = 1.00f;  // FixedSize: 1.00
             ProtoFluxVisualsOverhaul.Msg("✅ Configured header sprite provider settings");
 
@@ -555,7 +577,6 @@ namespace ProtoFluxVisualsOverhaul {
     // Keep the OnChanges patch for the background image
     [HarmonyPatch(typeof(ProtoFluxNodeVisual), "OnChanges")]
     public class ProtoFluxNodeVisual_OnChanges_Patch {
-        private static readonly Uri ROUNDED_TEXTURE = new Uri("resdb:///3ee5c0335455c19970d877e2b80f7869539df43fccb8fc64b38e320fc44c154f.png");
         private static readonly FieldInfo bgImageField = AccessTools.Field(typeof(ProtoFluxNodeVisual), "_bgImage");
 
         public static void Postfix(ProtoFluxNodeVisual __instance) {
@@ -590,7 +611,7 @@ namespace ProtoFluxVisualsOverhaul {
             
             // Set up the texture
             var texture = spriteProvider.Slot.AttachComponent<StaticTexture2D>();
-            texture.URL.Value = ROUNDED_TEXTURE;
+            texture.URL.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.NODE_BACKGROUND_TEXTURE);
             texture.FilterMode.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.FILTER_MODE);
             texture.WrapModeU.Value = TextureWrapMode.Clamp;
             texture.WrapModeV.Value = TextureWrapMode.Clamp;
@@ -603,6 +624,8 @@ namespace ProtoFluxVisualsOverhaul {
             texture.Uncompressed.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.UNCOMPRESSED);
             texture.DirectLoad.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.DIRECT_LOAD);
             texture.ForceExactVariant.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.FORCE_EXACT_VARIANT);
+            texture.PreferredFormat.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.PREFERRED_FORMAT);
+            texture.PreferredProfile.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.PREFERRED_PROFILE);
 
             ProtoFluxVisualsOverhaul.Msg("✅ Set up texture for background");
             
@@ -610,7 +633,7 @@ namespace ProtoFluxVisualsOverhaul {
             spriteProvider.Texture.Target = texture;
             spriteProvider.Rect.Value = new Elements.Core.Rect(0f, 0f, 1f, 1f);  // x:0 y:0 width:1 height:1
             spriteProvider.Borders.Value = new float4(0.5f, 0.5f, 0.5f, 0.5f);  // x:0.5 y:0 z:0 w:0
-            spriteProvider.Scale.Value = 0.03f;  // Scale: 0.05
+            spriteProvider.Scale.Value = 0.07f;  // Scale: 0.05
             spriteProvider.FixedSize.Value = 1.00f;  // FixedSize: 1.00
             ProtoFluxVisualsOverhaul.Msg("✅ Configured background sprite provider settings");
 

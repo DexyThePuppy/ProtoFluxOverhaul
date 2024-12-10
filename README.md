@@ -1,18 +1,19 @@
-# <img src="ProtoFluxVisualsOverhaul/Images/SmallPreview.png" alt="Preview of animated ProtoFlux wires" width="32"/> ProtoFluxVisualsOverhaul
+# <img src="ProtoFluxVisualsOverhaul/Images/Node.png" alt="Preview of animated ProtoFlux wires" width="32"/> ProtoFluxVisualsOverhaul
 
 *Woof woof!* A [ResoniteModLoader](https://github.com/resonite-modding-group/ResoniteModLoader) mod for [Resonite](https://resonite.com/) that adds customizable animated textures to ProtoFlux wires! 🐾
 
 | Example | Closeup | Modified | Original |
 |:-------------:|:-------------:|:-------------:|:-------------:|
-| <img src="ProtoFluxVisualsOverhaul/Images/FluxPreview.png" alt="Preview of animated ProtoFlux wires" width="300"/> | <img src="ProtoFluxVisualsOverhaul/Images/SmallPreview.png" alt="Preview of animated ProtoFlux wires" width="300"/> | <img src="ProtoFluxVisualsOverhaul/Images/Texture.png" alt="Preview of animated ProtoFlux wires" width="60"/> | <img src="ProtoFluxVisualsOverhaul/Images/OriginalTexture.png" alt="Preview of animated ProtoFlux wires" width="60"/> |
+| <img src="ProtoFluxVisualsOverhaul/Images/CloseUp.png" alt="Preview of animated ProtoFlux wires" width="300"/> | <img src="ProtoFluxVisualsOverhaul/Images/Nodes.png" alt="Preview of animated ProtoFlux wires" width="300"/> | <img src="ProtoFluxVisualsOverhaul/Images/Texture.png" alt="Preview of animated ProtoFlux wires" width="60"/> | <img src="ProtoFluxVisualsOverhaul/Images/OriginalTexture.png" alt="Preview of animated ProtoFlux wires" width="60"/> |
 
 ## 🦴 Features
 
+- Overhauls the UI of ProtoFlux nodes
+- Customizable, Connector, Wire, and Node Textures
+- Comprehensive UI customization options
 - Optimizes wire rendering with shared materials
-- Adds customizable scrolling animations to wire textures
 - Configurable animation speed and direction
-- Customizable wire texture appearance options
-- Fixes temporary wire connection issues
+- Fixes Wire direction issues
 
 ## 🐕 Installation
 
