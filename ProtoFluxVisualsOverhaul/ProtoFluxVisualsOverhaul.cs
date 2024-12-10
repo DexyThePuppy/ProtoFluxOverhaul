@@ -8,21 +8,21 @@ using System.Collections.Generic;
 using Elements.Assets;
 using System.Linq;
 
-namespace ProtoWireScroll;
+namespace ProtoFluxVisualsOverhaul;
 //More info on creating mods can be found https://github.com/resonite-modding-group/ResoniteModLoader/wiki/Creating-Mods
-public class ProtoWireScroll : ResoniteMod {
+public class ProtoFluxVisualsOverhaul : ResoniteMod {
 	internal const string VERSION_CONSTANT = "1.1.0";
-	public override string Name => "ProtoWireScroll";
+	public override string Name => "ProtoFluxVisualsOverhaul";
 	public override string Author => "Dexy, NepuShiro";
 	public override string Version => VERSION_CONSTANT;
-	public override string Link => "https://github.com/DexyThePuppy/ProtoWireScroll";
+	public override string Link => "https://github.com/DexyThePuppy/ProtoFluxVisualsOverhaul";
 
 	// Configuration
 	public static ModConfiguration Config;
 	public static readonly Dictionary<Slot, Panner2D> pannerCache = new Dictionary<Slot, Panner2D>();
 	
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<bool> ENABLED = new("Enabled", "Should ProtoWireScroll be Enabled?", () => true);
+	public static readonly ModConfigurationKey<bool> ENABLED = new("Enabled", "Should ProtoFluxVisualsOverhaul be Enabled?", () => true);
 
 	[AutoRegisterConfigKey]
 	public static readonly ModConfigurationKey<float2> SCROLL_SPEED = new("scrollSpeed", "Scroll Speed (X,Y)", () => new float2(-0.5f, 0f));
@@ -80,9 +80,9 @@ public class ProtoWireScroll : ResoniteMod {
 		Config = GetConfiguration();
 		Config.Save(true); // Save default config values
 
-		Harmony harmony = new Harmony("com.Dexy.ProtoWireScroll");
+		Harmony harmony = new Harmony("com.Dexy.ProtoFluxVisualsOverhaul");
 		harmony.PatchAll();
-		Msg("🐾 ProtoWireScroll successfully loaded and patched! Woof!");
+		Msg("🐾 ProtoFluxVisualsOverhaul successfully loaded and patched! Woof!");
 		
 		Config.OnThisConfigurationChanged += (k) => {
 			if (k.Key != ENABLED) {
@@ -176,7 +176,7 @@ public class ProtoWireScroll : ResoniteMod {
 				}
 			}
 			catch (Exception e) {
-				UniLog.Error($"Error in ProtoWireScroll OnChanges patch: {e}");
+				UniLog.Error($"Error in ProtoFluxVisualsOverhaul OnChanges patch: {e}");
 			}
 		}
 	}
@@ -314,7 +314,7 @@ public class ProtoWireScroll : ResoniteMod {
 		// Create material in temporary storage
 		FresnelMaterial fresnelMaterial = slot.World.RootSlot
 			.FindChildOrAdd("__TEMP", false)
-			.FindChildOrAdd($"{slot.LocalUser.UserName}-Scrolling-ProtofluxWire", false)
+			.FindChildOrAdd($"{slot.LocalUser.UserName}-Scrolling-ProtoFluxVisualsOverhaul", false)
 			.GetComponentOrAttach<FresnelMaterial>();
 
 		// Ensure cleanup when user leaves

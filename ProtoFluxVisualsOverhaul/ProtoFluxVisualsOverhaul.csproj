@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
-		<RootNamespace>ProtoWireScroll</RootNamespace>
-		<AssemblyName>ProtoWireScroll</AssemblyName>
+		<RootNamespace>ProtoFluxVisualsOverhaul</RootNamespace>
+		<AssemblyName>ProtoFluxVisualsOverhaul</AssemblyName>
 		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
 		<TargetFramework>net472</TargetFramework>
 		<FileAlignment>512</FileAlignment>

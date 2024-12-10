@@ -11,150 +11,9 @@ using System.Linq;
 using System.Reflection;
 using ProtoFlux.Core;
 
-namespace ProtoWireScroll {
-    // Patch to add rounded corners to ProtoFlux node visuals
-    [HarmonyPatch(typeof(ProtoFluxNodeVisual), "BuildUI")]
-    public class ProtoFluxNodeVisual_BuildUI_Patch {
-        private static readonly Uri ROUNDED_TEXTURE = new Uri("resdb:///3ee5c0335455c19970d877e2b80f7869539df43fccb8fc64b38e320fc44c154f.png");
-        private static readonly Uri CONNECTOR_INPUT_TEXTURE = new Uri("https://raw.githubusercontent.com/DexyThePuppy/ProtoFluxWiresThatCanScroll/refs/heads/main/ProtoWireScroll/Images/Connector_Input.png");
-        private static readonly Uri CONNECTOR_OUTPUT_TEXTURE = new Uri("https://raw.githubusercontent.com/DexyThePuppy/ProtoFluxWiresThatCanScroll/refs/heads/main/ProtoWireScroll/Images/Connector_Output.png"); 
-        private static readonly Uri CALL_CONNECTOR_OUTPUT_TEXTURE = new Uri("https://raw.githubusercontent.com/DexyThePuppy/ProtoFluxWiresThatCanScroll/refs/heads/main/ProtoWireScroll/Images/Connector_Output.png");
-        private static readonly Uri CALL_CONNECTOR_INPUT_TEXTURE = new Uri("https://raw.githubusercontent.com/DexyThePuppy/ProtoFluxWiresThatCanScroll/refs/heads/main/ProtoWireScroll/Images/Connector_Input.png");
-        
-        // ColorMyProtoFlux color settings
-        private static readonly colorX NODE_CATEGORY_TEXT_LIGHT_COLOR = new colorX(0.75f);
-        private static readonly colorX NODE_CATEGORY_TEXT_DARK_COLOR = new colorX(0.25f);
-
-        // Cache for shared sprite provider
-        private static readonly Dictionary<(Slot, bool), SpriteProvider> connectorSpriteCache = new Dictionary<(Slot, bool), SpriteProvider>();
-
-        private static Dictionary<(Slot, bool), SpriteProvider> callConnectorSpriteCache = new Dictionary<(Slot, bool), SpriteProvider>();
-
-        /// <summary>
-        /// Determines if a connector should use the Call sprite based on its type
-        /// </summary>
-        private static bool ShouldUseCallConnector(ImpulseType? impulseType, bool isOperation = false, bool isAsync = false) {
-            // If it's any ImpulseType, use the flow connector
-            if (impulseType.HasValue) {
-                return true;
-            }
-            
-            // For operations, check if it's a flow connector
-            if (isOperation) {
-                return true; // Operations use flow connectors
-            }
-            
-            return false;
-        }
-
-        /// <summary>
-        /// Creates or retrieves a shared sprite provider for the connector image
-        /// </summary>
-        public static SpriteProvider GetOrCreateSharedConnectorSprite(Slot slot, bool isOutput, ImpulseType? impulseType = null, bool isOperation = false, bool isAsync = false) {
-            // Check if this should use the Call connector
-            if (ShouldUseCallConnector(impulseType, isOperation, isAsync)) {
-                return GetOrCreateSharedCallConnectorSprite(slot, isOutput);
-            }
-            
-            var cacheKey = (slot, isOutput);
-            
-            // Check cache first
-            if (connectorSpriteCache.TryGetValue(cacheKey, out var cachedProvider)) {
-                return cachedProvider;
-            }
-
-            // Create sprite in temporary storage
-            SpriteProvider spriteProvider = slot.World.RootSlot
-                .FindChildOrAdd("__TEMP", false)
-                .FindChildOrAdd($"{slot.LocalUser.UserName}-Connector-Sprite-{(isOutput ? "Output" : "Input")}", false)
-                .GetComponentOrAttach<SpriteProvider>();
-
-            // Ensure cleanup when user leaves
-            spriteProvider.Slot.GetComponentOrAttach<DestroyOnUserLeave>().TargetUser.Target = slot.LocalUser;
-
-            // Set up the texture if not already set
-            if (spriteProvider.Texture.Target == null) {
-                var texture = spriteProvider.Slot.AttachComponent<StaticTexture2D>();
-                texture.URL.Value = isOutput ? CONNECTOR_OUTPUT_TEXTURE : CONNECTOR_INPUT_TEXTURE;
-                texture.FilterMode.Value = ProtoWireScroll.Config.GetValue(ProtoWireScroll.FILTER_MODE);
-                texture.WrapModeU.Value = TextureWrapMode.Clamp;
-                texture.WrapModeV.Value = TextureWrapMode.Clamp;
-                texture.MipMaps.Value = ProtoWireScroll.Config.GetValue(ProtoWireScroll.MIPMAPS);
-                texture.MipMapFilter.Value = ProtoWireScroll.Config.GetValue(ProtoWireScroll.MIPMAP_FILTER);
-                texture.AnisotropicLevel.Value = ProtoWireScroll.Config.GetValue(ProtoWireScroll.ANISOTROPIC_LEVEL);
-                texture.KeepOriginalMipMaps.Value = ProtoWireScroll.Config.GetValue(ProtoWireScroll.KEEP_ORIGINAL_MIPMAPS);
-                texture.CrunchCompressed.Value = ProtoWireScroll.Config.GetValue(ProtoWireScroll.CRUNCH_COMPRESSED);
-                texture.Readable.Value = ProtoWireScroll.Config.GetValue(ProtoWireScroll.READABLE);
-                texture.Uncompressed.Value = ProtoWireScroll.Config.GetValue(ProtoWireScroll.UNCOMPRESSED);
-                texture.DirectLoad.Value = ProtoWireScroll.Config.GetValue(ProtoWireScroll.DIRECT_LOAD);
-                texture.ForceExactVariant.Value = ProtoWireScroll.Config.GetValue(ProtoWireScroll.FORCE_EXACT_VARIANT);
-                
-                spriteProvider.Texture.Target = texture;
-                spriteProvider.Rect.Value = new Rect(0f, 0f, 1f, 1f); // No need to flip since we have separate textures
-                spriteProvider.Scale.Value = 1.0f;
-                spriteProvider.FixedSize.Value = 16f; // Match the RectTransform width
-                spriteProvider.Borders.Value = new float4(0f, 0f, 0.0001f, 0f); // x=0, y=0, z=0.01, w=0
-            }
-
-            // Cache the provider
-            connectorSpriteCache[cacheKey] = spriteProvider;
-
-            return spriteProvider;
-        }
-
-        /// <summary>
-        /// Creates or retrieves a shared sprite provider for the Call connector image
-        /// </summary>
-        public static SpriteProvider GetOrCreateSharedCallConnectorSprite(Slot slot, bool isOutput) {
-            var cacheKey = (slot, isOutput);
-            
-            // Check cache first
-            if (callConnectorSpriteCache.TryGetValue(cacheKey, out var cachedProvider)) {
-                return cachedProvider;
-            }
-
-            // Create sprite in temporary storage
-            SpriteProvider spriteProvider = slot.World.RootSlot
-                .FindChildOrAdd("__TEMP", false)
-                .FindChildOrAdd($"{slot.LocalUser.UserName}-Call-Connector-Sprite-{(isOutput ? "Output" : "Input")}", false)
-                .GetComponentOrAttach<SpriteProvider>();
-
-            // Ensure cleanup when user leaves
-            spriteProvider.Slot.GetComponentOrAttach<DestroyOnUserLeave>().TargetUser.Target = slot.LocalUser;
-
-            // Set up the texture if not already set
-            if (spriteProvider.Texture.Target == null) {
-                var texture = spriteProvider.Slot.AttachComponent<StaticTexture2D>();
-                texture.URL.Value = isOutput ? CALL_CONNECTOR_OUTPUT_TEXTURE : CALL_CONNECTOR_INPUT_TEXTURE;
-                texture.FilterMode.Value = ProtoWireScroll.Config.GetValue(ProtoWireScroll.FILTER_MODE);
-                texture.WrapModeU.Value = TextureWrapMode.Clamp;
-                texture.WrapModeV.Value = TextureWrapMode.Clamp;
-                texture.MipMaps.Value = ProtoWireScroll.Config.GetValue(ProtoWireScroll.MIPMAPS);
-                texture.MipMapFilter.Value = ProtoWireScroll.Config.GetValue(ProtoWireScroll.MIPMAP_FILTER);
-                texture.AnisotropicLevel.Value = ProtoWireScroll.Config.GetValue(ProtoWireScroll.ANISOTROPIC_LEVEL);
-                texture.KeepOriginalMipMaps.Value = ProtoWireScroll.Config.GetValue(ProtoWireScroll.KEEP_ORIGINAL_MIPMAPS);
-                texture.CrunchCompressed.Value = ProtoWireScroll.Config.GetValue(ProtoWireScroll.CRUNCH_COMPRESSED);
-                texture.Readable.Value = ProtoWireScroll.Config.GetValue(ProtoWireScroll.READABLE);
-                texture.Uncompressed.Value = ProtoWireScroll.Config.GetValue(ProtoWireScroll.UNCOMPRESSED);
-                texture.DirectLoad.Value = ProtoWireScroll.Config.GetValue(ProtoWireScroll.DIRECT_LOAD);
-                texture.ForceExactVariant.Value = ProtoWireScroll.Config.GetValue(ProtoWireScroll.FORCE_EXACT_VARIANT);
-                
-                spriteProvider.Texture.Target = texture;
-                spriteProvider.Rect.Value = new Rect(0f, 0f, 1f, 1f); // No need to flip since we have separate textures
-                spriteProvider.Scale.Value = 1.0f;
-                spriteProvider.FixedSize.Value = 16f; // Match the RectTransform width
-                spriteProvider.Borders.Value = new float4(0f, 0f, 0.0001f, 0f); // x=0, y=0, z=0.01, w=0
-            }
-
-            // Cache the provider
-            callConnectorSpriteCache[cacheKey] = spriteProvider;
-
-            return spriteProvider;
-        }
-
-        // Checks if the current user has permission to modify the node visual
-        // This ensures only the node's owner can modify its properties
-        // Returns: True if user has permission, false otherwise
+namespace ProtoFluxVisualsOverhaul {
+    // Shared permission check method for all patches
+    public static class PermissionHelper {
         public static bool HasPermission(ProtoFluxNodeVisual instance) {
             if (instance == null || instance.World == null) return false;
 
@@ -216,14 +75,159 @@ namespace ProtoWireScroll {
 
             return visualAllocUser == instance.LocalUser;
         }
+    }
+
+    // Patch to add rounded corners to ProtoFlux node visuals
+    [HarmonyPatch(typeof(ProtoFluxNodeVisual), "BuildUI")]
+    public class ProtoFluxNodeVisual_BuildUI_Patch {
+        private static readonly Uri ROUNDED_TEXTURE = new Uri("resdb:///3ee5c0335455c19970d877e2b80f7869539df43fccb8fc64b38e320fc44c154f.png");
+        private static readonly Uri CONNECTOR_INPUT_TEXTURE = new Uri("https://raw.githubusercontent.com/DexyThePuppy/ProtoFluxVisualsOverhaul/refs/heads/main/ProtoFluxVisualsOverhaul/Images/Connector.png");
+        private static readonly Uri CONNECTOR_OUTPUT_TEXTURE = new Uri("https://raw.githubusercontent.com/DexyThePuppy/ProtoFluxVisualsOverhaul/refs/heads/main/ProtoFluxVisualsOverhaul/Images/Connector.png"); 
+        private static readonly Uri CALL_CONNECTOR_OUTPUT_TEXTURE = new Uri("https://raw.githubusercontent.com/DexyThePuppy/ProtoFluxVisualsOverhaul/refs/heads/main/ProtoFluxVisualsOverhaul/Images/Connector_Output.png");
+        private static readonly Uri CALL_CONNECTOR_INPUT_TEXTURE = new Uri("https://raw.githubusercontent.com/DexyThePuppy/ProtoFluxVisualsOverhaul/refs/heads/main/ProtoFluxVisualsOverhaul/Images/Connector_Input.png");
+        
+        // ColorMyProtoFlux color settings
+        private static readonly colorX NODE_CATEGORY_TEXT_LIGHT_COLOR = new colorX(0.75f);
+        private static readonly colorX NODE_CATEGORY_TEXT_DARK_COLOR = new colorX(0.25f);
+
+        // Cache for shared sprite provider
+        private static readonly Dictionary<(Slot, bool), SpriteProvider> connectorSpriteCache = new Dictionary<(Slot, bool), SpriteProvider>();
+
+        private static Dictionary<(Slot, bool), SpriteProvider> callConnectorSpriteCache = new Dictionary<(Slot, bool), SpriteProvider>();
+
+        /// <summary>
+        /// Determines if a connector should use the Call sprite based on its type
+        /// </summary>
+        private static bool ShouldUseCallConnector(ImpulseType? impulseType, bool isOperation = false, bool isAsync = false) {
+            // If it's any ImpulseType, use the flow connector
+            if (impulseType.HasValue) {
+                return true;
+            }
+            
+            // For operations, check if it's a flow connector
+            if (isOperation) {
+                return true; // Operations use flow connectors
+            }
+            
+            return false;
+        }
+
+        /// <summary>
+        /// Creates or retrieves a shared sprite provider for the connector image
+        /// </summary>
+        public static SpriteProvider GetOrCreateSharedConnectorSprite(Slot slot, bool isOutput, ImpulseType? impulseType = null, bool isOperation = false, bool isAsync = false) {
+            // Check if this should use the Call connector
+            if (ShouldUseCallConnector(impulseType, isOperation, isAsync)) {
+                return GetOrCreateSharedCallConnectorSprite(slot, isOutput);
+            }
+            
+            var cacheKey = (slot, isOutput);
+            
+            // Check cache first
+            if (connectorSpriteCache.TryGetValue(cacheKey, out var cachedProvider)) {
+                return cachedProvider;
+            }
+
+            // Create sprite in temporary storage
+            SpriteProvider spriteProvider = slot.World.RootSlot
+                .FindChildOrAdd("__TEMP", false)
+                .FindChildOrAdd($"{slot.LocalUser.UserName}-Connector-Sprite-{(isOutput ? "Output" : "Input")}", false)
+                .GetComponentOrAttach<SpriteProvider>();
+
+            // Ensure cleanup when user leaves
+            spriteProvider.Slot.GetComponentOrAttach<DestroyOnUserLeave>().TargetUser.Target = slot.LocalUser;
+
+            // Set up the texture if not already set
+            if (spriteProvider.Texture.Target == null) {
+                var texture = spriteProvider.Slot.AttachComponent<StaticTexture2D>();
+                texture.URL.Value = isOutput ? CONNECTOR_OUTPUT_TEXTURE : CONNECTOR_INPUT_TEXTURE;
+                texture.FilterMode.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.FILTER_MODE);
+                texture.WrapModeU.Value = TextureWrapMode.Clamp;
+                texture.WrapModeV.Value = TextureWrapMode.Clamp;
+                texture.MipMaps.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.MIPMAPS);
+                texture.MipMapFilter.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.MIPMAP_FILTER);
+                texture.AnisotropicLevel.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.ANISOTROPIC_LEVEL);
+                texture.KeepOriginalMipMaps.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.KEEP_ORIGINAL_MIPMAPS);
+                texture.CrunchCompressed.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.CRUNCH_COMPRESSED);
+                texture.Readable.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.READABLE);
+                texture.Uncompressed.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.UNCOMPRESSED);
+                texture.DirectLoad.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.DIRECT_LOAD);
+                texture.ForceExactVariant.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.FORCE_EXACT_VARIANT);
+                
+                spriteProvider.Texture.Target = texture;
+                spriteProvider.Rect.Value = !isOutput ? 
+                    new Rect(0f, 0f, 1f, 1f) :    // Inputs (left) normal orientation
+                    new Rect(1f, 0f, -1f, 1f);    // Outputs (right) flipped
+                spriteProvider.Scale.Value = 1.0f;
+                spriteProvider.FixedSize.Value = 16f; // Match the RectTransform width
+                spriteProvider.Borders.Value = new float4(0f, 0f, 0.0001f, 0f); // x=0, y=0, z=0.01, w=0
+            }
+
+            // Cache the provider
+            connectorSpriteCache[cacheKey] = spriteProvider;
+
+            return spriteProvider;
+        }
+
+        /// <summary>
+        /// Creates or retrieves a shared sprite provider for the Call connector image
+        /// </summary>
+        public static SpriteProvider GetOrCreateSharedCallConnectorSprite(Slot slot, bool isOutput) {
+            var cacheKey = (slot, isOutput);
+            
+            // Check cache first
+            if (callConnectorSpriteCache.TryGetValue(cacheKey, out var cachedProvider)) {
+                return cachedProvider;
+            }
+
+            // Create sprite in temporary storage
+            SpriteProvider spriteProvider = slot.World.RootSlot
+                .FindChildOrAdd("__TEMP", false)
+                .FindChildOrAdd($"{slot.LocalUser.UserName}-Call-Connector-Sprite-{(isOutput ? "Output" : "Input")}", false)
+                .GetComponentOrAttach<SpriteProvider>();
+
+            // Ensure cleanup when user leaves
+            spriteProvider.Slot.GetComponentOrAttach<DestroyOnUserLeave>().TargetUser.Target = slot.LocalUser;
+
+            // Set up the texture if not already set
+            if (spriteProvider.Texture.Target == null) {
+                var texture = spriteProvider.Slot.AttachComponent<StaticTexture2D>();
+                texture.URL.Value = isOutput ? CALL_CONNECTOR_OUTPUT_TEXTURE : CALL_CONNECTOR_INPUT_TEXTURE;
+                texture.FilterMode.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.FILTER_MODE);
+                texture.WrapModeU.Value = TextureWrapMode.Clamp;
+                texture.WrapModeV.Value = TextureWrapMode.Clamp;
+                texture.MipMaps.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.MIPMAPS);
+                texture.MipMapFilter.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.MIPMAP_FILTER);
+                texture.AnisotropicLevel.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.ANISOTROPIC_LEVEL);
+                texture.KeepOriginalMipMaps.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.KEEP_ORIGINAL_MIPMAPS);
+                texture.CrunchCompressed.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.CRUNCH_COMPRESSED);
+                texture.Readable.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.READABLE);
+                texture.Uncompressed.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.UNCOMPRESSED);
+                texture.DirectLoad.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.DIRECT_LOAD);
+                texture.ForceExactVariant.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.FORCE_EXACT_VARIANT);
+                
+                spriteProvider.Texture.Target = texture;
+                spriteProvider.Rect.Value = !isOutput ? 
+                    new Rect(0f, 0f, 1f, 1f) :    // Inputs (left) normal orientation
+                    new Rect(1f, 0f, -1f, 1f);    // Outputs (right) flipped
+                spriteProvider.Scale.Value = 1.0f;
+                spriteProvider.FixedSize.Value = 16f; // Match the RectTransform width
+                spriteProvider.Borders.Value = new float4(0f, 0f, 0.0001f, 0f); // x=0, y=0, z=0.01, w=0
+            }
+
+            // Cache the provider
+            callConnectorSpriteCache[cacheKey] = spriteProvider;
+
+            return spriteProvider;
+        }
 
         public static void Postfix(ProtoFluxNodeVisual __instance, UIBuilder ui, ProtoFluxNode node) {
             try {
                 // Skip if disabled
-                if (!ProtoWireScroll.Config.GetValue(ProtoWireScroll.ENABLED)) return;
+                if (!ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.ENABLED)) return;
 
                 // === User Permission Check ===
-                if (!HasPermission(__instance)) return;
+                if (!PermissionHelper.HasPermission(__instance)) return;
 
                 // Find all connector images in the hierarchy
                 var connectorSlots = ui.Root.GetComponentsInChildren<Image>()
@@ -327,7 +331,7 @@ namespace ProtoWireScroll {
                     
                     // Get the node's type color for the header
                     var nodeTypeColor = DatatypeColorHelper.GetTypeColor(node.GetType());
-                    ProtoWireScroll.Msg($"🎨 Node type color: R:{nodeTypeColor.r:F2} G:{nodeTypeColor.g:F2} B:{nodeTypeColor.b:F2}");
+                    ProtoFluxVisualsOverhaul.Msg($"🎨 Node type color: R:{nodeTypeColor.r:F2} G:{nodeTypeColor.g:F2} B:{nodeTypeColor.b:F2}");
                     
                     // Apply the color to the header image
                     image.Tint.Value = nodeTypeColor;
@@ -351,13 +355,13 @@ namespace ProtoWireScroll {
                     
                     // Calculate text color based on header image color for better contrast
                     var headerColor = image.Tint.Value;
-                    ProtoWireScroll.Msg($"🖼️ Header image color: R:{headerColor.r:F2} G:{headerColor.g:F2} B:{headerColor.b:F2}");
+                    ProtoFluxVisualsOverhaul.Msg($"🖼️ Header image color: R:{headerColor.r:F2} G:{headerColor.g:F2} B:{headerColor.b:F2}");
                     
                     var brightness = (headerColor.r * 0.299f + headerColor.g * 0.587f + headerColor.b * 0.114f);
-                    ProtoWireScroll.Msg($"✨ Calculated brightness: {brightness:F2}");
+                    ProtoFluxVisualsOverhaul.Msg($"✨ Calculated brightness: {brightness:F2}");
                     
                     var textColor = brightness > 0.6f ? colorX.Black : colorX.White;
-                    ProtoWireScroll.Msg($"📝 Setting text color to: {(brightness > 0.6f ? "BLACK" : "WHITE")} based on brightness");
+                    ProtoFluxVisualsOverhaul.Msg($"📝 Setting text color to: {(brightness > 0.6f ? "BLACK" : "WHITE")} based on brightness");
                     
                     // Set text color multiple ways to ensure it takes effect
                     newText.Color.Value = textColor;
@@ -366,7 +370,7 @@ namespace ProtoWireScroll {
                     // Convert color to hex based on brightness
                     newText.Content.Value = $"<color={(brightness > 0.6f ? "#000000" : "#FFFFFF")}><b>{headerText.Content.Value}</b></color>";
                     
-                    ProtoWireScroll.Msg($"📝 Text color set to: R:{newText.Color.Value.r:F2} G:{newText.Color.Value.g:F2} B:{newText.Color.Value.b:F2}");
+                    ProtoFluxVisualsOverhaul.Msg($"📝 Text color set to: R:{newText.Color.Value.r:F2} G:{newText.Color.Value.g:F2} B:{newText.Color.Value.b:F2}");
                     
                     // Copy RectTransform settings
                     var newHeaderRect = newHeaderSlot.AttachComponent<RectTransform>();
@@ -385,11 +389,11 @@ namespace ProtoWireScroll {
                     // Apply rounded corners to the new header
                     ApplyRoundedCorners(image);
 
-                    ProtoWireScroll.Msg("✅ Successfully reorganized title layout!");
+                    ProtoFluxVisualsOverhaul.Msg("✅ Successfully reorganized title layout!");
                 }
             }
             catch (System.Exception e) {
-                ProtoWireScroll.Msg($"❌ Error in ProtoFluxNodeVisual_BuildUI_Patch: {e.Message}");
+                ProtoFluxVisualsOverhaul.Msg($"❌ Error in ProtoFluxNodeVisual_BuildUI_Patch: {e.Message}");
             }
         }
 
@@ -397,28 +401,28 @@ namespace ProtoWireScroll {
             // Skip if already applied
             if (image.Sprite.Target is SpriteProvider) return;
 
-            ProtoWireScroll.Msg("🐾 Applying rounded corners to header panel...");
+            ProtoFluxVisualsOverhaul.Msg("🐾 Applying rounded corners to header panel...");
 
             // Create a SpriteProvider for rounded corners
             var spriteProvider = image.Slot.AttachComponent<SpriteProvider>();
-            ProtoWireScroll.Msg("✅ Created SpriteProvider for header");
+            ProtoFluxVisualsOverhaul.Msg("✅ Created SpriteProvider for header");
             
             // Set up the texture
             var texture = spriteProvider.Slot.AttachComponent<StaticTexture2D>();
             texture.URL.Value = ROUNDED_TEXTURE;
-            texture.FilterMode.Value = ProtoWireScroll.Config.GetValue(ProtoWireScroll.FILTER_MODE);
+            texture.FilterMode.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.FILTER_MODE);
             texture.WrapModeU.Value = TextureWrapMode.Clamp;
             texture.WrapModeV.Value = TextureWrapMode.Clamp;
-            texture.MipMaps.Value = ProtoWireScroll.Config.GetValue(ProtoWireScroll.MIPMAPS);
-            texture.MipMapFilter.Value = ProtoWireScroll.Config.GetValue(ProtoWireScroll.MIPMAP_FILTER);
-            texture.AnisotropicLevel.Value = ProtoWireScroll.Config.GetValue(ProtoWireScroll.ANISOTROPIC_LEVEL);
-            texture.KeepOriginalMipMaps.Value = ProtoWireScroll.Config.GetValue(ProtoWireScroll.KEEP_ORIGINAL_MIPMAPS);
-            texture.CrunchCompressed.Value = ProtoWireScroll.Config.GetValue(ProtoWireScroll.CRUNCH_COMPRESSED);
-            texture.Readable.Value = ProtoWireScroll.Config.GetValue(ProtoWireScroll.READABLE);
-            texture.Uncompressed.Value = ProtoWireScroll.Config.GetValue(ProtoWireScroll.UNCOMPRESSED);
-            texture.DirectLoad.Value = ProtoWireScroll.Config.GetValue(ProtoWireScroll.DIRECT_LOAD);
-            texture.ForceExactVariant.Value = ProtoWireScroll.Config.GetValue(ProtoWireScroll.FORCE_EXACT_VARIANT);
-            ProtoWireScroll.Msg("✅ Set up texture for header");
+            texture.MipMaps.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.MIPMAPS);
+            texture.MipMapFilter.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.MIPMAP_FILTER);
+            texture.AnisotropicLevel.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.ANISOTROPIC_LEVEL);
+            texture.KeepOriginalMipMaps.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.KEEP_ORIGINAL_MIPMAPS);
+            texture.CrunchCompressed.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.CRUNCH_COMPRESSED);
+            texture.Readable.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.READABLE);
+            texture.Uncompressed.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.UNCOMPRESSED);
+            texture.DirectLoad.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.DIRECT_LOAD);
+            texture.ForceExactVariant.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.FORCE_EXACT_VARIANT);
+            ProtoFluxVisualsOverhaul.Msg("✅ Set up texture for header");
             
             // Configure the sprite provider based on the image settings
             spriteProvider.Texture.Target = texture;
@@ -426,27 +430,27 @@ namespace ProtoWireScroll {
             spriteProvider.Borders.Value = new float4(0.5f, 0.5f, 0.5f, 0.5f); 
             spriteProvider.Scale.Value = 0.02f;  // Scale: 0.05
             spriteProvider.FixedSize.Value = 1.00f;  // FixedSize: 1.00
-            ProtoWireScroll.Msg("✅ Configured header sprite provider settings");
+            ProtoFluxVisualsOverhaul.Msg("✅ Configured header sprite provider settings");
 
             // Update the image to use the sprite
             image.Sprite.Target = spriteProvider;
             
             // Preserve color and tint settings
             image.PreserveAspect.Value = true;
-            ProtoWireScroll.Msg("✅ Successfully applied rounded corners to header!");
+            ProtoFluxVisualsOverhaul.Msg("✅ Successfully applied rounded corners to header!");
         }
     }
 
     // Patch to handle initial node creation
     [HarmonyPatch(typeof(ProtoFluxNodeVisual), "GenerateVisual")]
     public class ProtoFluxNodeVisual_GenerateVisual_Patch {
-        public static void Postfix(ProtoFluxNodeVisual __instance, ProtoFluxNode node) {
+        public static void Postfix(ProtoFluxNodeVisual __instance) {
             try {
                 // Skip if disabled
-                if (!ProtoWireScroll.Config.GetValue(ProtoWireScroll.ENABLED)) return;
+                if (!ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.ENABLED)) return;
 
                 // === User Permission Check ===
-                if (!ProtoFluxNodeVisual_BuildUI_Patch.HasPermission(__instance)) return;
+                if (!PermissionHelper.HasPermission(__instance)) return;
 
                 // Find all connector slots in the hierarchy
                 var connectorSlots = __instance.Slot.GetComponentsInChildren<Image>()
@@ -487,9 +491,8 @@ namespace ProtoWireScroll {
                     connectorImage.PreserveAspect.Value = true;
                     connectorImage.FlipHorizontally.Value = false; // We handle flipping in the sprite provider
                 }
-            }
-            catch (System.Exception e) {
-                ProtoWireScroll.Msg($"❌ Error in ProtoFluxNodeVisual_GenerateVisual_Patch: {e.Message}");
+            } catch (Exception e) {
+                UniLog.Error($"Error in ProtoFluxNodeVisual_GenerateVisual_Patch: {e}");
             }
         }
     }
@@ -497,16 +500,16 @@ namespace ProtoWireScroll {
     // Patch to handle dynamic connector creation
     [HarmonyPatch(typeof(ProtoFluxNodeVisual), "GenerateInputElement")]
     public class ProtoFluxNodeVisual_GenerateInputElement_Patch {
-        public static void Postfix(ProtoFluxNodeVisual __instance, UIBuilder ui) {
+        public static void Postfix(ProtoFluxNodeVisual __instance) {
             try {
                 // Skip if disabled
-                if (!ProtoWireScroll.Config.GetValue(ProtoWireScroll.ENABLED)) return;
+                if (!ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.ENABLED)) return;
 
                 // === User Permission Check ===
-                if (!ProtoFluxNodeVisual_BuildUI_Patch.HasPermission(__instance)) return;
+                if (!PermissionHelper.HasPermission(__instance)) return;
 
                 // Find the most recently added connector
-                var connectorImage = ui.Root.GetComponentsInChildren<Image>()
+                var connectorImage = __instance.Slot.GetComponentsInChildren<Image>()
                     .Where(img => img.Slot.Name == "Connector")
                     .LastOrDefault();
 
@@ -543,9 +546,8 @@ namespace ProtoWireScroll {
                     connectorImage.Sprite.Target = spriteProvider;
                     connectorImage.PreserveAspect.Value = true;
                 }
-            }
-            catch (System.Exception e) {
-                ProtoWireScroll.Msg($"❌ Error in ProtoFluxNodeVisual_GenerateInputElement_Patch: {e.Message}");
+            } catch (Exception e) {
+                UniLog.Error($"Error in ProtoFluxNodeVisual_GenerateInputElement_Patch: {e}");
             }
         }
     }
@@ -559,10 +561,10 @@ namespace ProtoWireScroll {
         public static void Postfix(ProtoFluxNodeVisual __instance) {
             try {
                 // Skip if disabled
-                if (!ProtoWireScroll.Config.GetValue(ProtoWireScroll.ENABLED)) return;
+                if (!ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.ENABLED)) return;
 
                 // === User Permission Check ===
-                if (!ProtoFluxNodeVisual_BuildUI_Patch.HasPermission(__instance)) return;
+                if (!PermissionHelper.HasPermission(__instance)) return;
 
                 // Get the background image component using reflection
                 var bgImageRef = (SyncRef<Image>)bgImageField.GetValue(__instance);
@@ -571,9 +573,8 @@ namespace ProtoWireScroll {
 
                 // Apply rounded corners to background
                 ApplyRoundedCorners(bgImage);
-            }
-            catch (System.Exception e) {
-                ProtoWireScroll.Msg($"❌ Error in ProtoFluxNodeVisual_OnChanges_Patch: {e.Message}");
+            } catch (Exception e) {
+                UniLog.Error($"Error in ProtoFluxNodeVisual_OnChanges_Patch: {e}");
             }
         }
 
@@ -581,29 +582,29 @@ namespace ProtoWireScroll {
             // Skip if already applied
             if (image.Sprite.Target is SpriteProvider) return;
 
-            ProtoWireScroll.Msg("🐾 Applying rounded corners to background...");
+            ProtoFluxVisualsOverhaul.Msg("🐾 Applying rounded corners to background...");
 
             // Create a SpriteProvider for rounded corners
             var spriteProvider = image.Slot.AttachComponent<SpriteProvider>();
-            ProtoWireScroll.Msg("✅ Created SpriteProvider for background");
+            ProtoFluxVisualsOverhaul.Msg("✅ Created SpriteProvider for background");
             
             // Set up the texture
             var texture = spriteProvider.Slot.AttachComponent<StaticTexture2D>();
             texture.URL.Value = ROUNDED_TEXTURE;
-            texture.FilterMode.Value = ProtoWireScroll.Config.GetValue(ProtoWireScroll.FILTER_MODE);
+            texture.FilterMode.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.FILTER_MODE);
             texture.WrapModeU.Value = TextureWrapMode.Clamp;
             texture.WrapModeV.Value = TextureWrapMode.Clamp;
-            texture.MipMaps.Value = ProtoWireScroll.Config.GetValue(ProtoWireScroll.MIPMAPS);
-            texture.MipMapFilter.Value = ProtoWireScroll.Config.GetValue(ProtoWireScroll.MIPMAP_FILTER);
-            texture.AnisotropicLevel.Value = ProtoWireScroll.Config.GetValue(ProtoWireScroll.ANISOTROPIC_LEVEL);
-            texture.KeepOriginalMipMaps.Value = ProtoWireScroll.Config.GetValue(ProtoWireScroll.KEEP_ORIGINAL_MIPMAPS);
-            texture.CrunchCompressed.Value = ProtoWireScroll.Config.GetValue(ProtoWireScroll.CRUNCH_COMPRESSED);
-            texture.Readable.Value = ProtoWireScroll.Config.GetValue(ProtoWireScroll.READABLE);
-            texture.Uncompressed.Value = ProtoWireScroll.Config.GetValue(ProtoWireScroll.UNCOMPRESSED);
-            texture.DirectLoad.Value = ProtoWireScroll.Config.GetValue(ProtoWireScroll.DIRECT_LOAD);
-            texture.ForceExactVariant.Value = ProtoWireScroll.Config.GetValue(ProtoWireScroll.FORCE_EXACT_VARIANT);
+            texture.MipMaps.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.MIPMAPS);
+            texture.MipMapFilter.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.MIPMAP_FILTER);
+            texture.AnisotropicLevel.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.ANISOTROPIC_LEVEL);
+            texture.KeepOriginalMipMaps.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.KEEP_ORIGINAL_MIPMAPS);
+            texture.CrunchCompressed.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.CRUNCH_COMPRESSED);
+            texture.Readable.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.READABLE);
+            texture.Uncompressed.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.UNCOMPRESSED);
+            texture.DirectLoad.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.DIRECT_LOAD);
+            texture.ForceExactVariant.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.FORCE_EXACT_VARIANT);
 
-            ProtoWireScroll.Msg("✅ Set up texture for background");
+            ProtoFluxVisualsOverhaul.Msg("✅ Set up texture for background");
             
             // Configure the sprite provider based on the image settings
             spriteProvider.Texture.Target = texture;
@@ -611,14 +612,14 @@ namespace ProtoWireScroll {
             spriteProvider.Borders.Value = new float4(0.5f, 0.5f, 0.5f, 0.5f);  // x:0.5 y:0 z:0 w:0
             spriteProvider.Scale.Value = 0.03f;  // Scale: 0.05
             spriteProvider.FixedSize.Value = 1.00f;  // FixedSize: 1.00
-            ProtoWireScroll.Msg("✅ Configured background sprite provider settings");
+            ProtoFluxVisualsOverhaul.Msg("✅ Configured background sprite provider settings");
 
             // Update the image to use the sprite
             image.Sprite.Target = spriteProvider;
             
             // Preserve color and tint settings
             image.PreserveAspect.Value = true;
-            ProtoWireScroll.Msg("✅ Successfully applied rounded corners to background!");
+            ProtoFluxVisualsOverhaul.Msg("✅ Successfully applied rounded corners to background!");
         }
     }
 
@@ -638,7 +639,7 @@ namespace ProtoWireScroll {
         {
             try {
                 // Skip if disabled
-                if (!ProtoWireScroll.Config.GetValue(ProtoWireScroll.ENABLED)) return;
+                if (!ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.ENABLED)) return;
 
                 // Get the wire colors based on the atlas offset and type
                 colorX color1 = startColor;
@@ -669,7 +670,7 @@ namespace ProtoWireScroll {
                 }
             }
             catch (System.Exception e) {
-                ProtoWireScroll.Msg($"❌ Error in ProtoFluxWireManager_Setup_Patch: {e.Message}");
+                ProtoFluxVisualsOverhaul.Msg($"❌ Error in ProtoFluxWireManager_Setup_Patch: {e.Message}");
             }
         }
     }
