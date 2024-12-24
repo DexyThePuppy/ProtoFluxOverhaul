@@ -57,10 +57,22 @@
 		    <HintPath>$(ResonitePath)Resonite_Data\Managed\ProtoFlux.Core.dll</HintPath>
 		    <Private>False</Private>
 		</Reference>
+		<Reference Include="ProtoFlux.Nodes.FrooxEngine">
+		    <HintPath>$(ResonitePath)Resonite_Data\Managed\ProtoFlux.Nodes.FrooxEngine.dll</HintPath>
+		</Reference>
+		<Reference Include="ResoniteHotReloadLib">
+		    <HintPath>$(ResonitePath)rml_mods\ResoniteHotReloadLib.dll</HintPath>
+		    <Private>False</Private>
+		</Reference>
+		<Reference Include="ResoniteHotReloadLibCore">
+		    <HintPath>$(ResonitePath)rml_mods\ResoniteHotReloadLibCore.dll</HintPath>
+		    <Private>False</Private>
+		</Reference>
 	</ItemGroup>
 
 	<Target Name="PostBuild" AfterTargets="PostBuildEvent" Condition="'$(CopyToMods)'=='true'">
-		<Message Text="Attempting to copy $(TargetFileName) to $(ResonitePath)rml_mods" Importance="high" />
+		<Message Text="Attempting to copy $(TargetFileName) to $(ResonitePath)rml_mods and HotReloadMods" Importance="high" />
 		<Copy SourceFiles="$(TargetDir)$(TargetFileName)" DestinationFolder="$(ResonitePath)rml_mods" ContinueOnError="true" />
+		<Copy SourceFiles="$(TargetDir)$(TargetFileName)" DestinationFolder="$(ResonitePath)rml_mods\HotReloadMods\" ContinueOnError="true" />
 	</Target>
 </Project>

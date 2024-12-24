@@ -7,6 +7,9 @@ using System;
 using System.Collections.Generic;
 using Elements.Assets;
 using System.Linq;
+using ResoniteHotReloadLib;
+using FrooxEngine.UIX;
+using System.Reflection;
 
 namespace ProtoFluxVisualsOverhaul;
 //More info on creating mods can be found https://github.com/resonite-modding-group/ResoniteModLoader/wiki/Creating-Mods
@@ -23,6 +26,9 @@ public class ProtoFluxVisualsOverhaul : ResoniteMod {
 	
 	[AutoRegisterConfigKey]
 	public static readonly ModConfigurationKey<bool> ENABLED = new("Enabled", "Should ProtoFluxVisualsOverhaul be Enabled?", () => true);
+
+	[AutoRegisterConfigKey]
+	public static readonly ModConfigurationKey<bool> WIRE_SOUNDS = new("WireSounds", "Should wire interaction sounds be enabled?", () => true);
 
 	[AutoRegisterConfigKey]
 	public static readonly ModConfigurationKey<float2> SCROLL_SPEED = new("scrollSpeed", "Scroll Speed (X,Y)", () => new float2(-0.5f, 0f));
@@ -102,6 +108,23 @@ public class ProtoFluxVisualsOverhaul : ResoniteMod {
 	[AutoRegisterConfigKey]
 	public static readonly ModConfigurationKey<ColorProfile> PREFERRED_PROFILE = new("preferredProfile", "Preferred Color Profile", () => ColorProfile.sRGB);
 
+	[AutoRegisterConfigKey]
+	public static readonly ModConfigurationKey<Uri> GRAB_SOUND = new("grabSound", "Grab Sound URL", () => new Uri("https://raw.githubusercontent.com/DexyThePuppy/ProtoFluxVisualsOverhaul/main/ProtoFluxVisualsOverhaul/sounds/FluxWireGrab.wav"));
+
+	[AutoRegisterConfigKey]
+	public static readonly ModConfigurationKey<Uri> DELETE_SOUND = new("deleteSound", "Delete Sound URL", () => new Uri("https://raw.githubusercontent.com/DexyThePuppy/ProtoFluxVisualsOverhaul/main/ProtoFluxVisualsOverhaul/sounds/FluxWireDelete.wav"));
+
+	[AutoRegisterConfigKey]
+	public static readonly ModConfigurationKey<Uri> CONNECT_SOUND = new("connectSound", "Connect Sound URL", () => new Uri("https://raw.githubusercontent.com/DexyThePuppy/ProtoFluxVisualsOverhaul/main/ProtoFluxVisualsOverhaul/sounds/FluxWireConnect.wav"));
+
+	[AutoRegisterConfigKey]
+	public static readonly ModConfigurationKey<float> AUDIO_VOLUME = new("audioVolume", "Audio Volume", () => 1f);
+
+	[AutoRegisterConfigKey]
+	public static readonly ModConfigurationKey<float> MIN_DISTANCE = new("minDistance", "Audio Min Distance", () => 0.1f);
+
+	[AutoRegisterConfigKey]
+	public static readonly ModConfigurationKey<float> MAX_DISTANCE = new("maxDistance", "Audio Max Distance", () => 25f);
 
 	public override void OnEngineInit() {
 		Config = GetConfiguration();
@@ -110,6 +133,9 @@ public class ProtoFluxVisualsOverhaul : ResoniteMod {
 		Harmony harmony = new Harmony("com.Dexy.ProtoFluxVisualsOverhaul");
 		harmony.PatchAll();
 		Msg("🐾 ProtoFluxVisualsOverhaul successfully loaded and patched! Woof!");
+		
+		// Register for hot reload
+		HotReloader.RegisterForHotReload(this);
 		
 		Config.OnThisConfigurationChanged += (k) => {
 			if (k.Key != ENABLED) {
@@ -138,7 +164,6 @@ public class ProtoFluxVisualsOverhaul : ResoniteMod {
 		};
 
 	}
-
 
 	[HarmonyPatch(typeof(ProtoFluxWireManager), "OnChanges")]
 	class ProtoFluxWireManager_OnChanges_Patch {
@@ -390,5 +415,234 @@ public class ProtoFluxVisualsOverhaul : ResoniteMod {
 		texture.PowerOfTwoAlignThreshold.Value = 0.05f;  // For proper texture alignment
 		
 		return texture;
+	}
+
+	// Hot reload methods
+	[HarmonyPatch("BeforeHotReload")]
+	public static void BeforeHotReload()
+	{
+		// Cleanup Harmony patches
+		var harmony = new Harmony("com.Dexy.ProtoFluxVisualsOverhaul");
+		harmony.UnpatchAll("com.Dexy.ProtoFluxVisualsOverhaul");
+		
+		// Clear cached data
+		pannerCache.Clear();
+		Msg("🐾 Cleaned up before hot reload! Woof!");
+	}
+
+	public static void OnHotReload(ResoniteMod modInstance)
+	{
+		// Get the config from the mod instance
+			Config = modInstance.GetConfiguration();
+		
+		// Re-apply Harmony patches
+		var harmony = new Harmony("com.Dexy.ProtoFluxVisualsOverhaul");
+		harmony.PatchAll();
+		
+		Msg("🐾 Hot reload complete! Ready to go! *excited tail wags*");
+	}
+
+	[HarmonyPatch(typeof(ProtoFluxNodeVisual), "BuildUI")]
+	class ProtoFluxNodeVisual_BuildUI_Patch {
+		private static bool hasPreloadedAudio = false;
+
+		public static void Postfix(ProtoFluxNodeVisual __instance) {
+			try {
+				if (!Config.GetValue(ENABLED)) return;
+
+				// Preload audio clips only once when the first node is spawned
+				if (!hasPreloadedAudio) {
+					Msg("🎵 First node spawned, preloading audio clips...");
+					ProtoFluxSounds.PreloadAudioClips(__instance.World);
+					hasPreloadedAudio = true;
+				}
+
+				// Get the Overlapping Layout
+				var overlappingLayout = __instance.Slot.FindChild("Overlapping Layout");
+				if (overlappingLayout == null) return;
+
+				// Process Inputs & Operations
+				var inputsOps = overlappingLayout.FindChild("Inputs & Operations");
+				if (inputsOps != null) {
+					ProcessConnectors(inputsOps);
+				}
+
+				// Process Outputs & Impulses
+				var outputsImps = overlappingLayout.FindChild("Outputs & Impulses");
+				if (outputsImps != null) {
+					ProcessConnectors(outputsImps);
+				}
+			}
+			catch (Exception e) {
+				UniLog.Error($"Error in ProtoFluxVisualsOverhaul BuildUI patch: {e}");
+			}
+		}
+
+		private static void ProcessConnectors(Slot root) {
+			foreach (var child in root.Children) {
+				// Look for Connector slot
+				var connectorSlot = child.FindChild("Connector");
+				if (connectorSlot != null) {
+					// Look for WIRE_POINT
+					var wirePoint = connectorSlot.FindChild("<WIRE_POINT>");
+					if (wirePoint != null) {
+						// We no longer need to create audio clips here
+						// They will be created on-demand when sounds need to be played
+					}
+				}
+
+				// Recursively process children
+				ProcessConnectors(child);
+			}
+		}
+
+		private static string GetSlotPath(Slot slot) {
+			var path = new System.Collections.Generic.List<string>();
+			var current = slot;
+			while (current != null) {
+				path.Add(current.Name);
+				current = current.Parent;
+			}
+			path.Reverse();
+			return string.Join(" → ", path);
+		}
+	}
+
+	// Patches for wire-related events
+	[HarmonyPatch(typeof(ProtoFluxWireManager))]
+	public class ProtoFluxWireManager_Patches {
+		[HarmonyPatch("OnAttach")]
+		[HarmonyPostfix]
+		public static void OnAttach_Postfix(ProtoFluxWireManager __instance)
+		{
+			try
+			{
+				// Skip if disabled
+				if (!Config.GetValue(ENABLED)) return;
+
+				// Skip if required components are missing
+				if (__instance == null || !__instance.Enabled || __instance.Slot == null) return;
+
+				// Check if we already have the events component
+				var existingEvents = __instance.Slot.GetComponent<ProtoFluxWireEvents>();
+				if (existingEvents != null)
+				{
+					// Update the tracked wire reference
+					existingEvents.TrackedWire.Target = __instance;
+					return;
+				}
+
+				// Attach our wire events component
+				var wireEvents = __instance.Slot.AttachComponent<ProtoFluxWireEvents>();
+				wireEvents.TrackedWire.Target = __instance;
+				wireEvents.Persistent = true; // Make the component persistent
+
+				Msg("🎵 Attached wire events to new wire!");
+			}
+			catch (Exception e)
+			{
+				Msg($"❌ Error attaching wire events: {e.Message}");
+			}
+		}
+
+		[HarmonyPatch("OnChanges")]
+		[HarmonyPostfix]
+		public static void OnChanges_Postfix(ProtoFluxWireManager __instance)
+		{
+			try
+			{
+				// Skip if disabled
+				if (!Config.GetValue(ENABLED)) return;
+
+				// Skip if required components are missing
+				if (__instance == null || !__instance.Enabled || __instance.Slot == null) return;
+
+				// Check if we already have the events component
+				var existingEvents = __instance.Slot.GetComponent<ProtoFluxWireEvents>();
+				if (existingEvents != null)
+				{
+					// Update the tracked wire reference
+					existingEvents.TrackedWire.Target = __instance;
+					existingEvents.Persistent = true; // Ensure persistence
+					return;
+				}
+
+				// Attach our wire events component
+				var wireEvents = __instance.Slot.AttachComponent<ProtoFluxWireEvents>();
+				wireEvents.TrackedWire.Target = __instance;
+				wireEvents.Persistent = true; // Make the component persistent
+
+				Msg("🎵 Attached wire events to changed wire!");
+			}
+			catch (Exception e)
+			{
+				Msg($"❌ Error attaching wire events: {e.Message}");
+			}
+		}
+
+		[HarmonyPatch("Setup")]
+		[HarmonyPostfix]
+		public static void Setup_Postfix(ProtoFluxWireManager __instance)
+		{
+			try
+			{
+				// Skip if disabled
+				if (!Config.GetValue(ENABLED)) return;
+
+				// Skip if required components are missing
+				if (__instance == null || !__instance.Enabled || __instance.Slot == null) return;
+
+				// Check if we already have the events component
+				var existingEvents = __instance.Slot.GetComponent<ProtoFluxWireEvents>();
+				if (existingEvents != null)
+				{
+					// Update the tracked wire reference
+					existingEvents.TrackedWire.Target = __instance;
+					existingEvents.Persistent = true; // Ensure persistence
+					return;
+				}
+
+				// Attach our wire events component
+				var wireEvents = __instance.Slot.AttachComponent<ProtoFluxWireEvents>();
+				wireEvents.TrackedWire.Target = __instance;
+				wireEvents.Persistent = true; // Make the component persistent
+
+				Msg("🎵 Attached wire events after setup!");
+			}
+			catch (Exception e)
+			{
+				Msg($"❌ Error attaching wire events after setup: {e.Message}");
+			}
+		}
+
+		[HarmonyPatch("OnDestroy")]
+		[HarmonyPrefix]
+		public static void OnDestroy_Prefix(ProtoFluxWireManager __instance)
+		{
+			try
+			{
+				// Skip if disabled
+				if (!Config.GetValue(ENABLED)) return;
+
+				// Skip if required components are missing
+				if (__instance == null || !__instance.Enabled || __instance.Slot == null) return;
+
+				// Get the events component
+				var existingEvents = __instance.Slot.GetComponent<ProtoFluxWireEvents>();
+				if (existingEvents != null)
+				{
+					// Play delete sound if wire is being deleted
+					if (__instance.DeleteHighlight.Value)
+					{
+						ProtoFluxSounds.OnWireDeleted(__instance.World, __instance.Slot.GlobalPosition);
+					}
+					existingEvents.Destroy();
+				}
+			}
+			catch (Exception e)
+			{
+				Msg($"❌ Error handling wire events cleanup: {e.Message}");
+			}
+		}
 	}
 }
