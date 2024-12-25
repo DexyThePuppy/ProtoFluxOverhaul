@@ -241,25 +241,29 @@ public class ProtoFluxVisualsOverhaul : ResoniteMod {
 	[HarmonyPatch(typeof(ProtoFluxWireManager), "Setup")]
 	class ProtoFluxWireManager_Setup_Patch {        
 		// UV scale constants for wire texture direction
-		// Default is 1.0 for normal direction, inverted is -1.0 for flipped direction
 		private const float DEFAULT_UV_SCALE = 1f;
 		private const float INVERTED_UV_SCALE = -1f;
 
-		// Postfix patch that runs after the original Setup method
-		// Handles wire mesh configuration based on wire type
-		// __instance: The ProtoFluxWireManager instance being patched
-		// type: The type of wire being configured (Input/Output/Reference)
-		// ____wireMesh: Reference to the wire's mesh component
-		public static void Postfix(ProtoFluxWireManager __instance, WireType type, SyncRef<StripeWireMesh> ____wireMesh) {
+		public static void Postfix(ProtoFluxWireManager __instance, WireType type, SyncRef<StripeWireMesh> ____wireMesh, SyncRef<MeshRenderer> ____renderer) {
 			try {
-				// Skip configuration if basic requirements aren't met
+				// Skip if basic requirements aren't met
 				if (!IsValidSetup(__instance, ____wireMesh)) return;
-				
-				// Only allow configuration by the wire's owner
-				if (!HasPermission(__instance)) return;
+
+				// For wire direction/appearance, we don't need ownership permission
+				// We only need to check if we're the one who can see/interact with the wire
+				if (!__instance.Enabled || __instance.Slot == null) return;
 
 				// Apply wire-type specific configuration
 				ConfigureWireByType(__instance, ____wireMesh.Target, type);
+
+				// Only apply material changes if we have permission
+				if (PermissionHelper.HasPermission(__instance)) {
+					// Get or create the shared Fresnel Material
+					var fresnelMaterial = GetOrCreateSharedMaterial(__instance.Slot);
+					if (fresnelMaterial != null && ____renderer?.Target != null) {
+						____renderer.Target.Material.Target = fresnelMaterial;
+					}
+				}
 			}
 			catch (Exception e) {
 				UniLog.Error($"Error in ProtoFluxWireManager_Setup_Patch: {e.Message}");
@@ -267,37 +271,14 @@ public class ProtoFluxVisualsOverhaul : ResoniteMod {
 		}
 
 		// Validates that all required components are present and the mod is enabled
-		// Returns: True if setup is valid, false otherwise
 		private static bool IsValidSetup(ProtoFluxWireManager instance, SyncRef<StripeWireMesh> wireMesh) {
 			return Config.GetValue(ENABLED) && 
 				   instance != null && 
 				   wireMesh?.Target != null;
 		}
 
-		// Checks if the current user has permission to modify the wire
-		// This ensures only the wire's owner can modify its properties
-		// Returns: True if user has permission, false otherwise
-		private static bool HasPermission(ProtoFluxWireManager instance) {
-			// Extract IDs to determine wire ownership
-			instance.Slot.ReferenceID.ExtractIDs(out ulong position, out byte user);
-			User wirePointAllocUser = instance.World.GetUserByAllocationID(user);
-			
-			// Handle cases where primary allocation check fails
-			if (wirePointAllocUser == null || position < wirePointAllocUser.AllocationIDStart) {
-				// Try secondary instance check
-				instance.ReferenceID.ExtractIDs(out ulong position1, out byte user1);
-				User instanceAllocUser = instance.World.GetUserByAllocationID(user1);
-				
-				return instanceAllocUser != null && 
-					   position1 >= instanceAllocUser.AllocationIDStart && 
-					   instanceAllocUser == instance.LocalUser;
-			}
-			
-			return wirePointAllocUser == instance.LocalUser;
-		}
-
 		// Configures wire mesh properties based on wire type
-		// Each type (Input/Output/Reference) has specific orientation and texture settings
+		// This should run regardless of permissions since it affects visual appearance
 		private static void ConfigureWireByType(ProtoFluxWireManager instance, StripeWireMesh wireMesh, WireType type) {
 			switch(type) {
 				case WireType.Input:
@@ -317,8 +298,10 @@ public class ProtoFluxVisualsOverhaul : ResoniteMod {
 					return;
 			}
 
-			// Prevent UV scale from being changed after configuration
-			LockUVScale(instance, wireMesh);
+			// Lock UV scale to prevent changes
+			var valueCopy = instance.Slot.GetComponentOrAttach<ValueCopy<float2>>();
+			valueCopy.Source.Target = wireMesh.UVScale;
+			valueCopy.Target.Target = wireMesh.UVScale;
 		}
 
 		// Configures an input wire with:
@@ -352,14 +335,6 @@ public class ProtoFluxVisualsOverhaul : ResoniteMod {
 			wireMesh.Tangent0.Value = float3.Down * ProtoFluxWireManager.TANGENT_MAGNITUDE;
 			wireMesh.Orientation0.Value = ProtoFluxWireManager.WIRE_ORIENTATION_REFERENCE;
 			wireMesh.Orientation1.Value = ProtoFluxWireManager.WIRE_ORIENTATION_REFERENCE;
-		}
-
-		// Locks the UV scale to prevent changes after initial configuration
-		// This ensures wire appearance remains consistent
-		private static void LockUVScale(ProtoFluxWireManager instance, StripeWireMesh wireMesh) {
-			var valueCopy = instance.Slot.GetComponentOrAttach<ValueCopy<float2>>();
-			valueCopy.Source.Target = wireMesh.UVScale;
-			valueCopy.Target.Target = wireMesh.UVScale;
 		}
 	}
 
@@ -511,6 +486,35 @@ public class ProtoFluxVisualsOverhaul : ResoniteMod {
 	// Patches for wire-related events
 	[HarmonyPatch(typeof(ProtoFluxWireManager))]
 	public class ProtoFluxWireManager_Patches {
+		// Helper method for permission checks
+		private static bool HasPermission(ProtoFluxWireManager instance) {
+			try {
+				// Skip permission check if we're not the authority
+				if (!instance.World.IsAuthority) return false;
+
+				// Get the wire's owner
+				instance.Slot.ReferenceID.ExtractIDs(out ulong position, out byte user);
+				User wirePointAllocUser = instance.World.GetUserByAllocationID(user);
+				
+				if (wirePointAllocUser == null || position < wirePointAllocUser.AllocationIDStart) {
+					instance.ReferenceID.ExtractIDs(out ulong position1, out byte user1);
+					User instanceAllocUser = instance.World.GetUserByAllocationID(user1);
+					
+					// Allow the wire owner or admins to modify
+					return (instanceAllocUser != null && 
+						   position1 >= instanceAllocUser.AllocationIDStart &&
+						   (instanceAllocUser == instance.LocalUser || instance.LocalUser.IsHost));
+				}
+				
+				// Allow the wire owner or admins to modify
+				return wirePointAllocUser == instance.LocalUser || instance.LocalUser.IsHost;
+			}
+			catch (Exception) {
+				// If anything goes wrong, deny permission to be safe
+				return false;
+			}
+		}
+
 		[HarmonyPatch("OnAttach")]
 		[HarmonyPostfix]
 		public static void OnAttach_Postfix(ProtoFluxWireManager __instance)
@@ -532,12 +536,12 @@ public class ProtoFluxVisualsOverhaul : ResoniteMod {
 					return;
 				}
 
-				// Attach our wire events component
+				// Attach our wire events component - we want sounds for any wire we interact with
 				var wireEvents = __instance.Slot.AttachComponent<ProtoFluxWireEvents>();
 				wireEvents.TrackedWire.Target = __instance;
 				wireEvents.Persistent = true; // Make the component persistent
 
-				Msg("🎵 Attached wire events to new wire!");
+				Msg("🎵 Attached wire events to wire!");
 			}
 			catch (Exception e)
 			{
@@ -561,57 +565,22 @@ public class ProtoFluxVisualsOverhaul : ResoniteMod {
 				var existingEvents = __instance.Slot.GetComponent<ProtoFluxWireEvents>();
 				if (existingEvents != null)
 				{
-					// Update the tracked wire reference
-					existingEvents.TrackedWire.Target = __instance;
-					existingEvents.Persistent = true; // Ensure persistence
+					// Update if this is our wire event
+					if (existingEvents.TrackedWire.Target == __instance)
+					{
+						existingEvents.Persistent = true; // Ensure persistence
+					}
 					return;
 				}
 
-				// Attach our wire events component
+				// Attach events component for interaction sounds
 				var wireEvents = __instance.Slot.AttachComponent<ProtoFluxWireEvents>();
 				wireEvents.TrackedWire.Target = __instance;
-				wireEvents.Persistent = true; // Make the component persistent
-
-				Msg("🎵 Attached wire events to changed wire!");
+				wireEvents.Persistent = true;
 			}
 			catch (Exception e)
 			{
-				Msg($"❌ Error attaching wire events: {e.Message}");
-			}
-		}
-
-		[HarmonyPatch("Setup")]
-		[HarmonyPostfix]
-		public static void Setup_Postfix(ProtoFluxWireManager __instance)
-		{
-			try
-			{
-				// Skip if disabled
-				if (!Config.GetValue(ENABLED)) return;
-
-				// Skip if required components are missing
-				if (__instance == null || !__instance.Enabled || __instance.Slot == null) return;
-
-				// Check if we already have the events component
-				var existingEvents = __instance.Slot.GetComponent<ProtoFluxWireEvents>();
-				if (existingEvents != null)
-				{
-					// Update the tracked wire reference
-					existingEvents.TrackedWire.Target = __instance;
-					existingEvents.Persistent = true; // Ensure persistence
-					return;
-				}
-
-				// Attach our wire events component
-				var wireEvents = __instance.Slot.AttachComponent<ProtoFluxWireEvents>();
-				wireEvents.TrackedWire.Target = __instance;
-				wireEvents.Persistent = true; // Make the component persistent
-
-				Msg("🎵 Attached wire events after setup!");
-			}
-			catch (Exception e)
-			{
-				Msg($"❌ Error attaching wire events after setup: {e.Message}");
+				Msg($"❌ Error handling wire changes: {e.Message}");
 			}
 		}
 
@@ -629,10 +598,10 @@ public class ProtoFluxVisualsOverhaul : ResoniteMod {
 
 				// Get the events component
 				var existingEvents = __instance.Slot.GetComponent<ProtoFluxWireEvents>();
-				if (existingEvents != null)
+				if (existingEvents != null && existingEvents.TrackedWire.Target == __instance)
 				{
-					// Play delete sound if wire is being deleted
-					if (__instance.DeleteHighlight.Value)
+					// Play delete sound if wire is being deleted and we're interacting with it
+					if (__instance.DeleteHighlight.Value && __instance.LocalUser == __instance.World.LocalUser)
 					{
 						ProtoFluxSounds.OnWireDeleted(__instance.World, __instance.Slot.GlobalPosition);
 					}
@@ -641,7 +610,7 @@ public class ProtoFluxVisualsOverhaul : ResoniteMod {
 			}
 			catch (Exception e)
 			{
-				Msg($"❌ Error handling wire events cleanup: {e.Message}");
+				Msg($"❌ Error handling wire cleanup: {e.Message}");
 			}
 		}
 	}

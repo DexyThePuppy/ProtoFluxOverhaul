@@ -86,6 +86,38 @@ namespace ProtoFluxVisualsOverhaul {
 
             return true;
         }
+
+        public static bool HasPermission(ProtoFluxWireManager instance) {
+            try {
+                if (instance == null || instance.World == null) {
+                    return false;
+                }
+
+                // Skip permission check if we're not the authority
+                if (!instance.World.IsAuthority) return false;
+
+                // Get the wire's owner
+                instance.Slot.ReferenceID.ExtractIDs(out ulong position, out byte user);
+                User wirePointAllocUser = instance.World.GetUserByAllocationID(user);
+                
+                if (wirePointAllocUser == null || position < wirePointAllocUser.AllocationIDStart) {
+                    instance.ReferenceID.ExtractIDs(out ulong position1, out byte user1);
+                    User instanceAllocUser = instance.World.GetUserByAllocationID(user1);
+                    
+                    // Allow the wire owner or admins to modify
+                    return (instanceAllocUser != null && 
+                           position1 >= instanceAllocUser.AllocationIDStart &&
+                           (instanceAllocUser == instance.LocalUser || instance.LocalUser.IsHost));
+                }
+                
+                // Allow the wire owner or admins to modify
+                return wirePointAllocUser == instance.LocalUser || instance.LocalUser.IsHost;
+            }
+            catch (Exception) {
+                // If anything goes wrong, deny permission to be safe
+                return false;
+            }
+        }
     }
 
     // Helper class for shared functionality
@@ -627,9 +659,18 @@ namespace ProtoFluxVisualsOverhaul {
                 var overviewPanel = ui.Root.GetComponentsInChildren<Image>()
                     .FirstOrDefault(img => img.Slot.Name == "Overview");
 
-                if (overviewPanel != null) {
-                    // Set Overview panel to transparent
-                    overviewPanel.Tint.Value = new colorX(0, 0, 0, 0); // Fully transparent
+                if (overviewPanel != null && PermissionHelper.HasPermission(__instance)) {
+                    // Only modify if we own the node
+                    var targetNode = __instance.Node.Target;
+                    if (targetNode != null) {
+                        targetNode.ReferenceID.ExtractIDs(out ulong position, out byte user);
+                        User nodeOwner = __instance.World.GetUserByAllocationID(user);
+
+                        if (nodeOwner != null && position >= nodeOwner.AllocationIDStart && nodeOwner == __instance.LocalUser) {
+                            // Set Overview panel to transparent
+                            overviewPanel.Tint.Value = new colorX(0, 0, 0, 0); // Fully transparent
+                        }
+                    }
                 }
             }
             catch (System.Exception e) {
@@ -804,8 +845,22 @@ namespace ProtoFluxVisualsOverhaul {
                 // Skip if disabled
                 if (!ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.ENABLED)) return;
 
-                // === User Permission Check ===
+                // Skip if instance is null or world is not available
+                if (__instance == null || __instance.World == null) return;
+
+                // Skip if we don't own this node
                 if (!PermissionHelper.HasPermission(__instance)) return;
+
+                // Get the node reference
+                var node = __instance.Node.Target;
+                if (node == null) return;
+
+                // Extract IDs to check ownership
+                node.ReferenceID.ExtractIDs(out ulong position, out byte user);
+                User nodeOwner = __instance.World.GetUserByAllocationID(user);
+
+                // Skip if we don't own this node
+                if (nodeOwner == null || position < nodeOwner.AllocationIDStart || nodeOwner != __instance.LocalUser) return;
 
                 // Get the overview visual field using reflection
                 var overviewVisualRef = (FieldDrive<bool>)overviewVisualField.GetValue(__instance);
