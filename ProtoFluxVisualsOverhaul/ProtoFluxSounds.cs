@@ -3,6 +3,7 @@ using FrooxEngine.ProtoFlux;
 using Elements.Core;
 using System;
 using System.Collections.Generic;
+using static ProtoFluxVisualsOverhaul.Logger;
 
 namespace ProtoFluxVisualsOverhaul
 {
@@ -43,15 +44,15 @@ namespace ProtoFluxVisualsOverhaul
                 {
                     case "Connect":
                         result = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.CONNECT_SOUND);
-                        ProtoFluxVisualsOverhaul.Msg($"🎵 Connect sound URL: {result}");
+                        Logger.LogAudio("URL Config", $"Connect sound URL: {result}");
                         return result;
                     case "Delete":
                         result = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.DELETE_SOUND);
-                        ProtoFluxVisualsOverhaul.Msg($"🎵 Delete sound URL: {result}");
+                        Logger.LogAudio("URL Config", $"Delete sound URL: {result}");
                         return result;
                     case "Grab":
                         result = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.GRAB_SOUND);
-                        ProtoFluxVisualsOverhaul.Msg($"🎵 Grab sound URL: {result}");
+                        Logger.LogAudio("URL Config", $"Grab sound URL: {result}");
                         return result;
                     default:
                         throw new ArgumentException($"Unknown sound name: {soundName}");
@@ -59,7 +60,7 @@ namespace ProtoFluxVisualsOverhaul
             }
             catch (Exception e)
             {
-                ProtoFluxVisualsOverhaul.Msg($"❌ Error getting sound URL for {soundName}: {e.Message}");
+                Logger.LogError($"Failed to get sound URL for {soundName}", e, LogCategory.Audio);
                 throw;
             }
         }
@@ -71,7 +72,7 @@ namespace ProtoFluxVisualsOverhaul
         {
             if (!isInitialized) Initialize(world);
 
-            ProtoFluxVisualsOverhaul.Msg("🎵 Starting audio preload...");
+            Logger.LogAudio("Preload", "Starting audio preload");
             
             // Find or create the necessary slots
             var tempSlot = world.RootSlot.FindChild("__TEMP") ?? world.RootSlot.AddSlot("__TEMP", false);
@@ -84,7 +85,7 @@ namespace ProtoFluxVisualsOverhaul
             // Preload all sound clips
             foreach (var soundName in SOUND_NAMES)
             {
-                ProtoFluxVisualsOverhaul.Msg($"🎵 Preloading {soundName} sound...");
+                Logger.LogAudio("Preload", $"Preloading {soundName} sound");
                 
                 // Create or find the clip slot
                 var clipSlot = audioRoot.FindChild(soundName + "SoundLoader") 
@@ -119,7 +120,7 @@ namespace ProtoFluxVisualsOverhaul
                     if (assetLoader.Asset.IsAssetAvailable)
                     {
                         persistentPlayer.Play();
-                        ProtoFluxVisualsOverhaul.Msg($"✅ Asset loaded immediately for {soundName}");
+                        Logger.LogAudio("Asset Load", $"Asset loaded immediately for {soundName}");
                     }
                     else
                     {
@@ -127,14 +128,14 @@ namespace ProtoFluxVisualsOverhaul
                             if (assetLoader.Asset.IsAssetAvailable && !persistentPlayer.IsRemoved)
                             {
                                 persistentPlayer.Play();
-                                ProtoFluxVisualsOverhaul.Msg($"✅ Asset loaded and playing for {soundName}");
+                                Logger.LogAudio("Asset Load", $"Asset loaded and playing for {soundName}");
                             }
                         };
                     }
                 }
                 else
                 {
-                    ProtoFluxVisualsOverhaul.Msg($"✅ Using existing audio clip for {soundName}");
+                    Logger.LogAudio("Cache", $"Using existing audio clip for {soundName}");
                     
                     // Ensure the persistent player is still playing
                     if (persistentPlayers.TryGetValue(soundName, out var player) && !player.IsRemoved && !player.IsPlaying)
@@ -144,7 +145,7 @@ namespace ProtoFluxVisualsOverhaul
                 }
             }
 
-            ProtoFluxVisualsOverhaul.Msg("🎵 Audio preload complete!");
+            Logger.LogAudio("Preload", "Audio preload complete!");
         }
 
         public static StaticAudioClip GetOrCreateSharedAudioClip(string soundName)
@@ -153,14 +154,14 @@ namespace ProtoFluxVisualsOverhaul
             if (sharedAudioClips.TryGetValue(soundName, out var existingClip))
             {
                 if (!existingClip.IsRemoved) {
-                    ProtoFluxVisualsOverhaul.Msg($"🎵 Using cached audio clip for {soundName}");
+                    Logger.LogAudio("Cache", $"Using cached audio clip for {soundName}");
                     return existingClip;
                 }
-                ProtoFluxVisualsOverhaul.Msg($"🗑️ Removing destroyed audio clip for {soundName}");
+                Logger.LogAudio("Cache", $"Removing destroyed audio clip for {soundName}");
                 sharedAudioClips.Remove(soundName);
             }
 
-            ProtoFluxVisualsOverhaul.Msg($"🎵 Creating new audio clip for {soundName}");
+            Logger.LogAudio("Creation", $"Creating new audio clip for {soundName}");
             
             // Find existing __TEMP slot first
             var tempSlot = currentWorld.RootSlot.FindChild("__TEMP");
@@ -211,7 +212,7 @@ namespace ProtoFluxVisualsOverhaul
                 activeAudioSlots.Remove(soundName);
             }
 
-            ProtoFluxVisualsOverhaul.Msg($"🔊 Creating audio slot for {soundName}");
+            Logger.LogAudio("Creation", $"Creating audio slot for {soundName}");
 
             // Create slot and disable it by default
             var slot = world.AddSlot($"Wire{soundName}Sound");
@@ -240,7 +241,7 @@ namespace ProtoFluxVisualsOverhaul
 
             // Register for cleanup notification
             slot.OnPrepareDestroy += (s) => {
-                ProtoFluxVisualsOverhaul.Msg($"🗑️ Cleaning up audio slot for {soundName}");
+                Logger.LogAudio("Cleanup", $"Cleaning up audio slot for {soundName}");
                 if (activeAudioSlots.ContainsKey(soundName))
                 {
                     activeAudioSlots.Remove(soundName);
@@ -253,14 +254,14 @@ namespace ProtoFluxVisualsOverhaul
             // Enable slot and play
             slot.ActiveSelf = true;
             audioClipPlayer.Play();
-            ProtoFluxVisualsOverhaul.Msg($"▶️ Started playing {soundName}");
+            Logger.LogAudio("Playback", $"Started playing {soundName}");
         }
 
         public static void OnWireConnected(World world, float3 position)
         {
             if (!isInitialized) Initialize(world);
             if (!ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.WIRE_SOUNDS)) return;
-            ProtoFluxVisualsOverhaul.Msg("🔌 Wire connected, playing sound...");
+            Logger.LogWire("Connect", "Playing connect sound");
             PlaySoundAndCleanup(world, position, "Connect");
         }
 
@@ -268,7 +269,7 @@ namespace ProtoFluxVisualsOverhaul
         {
             if (!isInitialized) Initialize(world);
             if (!ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.WIRE_SOUNDS)) return;
-            ProtoFluxVisualsOverhaul.Msg("❌ Wire deleted, playing sound...");
+            Logger.LogWire("Delete", "Playing delete sound");
             PlaySoundAndCleanup(world, position, "Delete");
         }
 
@@ -276,7 +277,7 @@ namespace ProtoFluxVisualsOverhaul
         {
             if (!isInitialized) Initialize(world);
             if (!ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.WIRE_SOUNDS)) return;
-            ProtoFluxVisualsOverhaul.Msg("✋ Wire grabbed, playing sound...");
+            Logger.LogWire("Grab", "Playing grab sound");
             PlaySoundAndCleanup(world, position, "Grab");
         }
     }

@@ -12,6 +12,7 @@ using System.Reflection;
 using ProtoFlux.Core;
 using ProtoFlux.Runtimes.Execution.Nodes.Actions;
 using FrooxEngine.ProtoFlux.CoreNodes;
+using static ProtoFluxVisualsOverhaul.Logger;
 
 namespace ProtoFluxVisualsOverhaul {
     // Shared permission check method for all patches
@@ -126,11 +127,11 @@ namespace ProtoFluxVisualsOverhaul {
             // Skip if already applied
             if (image.Sprite.Target is SpriteProvider) return;
 
-            ProtoFluxVisualsOverhaul.Msg($"🐾 Applying rounded corners to {(isHeader ? "header" : "background")}...");
+            Logger.LogUI("Rounded Corners", $"Applying rounded corners to {(isHeader ? "header" : "background")}");
 
             // Create a SpriteProvider for rounded corners
             var spriteProvider = image.Slot.AttachComponent<SpriteProvider>();
-            ProtoFluxVisualsOverhaul.Msg($"✅ Created SpriteProvider for {(isHeader ? "header" : "background")}");
+            Logger.LogUI("Sprite Provider", $"Created SpriteProvider for {(isHeader ? "header" : "background")}");
             
             // Set up the texture
             var texture = spriteProvider.Slot.AttachComponent<StaticTexture2D>();
@@ -152,7 +153,7 @@ namespace ProtoFluxVisualsOverhaul {
             texture.PreferredFormat.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.PREFERRED_FORMAT);
             texture.PreferredProfile.Value = ProtoFluxVisualsOverhaul.Config.GetValue(ProtoFluxVisualsOverhaul.PREFERRED_PROFILE);
             
-            ProtoFluxVisualsOverhaul.Msg($"✅ Set up texture for {(isHeader ? "header" : "background")}");
+            Logger.LogUI("Texture Setup", $"Set up texture for {(isHeader ? "header" : "background")}");
             
             // Configure the sprite provider based on the image settings
             spriteProvider.Texture.Target = texture;
@@ -160,14 +161,14 @@ namespace ProtoFluxVisualsOverhaul {
             spriteProvider.Borders.Value = new float4(0.5f, 0.5f, 0.5f, 0.5f);  // x:0.5 y:0 z:0 w:0
             spriteProvider.Scale.Value = isHeader ? 0.03f : 0.07f;  // Different scale for header vs background
             spriteProvider.FixedSize.Value = 1.00f;  // FixedSize: 1.00
-            ProtoFluxVisualsOverhaul.Msg($"✅ Configured {(isHeader ? "header" : "background")} sprite provider settings");
+            Logger.LogUI("Sprite Config", $"Configured {(isHeader ? "header" : "background")} sprite provider settings");
 
             // Update the image to use the sprite
             image.Sprite.Target = spriteProvider;
             
             // Preserve color and tint settings
             image.PreserveAspect.Value = true;
-            ProtoFluxVisualsOverhaul.Msg($"✅ Successfully applied rounded corners to {(isHeader ? "header" : "background")}!");
+            Logger.LogUI("Completion", $"Successfully applied rounded corners to {(isHeader ? "header" : "background")}");
         }
     }
 
@@ -204,7 +205,7 @@ namespace ProtoFluxVisualsOverhaul {
                     if (connectorSlot.Name == "Connector") {
                         var wirePoint = connectorSlot.FindChild("<WIRE_POINT>");
                         if (wirePoint != null) {
-                            ProtoFluxVisualsOverhaul.Msg($"🔍 Found input wire point in {connectorSlot.Parent?.Name ?? "unknown"}");
+                            Logger.LogWire("Setup", $"Found input wire point in {connectorSlot.Parent?.Name ?? "unknown"}");
                             CreateAudioClipsSlot(wirePoint);
                         }
                     }
@@ -218,7 +219,7 @@ namespace ProtoFluxVisualsOverhaul {
                     if (connectorSlot.Name == "Connector") {
                         var wirePoint = connectorSlot.FindChild("<WIRE_POINT>");
                         if (wirePoint != null) {
-                            ProtoFluxVisualsOverhaul.Msg($"🔍 Found output wire point in {connectorSlot.Parent?.Name ?? "unknown"}");
+                            Logger.LogWire("Setup", $"Found output wire point in {connectorSlot.Parent?.Name ?? "unknown"}");
                             CreateAudioClipsSlot(wirePoint);
                         }
                     }
@@ -453,10 +454,10 @@ namespace ProtoFluxVisualsOverhaul {
 
                 // Special handling for Update nodes
                 if (node.GetType().IsSubclassOf(typeof(UpdateBase)) || node.GetType().IsSubclassOf(typeof(UserUpdateBase))) {
-                    ProtoFluxVisualsOverhaul.Msg("🔄 Processing Update node UI...");
+                    Logger.LogUI("Node Processing", "Processing Update node UI");
                     // Make sure we don't interfere with global reference UI generation
                     if (ui.Current.Name == "Global References") {
-                        ProtoFluxVisualsOverhaul.Msg("⚠️ Skipping UI modification for global references panel");
+                        Logger.LogUI("Node Processing", "Skipping UI modification for global references panel");
                         return;
                     }
                 }
@@ -566,17 +567,17 @@ namespace ProtoFluxVisualsOverhaul {
                     var nodeType = node.GetType();
                     if (nodeType.IsSubclassOf(typeof(UpdateBase)) || nodeType.IsSubclassOf(typeof(UserUpdateBase)))
                     {
-                        ProtoFluxVisualsOverhaul.Msg($"🔄 Found Update node of type: {nodeType.Name}");
+                        Logger.LogUI("Node Type", $"Found Update node of type: {nodeType.Name}");
                         // Check if it's an async update node
                         bool isAsync = nodeType.GetInterfaces().Any(i => i == typeof(IAsyncNodeOperation));
                         nodeTypeColor = isAsync ? DatatypeColorHelper.ASYNC_FLOW_COLOR : DatatypeColorHelper.SYNC_FLOW_COLOR;
-                        ProtoFluxVisualsOverhaul.Msg($"🎨 Setting Update node color to {(isAsync ? "ASYNC" : "SYNC")} flow color");
+                        Logger.LogUI("Node Color", $"Setting Update node color to {(isAsync ? "ASYNC" : "SYNC")} flow color");
                     }
                     else 
                     {
                         nodeTypeColor = DatatypeColorHelper.GetTypeColor(nodeType);
                     }
-                    ProtoFluxVisualsOverhaul.Msg($"🎨 Node type color: R:{nodeTypeColor.r:F2} G:{nodeTypeColor.g:F2} B:{nodeTypeColor.b:F2}");
+                    Logger.LogUI("Node Color", $"Node type color: R:{nodeTypeColor.r:F2} G:{nodeTypeColor.g:F2} B:{nodeTypeColor.b:F2}");
                     
                     // Apply the color to the header image
                     image.Tint.Value = nodeTypeColor;
@@ -605,13 +606,13 @@ namespace ProtoFluxVisualsOverhaul {
                     
                     // Calculate text color based on header image color for better contrast
                     var headerColor = image.Tint.Value;
-                    ProtoFluxVisualsOverhaul.Msg($"🖼️ Header image color: R:{headerColor.r:F2} G:{headerColor.g:F2} B:{headerColor.b:F2}");
+                    Logger.LogUI("Header Color", $"Header image color: R:{headerColor.r:F2} G:{headerColor.g:F2} B:{headerColor.b:F2}");
                     
                     var brightness = (headerColor.r * 0.299f + headerColor.g * 0.587f + headerColor.b * 0.114f);
-                    ProtoFluxVisualsOverhaul.Msg($"✨ Calculated brightness: {brightness:F2}");
+                    Logger.LogUI("Brightness", $"Calculated brightness: {brightness:F2}");
                     
                     var textColor = brightness > 0.6f ? colorX.Black : colorX.White;
-                    ProtoFluxVisualsOverhaul.Msg($"📝 Setting text color to: {(brightness > 0.6f ? "BLACK" : "WHITE")} based on brightness");
+                    Logger.LogUI("Text Color", $"Setting text color to: {(brightness > 0.6f ? "BLACK" : "WHITE")} based on brightness");
                     
                     // Set text color multiple ways to ensure it takes effect
                     newText.Color.Value = textColor;
@@ -622,7 +623,7 @@ namespace ProtoFluxVisualsOverhaul {
                     // Convert color to hex based on brightness
                     newText.Content.Value = $"<color={(brightness > 0.6f ? "#000000" : "#FFFFFF")}><b>{headerText.Content.Value}</b></color>";
                     
-                    ProtoFluxVisualsOverhaul.Msg($"📝 Text color set to: R:{newText.Color.Value.r:F2} G:{newText.Color.Value.g:F2} B:{newText.Color.Value.b:F2}");
+                    Logger.LogUI("Text Color", $"Text color set to: R:{newText.Color.Value.r:F2} G:{newText.Color.Value.g:F2} B:{newText.Color.Value.b:F2}");
                     
                     // Copy RectTransform settings
                     var newHeaderRect = newHeaderSlot.AttachComponent<RectTransform>();
@@ -641,7 +642,7 @@ namespace ProtoFluxVisualsOverhaul {
                     // Apply rounded corners to the new header
                     RoundedCornersHelper.ApplyRoundedCorners(image, true);
 
-                    ProtoFluxVisualsOverhaul.Msg("✅ Successfully reorganized title layout!");
+                    Logger.LogUI("Completion", "Successfully reorganized title layout!");
                 }
 
                 // Find the category text (it's the last Text component with dark gray color)
@@ -673,8 +674,8 @@ namespace ProtoFluxVisualsOverhaul {
                     }
                 }
             }
-            catch (System.Exception e) {
-                ProtoFluxVisualsOverhaul.Msg($"❌ Error in ProtoFluxNodeVisual_BuildUI_Patch: {e.Message}");
+            catch (Exception e) {
+                Logger.LogError("Failed to process node visual", e, LogCategory.UI);
             }
         }
     }
@@ -738,7 +739,7 @@ namespace ProtoFluxVisualsOverhaul {
                     connectorImage.FlipHorizontally.Value = false; // We handle flipping in the sprite provider
                 }
             } catch (Exception e) {
-                UniLog.Error($"Error in ProtoFluxNodeVisual_GenerateVisual_Patch: {e}");
+                Logger.LogError("Error in ProtoFluxNodeVisual_GenerateVisual_Patch", e, LogCategory.UI);
             }
         }
     }
@@ -759,7 +760,7 @@ namespace ProtoFluxVisualsOverhaul {
                 WireHelper.CreateAudioClipsSlot(wirePointSlot);
             }
             catch (Exception e) {
-                ProtoFluxVisualsOverhaul.Msg($"❌ Error in input element generation: {e.Message}");
+                Logger.LogError("Error in input element generation", e, LogCategory.UI);
             }
         }
     }
@@ -780,7 +781,7 @@ namespace ProtoFluxVisualsOverhaul {
                 WireHelper.CreateAudioClipsSlot(wirePointSlot);
             }
             catch (Exception e) {
-                ProtoFluxVisualsOverhaul.Msg($"❌ Error in output element generation: {e.Message}");
+                Logger.LogError("Error in output element generation", e, LogCategory.UI);
             }
         }
     }
@@ -826,7 +827,7 @@ namespace ProtoFluxVisualsOverhaul {
                 return false; // Skip original method
             }
             catch (Exception e) {
-                ProtoFluxVisualsOverhaul.Msg($"❌ Error in UpdateNodeStatus patch: {e.Message}");
+                Logger.LogError("Error in UpdateNodeStatus patch", e, LogCategory.UI);
                 return true; // Run original method on error
             }
         }
@@ -930,7 +931,7 @@ namespace ProtoFluxVisualsOverhaul {
                     }
                 }
             } catch (Exception e) {
-                UniLog.Error($"Error in ProtoFluxNodeVisual_OnChanges_Patch: {e}");
+                Logger.LogError("Error in OnChanges patch", e, LogCategory.UI);
             }
         }
     }
@@ -946,7 +947,7 @@ namespace ProtoFluxVisualsOverhaul {
                 // === User Permission Check ===
                 if (!PermissionHelper.HasPermission(__instance)) return;
 
-                ProtoFluxVisualsOverhaul.Msg("🔧 Styling global references panel...");
+                Logger.LogUI("Global Refs", "Styling global references panel");
 
                 // Find the global references panel
                 var globalRefsPanel = ui.Root.FindChild("Global References");
@@ -964,10 +965,10 @@ namespace ProtoFluxVisualsOverhaul {
                     }
                 }
 
-                ProtoFluxVisualsOverhaul.Msg("✅ Global references panel styled successfully!");
+                Logger.LogUI("Global Refs", "Global references panel styled successfully!");
             }
             catch (Exception e) {
-                ProtoFluxVisualsOverhaul.Msg($"❌ Error in GenerateGlobalRefs patch: {e.Message}");
+                Logger.LogError("Error in GenerateGlobalRefs patch", e, LogCategory.UI);
             }
         }
     }
@@ -1002,7 +1003,7 @@ namespace ProtoFluxVisualsOverhaul {
 
                 // Special handling for Update nodes
                 if (IsUpdateNodeField(node, globalRef, referenceType)) {
-                    ProtoFluxVisualsOverhaul.Msg($"🎨 Processing global reference for Update node: {referenceType.Name}");
+                    Logger.LogUI("Global Refs", $"Styling global reference for Update node: {referenceType.Name}");
                     
                     try {
                         // Try to find an existing global value of the correct type
@@ -1014,7 +1015,7 @@ namespace ProtoFluxVisualsOverhaul {
                             try {
                                 if (existing.GetType() == typeof(FrooxEngine.ProtoFlux.GlobalValue<bool>)) {
                                     globalRef.TrySet(existing);
-                                    ProtoFluxVisualsOverhaul.Msg("✅ Found and set existing global value");
+                                    Logger.LogUI("Global Value", "Found and set existing global value");
                                     return false;
                                 }
                             }
@@ -1025,18 +1026,18 @@ namespace ProtoFluxVisualsOverhaul {
                         var globalValueSlot = world.RootSlot.AddSlot("Global Value");
                         var globalValue = globalValueSlot.AttachComponent<FrooxEngine.ProtoFlux.GlobalValue<bool>>();
                         globalRef.TrySet(globalValue);
-                        ProtoFluxVisualsOverhaul.Msg("✅ Created and set new global value");
+                        Logger.LogUI("Global Value", "Created and set new global value");
                         return false;
                     }
                     catch (Exception e) {
-                        ProtoFluxVisualsOverhaul.Msg($"⚠️ Error handling global value: {e.Message}");
+                        Logger.LogError("Error handling global value", e, LogCategory.UI);
                     }
                 }
 
                 return true; // Let original method run for non-Update nodes
             }
             catch (Exception e) {
-                ProtoFluxVisualsOverhaul.Msg($"❌ Error in GenerateGlobalRefElement patch: {e.Message}");
+                Logger.LogError("Error in GenerateGlobalRefElement patch", e, LogCategory.UI);
                 return true; // Run original on error
             }
         }
@@ -1054,7 +1055,7 @@ namespace ProtoFluxVisualsOverhaul {
 
                 // Special handling for Update nodes
                 if (IsUpdateNodeField(node, globalRef, referenceType)) {
-                    ProtoFluxVisualsOverhaul.Msg($"🎨 Styling global reference for Update node: {referenceType.Name}");
+                    Logger.LogUI("Global Refs", $"Styling global reference for Update node: {referenceType.Name}");
                     
                     // Find the most recently added global reference UI elements
                     var images = ui.Current.GetComponentsInChildren<Image>();
@@ -1070,7 +1071,7 @@ namespace ProtoFluxVisualsOverhaul {
                 }
             }
             catch (Exception e) {
-                ProtoFluxVisualsOverhaul.Msg($"❌ Error in GenerateGlobalRefElement postfix: {e.Message}");
+                Logger.LogError("Error in GenerateGlobalRefElement postfix", e, LogCategory.UI);
             }
         }
     }
@@ -1091,7 +1092,7 @@ namespace ProtoFluxVisualsOverhaul {
 
                 // Check if this is a global value with wrong type
                 if (value is GlobalValue<string>) {
-                    ProtoFluxVisualsOverhaul.Msg("🔄 Intercepted string global value assignment");
+                    Logger.LogUI("Global Value", "Intercepted string global value assignment");
                     
                     // Get the world from the value since it's a WorldElement
                     var world = value.World;
@@ -1104,7 +1105,7 @@ namespace ProtoFluxVisualsOverhaul {
                         var setTargetMethod = __instance.GetType().GetMethod("set_Target", BindingFlags.Public | BindingFlags.Instance);
                         setTargetMethod.Invoke(__instance, new object[] { globalValue });
                         
-                        ProtoFluxVisualsOverhaul.Msg("✅ Created and set new boolean global value");
+                        Logger.LogUI("Global Value", "Created and set new boolean global value");
                         return false;
                     }
                 }
@@ -1112,7 +1113,7 @@ namespace ProtoFluxVisualsOverhaul {
                 return true;
             }
             catch (Exception e) {
-                ProtoFluxVisualsOverhaul.Msg($"❌ Error in set_Target patch: {e.Message}");
+                Logger.LogError("Error in set_Target patch", e, LogCategory.UI);
                 return true;
             }
         }
