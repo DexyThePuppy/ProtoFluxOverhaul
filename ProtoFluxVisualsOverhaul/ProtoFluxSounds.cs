@@ -11,8 +11,10 @@ namespace ProtoFluxVisualsOverhaul
     /// </summary>
     public static class ProtoFluxSounds
     {
-        // Cache for shared audio clips
+        // Cache for shared audio clips and their components
         private static readonly Dictionary<string, StaticAudioClip> sharedAudioClips = new Dictionary<string, StaticAudioClip>();
+        private static readonly Dictionary<string, AudioClipPlayer> persistentPlayers = new Dictionary<string, AudioClipPlayer>();
+        private static readonly Dictionary<string, AssetLoader<AudioClip>> assetLoaders = new Dictionary<string, AssetLoader<AudioClip>>();
         private static readonly Dictionary<string, Slot> activeAudioSlots = new Dictionary<string, Slot>();
         
         // List of all sound names we need to preload
@@ -70,94 +72,77 @@ namespace ProtoFluxVisualsOverhaul
             if (!isInitialized) Initialize(world);
 
             ProtoFluxVisualsOverhaul.Msg("🎵 Starting audio preload...");
-            ProtoFluxVisualsOverhaul.Msg($"🔧 Config initialized: {ProtoFluxVisualsOverhaul.Config != null}");
-            ProtoFluxVisualsOverhaul.Msg($"🔧 Wire sounds enabled: {ProtoFluxVisualsOverhaul.Config?.GetValue(ProtoFluxVisualsOverhaul.WIRE_SOUNDS)}");
+            
+            // Find or create the necessary slots
+            var tempSlot = world.RootSlot.FindChild("__TEMP") ?? world.RootSlot.AddSlot("__TEMP", false);
+            var audioRoot = tempSlot.FindChild($"{world.LocalUser.UserName}-Sounds-ProtoFluxVisualsOverhaul") 
+                           ?? tempSlot.AddSlot($"{world.LocalUser.UserName}-Sounds-ProtoFluxVisualsOverhaul", false);
 
-            // Find existing __TEMP slot first
-            var tempSlot = currentWorld.RootSlot.FindChild("__TEMP");
-            var audioRoot = tempSlot?.FindChild($"{currentWorld.LocalUser.UserName}-Sounds-ProtoFluxVisualsOverhaul");
-
-            // If we don't have the slots yet, create them
-            if (tempSlot == null) {
-                tempSlot = currentWorld.RootSlot.AddSlot("__TEMP", false);
-            }
-            if (audioRoot == null) {
-                audioRoot = tempSlot.AddSlot($"{currentWorld.LocalUser.UserName}-Sounds-ProtoFluxVisualsOverhaul", false);
-            }
-
-            // Create a temporary slot for preloading
-            var preloadSlot = audioRoot.AddSlot("PreloadSlot", false);
+            // Ensure cleanup when user leaves
+            audioRoot.GetComponentOrAttach<DestroyOnUserLeave>().TargetUser.Target = world.LocalUser;
 
             // Preload all sound clips
             foreach (var soundName in SOUND_NAMES)
             {
                 ProtoFluxVisualsOverhaul.Msg($"🎵 Preloading {soundName} sound...");
                 
-                // Look for existing clip slot first
-                var clipSlot = audioRoot.FindChild(soundName + "SoundLoader");
-                if (clipSlot == null) {
-                    clipSlot = audioRoot.AddSlot(soundName + "SoundLoader", false);
-                }
-                
-                // Only create new clip if needed
-                StaticAudioClip clip;
-                if (!sharedAudioClips.TryGetValue(soundName, out var existingClip) || existingClip.IsRemoved)
+                // Create or find the clip slot
+                var clipSlot = audioRoot.FindChild(soundName + "SoundLoader") 
+                              ?? audioRoot.AddSlot(soundName + "SoundLoader", false);
+
+                // Check if we need to create new components
+                if (!sharedAudioClips.TryGetValue(soundName, out var clip) || clip.IsRemoved)
                 {
-                    // Check if the slot already has a StaticAudioClip
-                    clip = clipSlot.GetComponent<StaticAudioClip>();
-                    if (clip == null) {
-                        clip = clipSlot.AttachComponent<StaticAudioClip>();
-                        clip.URL.Value = GetSoundUrl(soundName);
-
-                        // Add an AssetLoader to manage the audio clip and keep it loaded
-                        var assetLoader = clipSlot.AttachComponent<AssetLoader<AudioClip>>();
-                        assetLoader.Asset.Target = clip;
-                        assetLoader.Asset.ListenToAssetUpdates = true;  // Listen for asset updates
-
-                        // Create a persistent player to keep the asset loaded
-                        var persistentPlayer = clipSlot.AttachComponent<AudioClipPlayer>();
-                        persistentPlayer.Clip.Target = clip;
-                        
-                        // Add a silent audio output to keep the clip loaded
-                        var silentOutput = clipSlot.AttachComponent<AudioOutput>();
-                        silentOutput.Volume.Value = 0f;
-                        silentOutput.Source.Target = persistentPlayer;
-                        
-                        // Play immediately if available, otherwise wait for the asset
-                        if (assetLoader.Asset.IsAssetAvailable)
-                        {
-                            persistentPlayer.Play();
-                            ProtoFluxVisualsOverhaul.Msg($"✅ Asset loaded immediately for {soundName}");
-                        }
-                        else
-                        {
-                            ProtoFluxVisualsOverhaul.Msg($"⏳ Waiting for asset to load for {soundName}");
-                            assetLoader.Asset.Changed += (IChangeable changeable) => {
-                                if (assetLoader.Asset.IsAssetAvailable && !persistentPlayer.IsRemoved)
-                                {
-                                    persistentPlayer.Play();
-                                    ProtoFluxVisualsOverhaul.Msg($"✅ Asset loaded and playing for {soundName}");
-                                }
-                            };
-                        }
-
-                        // Ensure cleanup when user leaves
-                        clipSlot.GetComponentOrAttach<DestroyOnUserLeave>().TargetUser.Target = currentWorld.LocalUser;
-                    }
-
-                    // Cache the clip
+                    // Create and configure the StaticAudioClip
+                    clip = clipSlot.AttachComponent<StaticAudioClip>();
+                    clip.URL.Value = GetSoundUrl(soundName);
                     sharedAudioClips[soundName] = clip;
-                    ProtoFluxVisualsOverhaul.Msg($"✅ Created new audio clip for {soundName}");
+
+                    // Create and configure the AssetLoader
+                    var assetLoader = clipSlot.AttachComponent<AssetLoader<AudioClip>>();
+                    assetLoader.Asset.Target = clip;
+                    assetLoader.Asset.ListenToAssetUpdates = true;
+                    assetLoaders[soundName] = assetLoader;
+
+                    // Create and configure the persistent player
+                    var persistentPlayer = clipSlot.AttachComponent<AudioClipPlayer>();
+                    persistentPlayer.Clip.Target = clip;
+                    persistentPlayer.Loop = true;  // Keep it playing to prevent unloading
+                    persistentPlayers[soundName] = persistentPlayer;
+
+                    // Create a silent audio output to keep the clip loaded
+                    var silentOutput = clipSlot.AttachComponent<AudioOutput>();
+                    silentOutput.Volume.Value = 0f;  // Silent playback
+                    silentOutput.Source.Target = persistentPlayer;
+
+                    // Start playing when the asset is available
+                    if (assetLoader.Asset.IsAssetAvailable)
+                    {
+                        persistentPlayer.Play();
+                        ProtoFluxVisualsOverhaul.Msg($"✅ Asset loaded immediately for {soundName}");
+                    }
+                    else
+                    {
+                        assetLoader.Asset.Changed += (IChangeable changeable) => {
+                            if (assetLoader.Asset.IsAssetAvailable && !persistentPlayer.IsRemoved)
+                            {
+                                persistentPlayer.Play();
+                                ProtoFluxVisualsOverhaul.Msg($"✅ Asset loaded and playing for {soundName}");
+                            }
+                        };
+                    }
                 }
                 else
                 {
-                    clip = existingClip;
                     ProtoFluxVisualsOverhaul.Msg($"✅ Using existing audio clip for {soundName}");
+                    
+                    // Ensure the persistent player is still playing
+                    if (persistentPlayers.TryGetValue(soundName, out var player) && !player.IsRemoved && !player.IsPlaying)
+                    {
+                        player.Play();
+                    }
                 }
             }
-
-            // Clean up preload slot
-            preloadSlot.Destroy();
 
             ProtoFluxVisualsOverhaul.Msg("🎵 Audio preload complete!");
         }
