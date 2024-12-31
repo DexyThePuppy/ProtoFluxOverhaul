@@ -40,10 +40,10 @@ public class ProtoFluxVisualsOverhaul : ResoniteMod {
 	public static readonly ModConfigurationKey<bool> PING_PONG = new("pingPong", "Ping Pong Animation", () => false);
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<Uri> FAR_TEXTURE = new("farTexture", "Far Texture URL", () => new Uri("resdb:///de2b9dfc4d029bd32ec784078b7511f0a8f18d2690595fc2540729da63a37f0a.webp"));
+	public static readonly ModConfigurationKey<Uri> FAR_TEXTURE = new("farTexture", "Far Texture URL", () => new Uri("https://raw.githubusercontent.com/DexyThePuppy/ProtoFluxVisualsOverhaul/refs/heads/main/ProtoFluxVisualsOverhaul/Images/Texture.png"));
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<Uri> NEAR_TEXTURE = new("nearTexture", "Near Texture URL", () => new Uri("resdb:///de2b9dfc4d029bd32ec784078b7511f0a8f18d2690595fc2540729da63a37f0a.webp"));	
+	public static readonly ModConfigurationKey<Uri> NEAR_TEXTURE = new("nearTexture", "Near Texture URL", () => new Uri("https://raw.githubusercontent.com/DexyThePuppy/ProtoFluxVisualsOverhaul/refs/heads/main/ProtoFluxVisualsOverhaul/Images/Texture.png"));	
 
 	[AutoRegisterConfigKey]
 	public static readonly ModConfigurationKey<Uri> ROUNDED_TEXTURE = new("roundedTexture", "Rounded Texture URL", () => new Uri("resdb:///3ee5c0335455c19970d877e2b80f7869539df43fccb8fc64b38e320fc44c154f.png"));
@@ -231,7 +231,7 @@ public class ProtoFluxVisualsOverhaul : ResoniteMod {
 				}
 			}
 			catch (Exception e) {
-				UniLog.Error($"Error in ProtoFluxVisualsOverhaul OnChanges patch: {e}");
+				ProtoFluxVisualsOverhaul.Msg($"Error in ProtoFluxVisualsOverhaul OnChanges patch: {e}");
 			}
 		}
 	}
@@ -266,7 +266,7 @@ public class ProtoFluxVisualsOverhaul : ResoniteMod {
 				}
 			}
 			catch (Exception e) {
-				UniLog.Error($"Error in ProtoFluxWireManager_Setup_Patch: {e.Message}");
+				ProtoFluxVisualsOverhaul.Msg($"Error in ProtoFluxWireManager_Setup_Patch: {e.Message}");	
 			}
 		}
 
@@ -294,7 +294,7 @@ public class ProtoFluxVisualsOverhaul : ResoniteMod {
 					break;
 
 				default:
-					UniLog.Warning($"Unexpected wire type: {type}");
+					ProtoFluxVisualsOverhaul.Msg($"Unexpected wire type: {type}");	
 					return;
 			}
 
@@ -449,7 +449,7 @@ public class ProtoFluxVisualsOverhaul : ResoniteMod {
 				}
 			}
 			catch (Exception e) {
-				UniLog.Error($"Error in ProtoFluxVisualsOverhaul BuildUI patch: {e}");
+				ProtoFluxVisualsOverhaul.Msg($"Error in ProtoFluxVisualsOverhaul BuildUI patch: {e}");	
 			}
 		}
 
@@ -489,8 +489,7 @@ public class ProtoFluxVisualsOverhaul : ResoniteMod {
 		// Helper method for permission checks
 		private static bool HasPermission(ProtoFluxWireManager instance) {
 			try {
-				// Skip permission check if we're not the authority
-				if (!instance.World.IsAuthority) return false;
+				if (instance == null || instance.Slot == null) return false;
 
 				// Get the wire's owner
 				instance.Slot.ReferenceID.ExtractIDs(out ulong position, out byte user);
@@ -501,86 +500,23 @@ public class ProtoFluxVisualsOverhaul : ResoniteMod {
 					User instanceAllocUser = instance.World.GetUserByAllocationID(user1);
 					
 					// Allow the wire owner or admins to modify
-					return (instanceAllocUser != null && 
+					bool hasPermission = (instanceAllocUser != null && 
 						   position1 >= instanceAllocUser.AllocationIDStart &&
 						   (instanceAllocUser == instance.LocalUser || instance.LocalUser.IsHost));
+					
+					Msg($"🔑 Permission check (instance): Owner={instanceAllocUser?.UserName}, IsLocalUser={instanceAllocUser == instance.LocalUser}, IsHost={instance.LocalUser.IsHost}, Result={hasPermission}");
+					return hasPermission;
 				}
 				
 				// Allow the wire owner or admins to modify
-				return wirePointAllocUser == instance.LocalUser || instance.LocalUser.IsHost;
+				bool result = wirePointAllocUser == instance.LocalUser || instance.LocalUser.IsHost;
+				Msg($"🔑 Permission check (wire): Owner={wirePointAllocUser?.UserName}, IsLocalUser={wirePointAllocUser == instance.LocalUser}, IsHost={instance.LocalUser.IsHost}, Result={result}");
+				return result;
 			}
-			catch (Exception) {
+			catch (Exception e) {
 				// If anything goes wrong, deny permission to be safe
+				Msg($"❌ Permission check error: {e.Message}");
 				return false;
-			}
-		}
-
-		[HarmonyPatch("OnAttach")]
-		[HarmonyPostfix]
-		public static void OnAttach_Postfix(ProtoFluxWireManager __instance)
-		{
-			try
-			{
-				// Skip if disabled
-				if (!Config.GetValue(ENABLED)) return;
-
-				// Skip if required components are missing
-				if (__instance == null || !__instance.Enabled || __instance.Slot == null) return;
-
-				// Check if we already have the events component
-				var existingEvents = __instance.Slot.GetComponent<ProtoFluxWireEvents>();
-				if (existingEvents != null)
-				{
-					// Update the tracked wire reference
-					existingEvents.TrackedWire.Target = __instance;
-					return;
-				}
-
-				// Attach our wire events component - we want sounds for any wire we interact with
-				var wireEvents = __instance.Slot.AttachComponent<ProtoFluxWireEvents>();
-				wireEvents.TrackedWire.Target = __instance;
-				wireEvents.Persistent = true; // Make the component persistent
-
-				Msg("🎵 Attached wire events to wire!");
-			}
-			catch (Exception e)
-			{
-				Msg($"❌ Error attaching wire events: {e.Message}");
-			}
-		}
-
-		[HarmonyPatch("OnChanges")]
-		[HarmonyPostfix]
-		public static void OnChanges_Postfix(ProtoFluxWireManager __instance)
-		{
-			try
-			{
-				// Skip if disabled
-				if (!Config.GetValue(ENABLED)) return;
-
-				// Skip if required components are missing
-				if (__instance == null || !__instance.Enabled || __instance.Slot == null) return;
-
-				// Check if we already have the events component
-				var existingEvents = __instance.Slot.GetComponent<ProtoFluxWireEvents>();
-				if (existingEvents != null)
-				{
-					// Update if this is our wire event
-					if (existingEvents.TrackedWire.Target == __instance)
-					{
-						existingEvents.Persistent = true; // Ensure persistence
-					}
-					return;
-				}
-
-				// Attach events component for interaction sounds
-				var wireEvents = __instance.Slot.AttachComponent<ProtoFluxWireEvents>();
-				wireEvents.TrackedWire.Target = __instance;
-				wireEvents.Persistent = true;
-			}
-			catch (Exception e)
-			{
-				Msg($"❌ Error handling wire changes: {e.Message}");
 			}
 		}
 
@@ -591,26 +527,192 @@ public class ProtoFluxVisualsOverhaul : ResoniteMod {
 			try
 			{
 				// Skip if disabled
-				if (!Config.GetValue(ENABLED)) return;
+				if (!Config.GetValue(ENABLED)) {
+					Msg("⏭️ Wire delete sound skipped: Mod disabled");
+					return;
+				}
 
 				// Skip if required components are missing
-				if (__instance == null || !__instance.Enabled || __instance.Slot == null) return;
+				if (__instance == null || !__instance.Enabled || __instance.Slot == null) {
+					Msg("⏭️ Wire delete sound skipped: Missing components");
+					return;
+				}
 
-				// Get the events component
-				var existingEvents = __instance.Slot.GetComponent<ProtoFluxWireEvents>();
-				if (existingEvents != null && existingEvents.TrackedWire.Target == __instance)
+				// Play delete sound if wire is being deleted and we have permission
+				if (__instance.DeleteHighlight.Value && HasPermission(__instance))
 				{
-					// Play delete sound if wire is being deleted and we're interacting with it
-					if (__instance.DeleteHighlight.Value && __instance.LocalUser == __instance.World.LocalUser)
-					{
-						ProtoFluxSounds.OnWireDeleted(__instance.World, __instance.Slot.GlobalPosition);
-					}
-					existingEvents.Destroy();
+					Msg($"🎵 Playing wire delete sound: HasPermission=true");
+					ProtoFluxSounds.OnWireDeleted(__instance.World, __instance.Slot.GlobalPosition);
+				} else {
+					Msg($"⏭️ Wire delete sound skipped: DeleteHighlight={__instance.DeleteHighlight.Value}, HasPermission={__instance != null && HasPermission(__instance)}");
 				}
 			}
 			catch (Exception e)
 			{
 				Msg($"❌ Error handling wire cleanup: {e.Message}");
+			}
+		}
+	}
+
+	[HarmonyPatch(typeof(ProtoFluxTool))]
+	public class ProtoFluxTool_Patches {
+		// Helper method for permission checks
+		private static bool HasPermission(Component component) {
+			try {
+				if (component == null || component.Slot == null) return false;
+
+				// Get the wire's owner
+				component.Slot.ReferenceID.ExtractIDs(out ulong position, out byte user);
+				User wirePointAllocUser = component.World.GetUserByAllocationID(user);
+				
+				if (wirePointAllocUser == null || position < wirePointAllocUser.AllocationIDStart) {
+					component.ReferenceID.ExtractIDs(out ulong position1, out byte user1);
+					User instanceAllocUser = component.World.GetUserByAllocationID(user1);
+					
+					// Allow the wire owner or admins to modify
+					bool hasPermission = (instanceAllocUser != null && 
+						   position1 >= instanceAllocUser.AllocationIDStart &&
+						   (instanceAllocUser == component.LocalUser || component.LocalUser.IsHost));
+					
+					Msg($"🔑 Permission check (instance): Owner={instanceAllocUser?.UserName}, IsLocalUser={instanceAllocUser == component.LocalUser}, IsHost={component.LocalUser.IsHost}, Result={hasPermission}");
+					return hasPermission;
+				}
+				
+				// Allow the wire owner or admins to modify
+				bool result = wirePointAllocUser == component.LocalUser || component.LocalUser.IsHost;
+				Msg($"🔑 Permission check (wire): Owner={wirePointAllocUser?.UserName}, IsLocalUser={wirePointAllocUser == component.LocalUser}, IsHost={component.LocalUser.IsHost}, Result={result}");
+				return result;
+			}
+			catch (Exception e) {
+				// If anything goes wrong, deny permission to be safe
+				Msg($"❌ Permission check error: {e.Message}");
+				return false;
+			}
+		}
+
+		// Patch for wire grab start
+		[HarmonyPatch("StartDraggingWire")]
+		[HarmonyPrefix]
+		public static void StartDraggingWire_Prefix(ProtoFluxTool __instance, ProtoFluxElementProxy proxy) {
+			try {
+				// Skip if disabled or no wire sounds
+				if (!Config.GetValue(ENABLED) || !Config.GetValue(WIRE_SOUNDS)) {
+					Msg("⏭️ Wire grab sound skipped: Mod or wire sounds disabled");
+					return;
+				}
+
+				// Only play sound if we have permission
+				if (proxy != null && HasPermission(proxy)) {
+					Msg($"🎵 Playing wire grab sound: HasPermission=true");
+					ProtoFluxSounds.OnWireGrabbed(__instance.World, proxy.Slot.GlobalPosition);
+				} else {
+					Msg($"⏭️ Wire grab sound skipped: Proxy={proxy != null}, HasPermission={proxy != null && HasPermission(proxy)}");
+				}
+			}
+			catch (Exception e) {
+				ProtoFluxVisualsOverhaul.Msg($"❌ Error in wire grab sound: {e}");	
+			}
+		}
+
+		// Patch for wire connection (Input-Output)
+		[HarmonyPatch(typeof(ProtoFluxTool), "TryConnect", new Type[] { typeof(ProtoFluxInputProxy), typeof(ProtoFluxOutputProxy) })]
+		[HarmonyPostfix]
+		public static void TryConnect_InputOutput_Postfix(ProtoFluxTool __instance, ProtoFluxInputProxy input, ProtoFluxOutputProxy output) {
+			try {
+				// Skip if disabled or no wire sounds
+				if (!Config.GetValue(ENABLED) || !Config.GetValue(WIRE_SOUNDS)) {
+					Msg("⏭️ Wire connect sound skipped: Mod or wire sounds disabled");
+					return;
+				}
+
+				// Only play sound if we have permission
+				if (input != null && output != null && HasPermission(input)) {
+					Msg($"🎵 Playing wire connect sound (Input-Output): HasPermission=true");
+					ProtoFluxSounds.OnWireConnected(__instance.World, input.Slot.GlobalPosition);
+				} else {
+					Msg($"⏭️ Wire connect sound skipped: Input={input != null}, Output={output != null}, HasPermission={input != null && HasPermission(input)}");
+				}
+			}
+			catch (Exception e) {
+				ProtoFluxVisualsOverhaul.Msg($"❌ Error in wire connect sound: {e}");	
+			}
+		}
+
+		// Patch for wire connection (Impulse-Operation)
+		[HarmonyPatch(typeof(ProtoFluxTool), "TryConnect", new Type[] { typeof(ProtoFluxImpulseProxy), typeof(ProtoFluxOperationProxy) })]
+		[HarmonyPostfix]
+		public static void TryConnect_ImpulseOperation_Postfix(ProtoFluxTool __instance, ProtoFluxImpulseProxy impulse, ProtoFluxOperationProxy operation) {
+			try {
+				// Skip if disabled or no wire sounds
+				if (!Config.GetValue(ENABLED) || !Config.GetValue(WIRE_SOUNDS)) {
+					Msg("⏭️ Wire connect sound skipped: Mod or wire sounds disabled");
+					return;
+				}
+
+				// Only play sound if we have permission
+				if (impulse != null && operation != null && HasPermission(impulse)) {
+					Msg($"🎵 Playing wire connect sound (Impulse-Operation): HasPermission=true");
+					ProtoFluxSounds.OnWireConnected(__instance.World, impulse.Slot.GlobalPosition);
+				} else {
+					Msg($"⏭️ Wire connect sound skipped: Impulse={impulse != null}, Operation={operation != null}, HasPermission={impulse != null && HasPermission(impulse)}");
+				}
+			}
+			catch (Exception e) {
+				ProtoFluxVisualsOverhaul.Msg($"❌ Error in wire connect sound: {e}");	
+			}
+		}
+
+		// Patch for wire connection (Node-Input-Output)
+		[HarmonyPatch(typeof(ProtoFluxTool), "TryConnect", new Type[] { typeof(ProtoFluxNode), typeof(ISyncRef), typeof(INodeOutput) })]
+		[HarmonyPostfix]
+		public static void TryConnect_NodeInputOutput_Postfix(ProtoFluxTool __instance, ProtoFluxNode node, ISyncRef input, INodeOutput output) {
+			try {
+				// Skip if disabled or no wire sounds
+				if (!Config.GetValue(ENABLED) || !Config.GetValue(WIRE_SOUNDS)) {
+					Msg("⏭️ Wire connect sound skipped: Mod or wire sounds disabled");
+					return;
+				}
+
+				// Only play sound if we have permission
+				if (node != null && input != null && output != null && HasPermission(node)) {
+					Msg($"🎵 Playing wire connect sound (Node-Input-Output): HasPermission=true");
+					ProtoFluxSounds.OnWireConnected(__instance.World, node.Slot.GlobalPosition);
+				} else {
+					Msg($"⏭️ Wire connect sound skipped: Node={node != null}, Input={input != null}, Output={output != null}, HasPermission={node != null && HasPermission(node)}");
+				}
+			}
+			catch (Exception e) {
+				ProtoFluxVisualsOverhaul.Msg($"❌ Error in wire connect sound: {e}");	
+			}
+		}
+
+		// Patch for wire deletion
+		[HarmonyPatch("OnPrimaryRelease")]
+		[HarmonyPostfix]
+		public static void OnPrimaryRelease_Postfix(ProtoFluxTool __instance) {
+			try {
+				// Skip if disabled or no wire sounds
+				if (!Config.GetValue(ENABLED) || !Config.GetValue(WIRE_SOUNDS)) {
+					Msg("⏭️ Wire delete sound skipped: Mod or wire sounds disabled");
+					return;
+				}
+
+				// Check if we're deleting wires (using the cut line)
+				if (__instance.GetType().GetField("_cutWires", BindingFlags.NonPublic | BindingFlags.Instance)?.GetValue(__instance) is HashSet<ProtoFluxWireManager> cutWires && 
+					cutWires.Count > 0) {
+					// Play delete sound for cut wires
+					foreach (var wire in cutWires) {
+						if (wire != null && !wire.IsRemoved && HasPermission(wire)) {
+							Msg($"🎵 Playing wire delete sound (cut): HasPermission=true");
+							ProtoFluxSounds.OnWireDeleted(__instance.World, wire.Slot.GlobalPosition);
+						} else {
+							Msg($"⏭️ Wire delete sound skipped (cut): Wire={wire != null}, IsRemoved={wire?.IsRemoved}, HasPermission={wire != null && !wire.IsRemoved && HasPermission(wire)}");
+						}
+					}
+				}
+			}
+			catch (Exception e) {
+				ProtoFluxVisualsOverhaul.Msg($"❌ Error in wire delete sound: {e}");
 			}
 		}
 	}

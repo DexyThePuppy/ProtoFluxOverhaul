@@ -16,11 +16,11 @@ namespace ProtoFluxVisualsOverhaul
         private static readonly Dictionary<string, Slot> activeAudioSlots = new Dictionary<string, Slot>();
         
         // List of all sound names we need to preload
-        private static readonly string[] SOUND_NAMES = { "Connect", "Delete", "Grab" };
+        public static readonly string[] SOUND_NAMES = { "Connect", "Delete", "Grab" };
         
         // Track initialization
-        private static bool isInitialized = false;
-        private static World currentWorld;
+        public static bool isInitialized = false;
+        public static World currentWorld;
 
         public static void Initialize(World world)
         {
@@ -32,7 +32,7 @@ namespace ProtoFluxVisualsOverhaul
         /// <summary>
         /// Gets the appropriate sound URL from config based on the sound name
         /// </summary>
-        private static Uri GetSoundUrl(string soundName)
+        public static Uri GetSoundUrl(string soundName)
         {
             Uri result;
             try
@@ -162,7 +162,7 @@ namespace ProtoFluxVisualsOverhaul
             ProtoFluxVisualsOverhaul.Msg("🎵 Audio preload complete!");
         }
 
-        private static StaticAudioClip GetOrCreateSharedAudioClip(string soundName)
+        public static StaticAudioClip GetOrCreateSharedAudioClip(string soundName)
         {
             // Check if we already have this clip
             if (sharedAudioClips.TryGetValue(soundName, out var existingClip))
@@ -210,7 +210,7 @@ namespace ProtoFluxVisualsOverhaul
             return clip;
         }
 
-        private static void PlaySoundAndCleanup(World world, float3 position, string soundName)
+        public static void PlaySoundAndCleanup(World world, float3 position, string soundName)
         {
             // Get or create the shared audio clip
             var clip = GetOrCreateSharedAudioClip(soundName);
