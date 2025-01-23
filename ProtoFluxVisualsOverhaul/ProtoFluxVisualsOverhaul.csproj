@@ -1,4 +1,5 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<RootNamespace>ProtoFluxVisualsOverhaul</RootNamespace>
 		<AssemblyName>ProtoFluxVisualsOverhaul</AssemblyName>
@@ -15,10 +16,11 @@
 
 	<PropertyGroup Condition="'$(ResonitePath)'==''">
 		<!-- If you don't want to provide a ResonitePath in dotnet build, you can specify one here -->
-		<ResonitePath>$(MSBuildThisFileDirectory)Resonite/</ResonitePath>
+		<ResonitePath>G:\SteamLibrary\steamapps\common\Resonite\</ResonitePath>
+		<!-- Fallback paths if the above doesn't exist -->
 		<ResonitePath Condition="Exists('C:\Program Files (x86)\Steam\steamapps\common\Resonite\')">C:\Program Files (x86)\Steam\steamapps\common\Resonite\</ResonitePath>
 		<ResonitePath Condition="Exists('$(HOME)/.steam/steam/steamapps/common/Resonite/')">$(HOME)/.steam/steam/steamapps/common/Resonite/</ResonitePath>
-		<ResonitePath Condition="Exists('G:\SteamLibrary\steamapps\common\Resonite\')">G:\SteamLibrary\steamapps\common\Resonite\</ResonitePath>
+		<ResonitePath Condition="Exists('$(MSBuildThisFileDirectory)Resonite/')">$(MSBuildThisFileDirectory)Resonite/</ResonitePath>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -60,19 +62,10 @@
 		<Reference Include="ProtoFlux.Nodes.FrooxEngine">
 		    <HintPath>$(ResonitePath)Resonite_Data\Managed\ProtoFlux.Nodes.FrooxEngine.dll</HintPath>
 		</Reference>
-		<Reference Include="ResoniteHotReloadLib">
-		    <HintPath>$(ResonitePath)rml_mods\ResoniteHotReloadLib.dll</HintPath>
-		    <Private>False</Private>
-		</Reference>
-		<Reference Include="ResoniteHotReloadLibCore">
-		    <HintPath>$(ResonitePath)rml_mods\ResoniteHotReloadLibCore.dll</HintPath>
-		    <Private>False</Private>
-		</Reference>
 	</ItemGroup>
 
 	<Target Name="PostBuild" AfterTargets="PostBuildEvent" Condition="'$(CopyToMods)'=='true'">
-		<Message Text="Attempting to copy $(TargetFileName) to $(ResonitePath)rml_mods and HotReloadMods" Importance="high" />
+		<Message Text="Attempting to copy $(TargetFileName) to $(ResonitePath)rml_mods" Importance="high" />
 		<Copy SourceFiles="$(TargetDir)$(TargetFileName)" DestinationFolder="$(ResonitePath)rml_mods" ContinueOnError="true" />
-		<Copy SourceFiles="$(TargetDir)$(TargetFileName)" DestinationFolder="$(ResonitePath)rml_mods\HotReloadMods\" ContinueOnError="true" />
 	</Target>
 </Project>

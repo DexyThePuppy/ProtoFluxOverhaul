@@ -7,7 +7,6 @@ using System;
 using System.Collections.Generic;
 using Elements.Assets;
 using System.Linq;
-using ResoniteHotReloadLib;
 using FrooxEngine.UIX;
 using System.Reflection;
 using static ProtoFluxVisualsOverhaul.Logger;
@@ -15,7 +14,7 @@ using static ProtoFluxVisualsOverhaul.Logger;
 namespace ProtoFluxVisualsOverhaul;
 //More info on creating mods can be found https://github.com/resonite-modding-group/ResoniteModLoader/wiki/Creating-Mods
 public class ProtoFluxVisualsOverhaul : ResoniteMod {
-	internal const string VERSION_CONSTANT = "1.1.0";
+	internal const string VERSION_CONSTANT = "1.4.1";
 	public override string Name => "ProtoFluxVisualsOverhaul";
 	public override string Author => "Dexy, NepuShiro";
 	public override string Version => VERSION_CONSTANT;
@@ -138,9 +137,6 @@ public class ProtoFluxVisualsOverhaul : ResoniteMod {
 		Harmony harmony = new Harmony("com.Dexy.ProtoFluxVisualsOverhaul");
 		harmony.PatchAll();
 		Logger.LogUI("Startup", "ProtoFluxVisualsOverhaul successfully loaded and patched");
-		
-		// Register for hot reload
-		HotReloader.RegisterForHotReload(this);
 		
 		Config.OnThisConfigurationChanged += (k) => {
 			if (k.Key != ENABLED) {
@@ -395,31 +391,6 @@ public class ProtoFluxVisualsOverhaul : ResoniteMod {
 		texture.PowerOfTwoAlignThreshold.Value = 0.05f;  // For proper texture alignment
 		
 		return texture;
-	}
-
-	// Hot reload methods
-	[HarmonyPatch("BeforeHotReload")]
-	public static void BeforeHotReload()
-	{
-		// Cleanup Harmony patches
-		var harmony = new Harmony("com.Dexy.ProtoFluxVisualsOverhaul");
-		harmony.UnpatchAll("com.Dexy.ProtoFluxVisualsOverhaul");
-		
-		// Clear cached data
-		pannerCache.Clear();
-		Logger.LogUI("Cleanup", "Cleaned up before hot reload");
-	}
-
-	public static void OnHotReload(ResoniteMod modInstance)
-	{
-		// Get the config from the mod instance
-		Config = modInstance.GetConfiguration();
-		
-		// Re-apply Harmony patches
-		var harmony = new Harmony("com.Dexy.ProtoFluxVisualsOverhaul");
-		harmony.PatchAll();
-		
-		Logger.LogUI("Reload", "Hot reload complete");
 	}
 
 	[HarmonyPatch(typeof(ProtoFluxNodeVisual), "BuildUI")]
