@@ -1,10 +1,10 @@
-# <img src="ProtoFluxVisualsOverhaul/Images/Node.png" alt="Preview of animated ProtoFlux wires" width="32"/> ProtoFluxVisualsOverhaul
+# <img src="ProtoFluxOverhaul/Images/Node.png" alt="Preview of animated ProtoFlux wires" width="32"/> ProtoFluxOverhaul
 
 *Woof woof!* A [ResoniteModLoader](https://github.com/resonite-modding-group/ResoniteModLoader) mod for [Resonite](https://resonite.com/) that adds customizable animated textures to ProtoFlux wires! 🐾
 
 | Example | Closeup | Modified | Original |
 |:-------------:|:-------------:|:-------------:|:-------------:|
-| <img src="ProtoFluxVisualsOverhaul/Images/CloseUp.png" alt="Preview of animated ProtoFlux wires" width="300"/> | <img src="ProtoFluxVisualsOverhaul/Images/Nodes.png" alt="Preview of animated ProtoFlux wires" width="300"/> | <img src="ProtoFluxVisualsOverhaul/Images/Texture.png" alt="Preview of animated ProtoFlux wires" width="60"/> | <img src="ProtoFluxVisualsOverhaul/Images/OriginalTexture.png" alt="Preview of animated ProtoFlux wires" width="60"/> |
+| <img src="ProtoFluxOverhaul/Images/CloseUp.png" alt="Preview of animated ProtoFlux wires" width="300"/> | <img src="ProtoFluxOverhaul/Images/Nodes.png" alt="Preview of animated ProtoFlux wires" width="300"/> | <img src="ProtoFluxOverhaul/Images/Texture.png" alt="Preview of animated ProtoFlux wires" width="60"/> | <img src="ProtoFluxOverhaul/Images/OriginalTexture.png" alt="Preview of animated ProtoFlux wires" width="60"/> |
 
 ## 🦴 Features
 
@@ -18,7 +18,7 @@
 ## 🐕 Installation
 
 1. Install [ResoniteModLoader](https://github.com/resonite-modding-group/ResoniteModLoader) ([Wiki Installation Guide](https://github.com/resonite-modding-group/ResoniteModLoader/wiki/Installation))
-2. Place `ProtoFluxVisualsOverhaul.dll` into your `rml_mods` folder. This folder should be at `C:\Program Files (x86)\Steam\steamapps\common\Resonite\rml_mods` for a default install. You can create it if it's missing, or if you launch the game once with ResoniteModLoader installed it will create this folder for you.
+2. Place `ProtoFluxOverhaul.dll` into your `rml_mods` folder. This folder should be at `C:\Program Files (x86)\Steam\steamapps\common\Resonite\rml_mods` for a default install. You can create it if it's missing, or if you launch the game once with ResoniteModLoader installed it will create this folder for you.
 3. Start the game. If you want to verify that the mod is working you can check your Resonite logs.
 
 ## 🎾 Configuration

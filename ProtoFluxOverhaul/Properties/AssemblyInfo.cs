@@ -1,7 +1,7 @@
 ﻿﻿using System.Reflection;
 
-[assembly: AssemblyTitle("ProtoFluxVisualsOverhaul")]
-[assembly: AssemblyProduct("ProtoFluxVisualsOverhaul")]
+[assembly: AssemblyTitle("ProtoFluxOverhaul")]
+[assembly: AssemblyProduct("ProtoFluxOverhaul")]
 [assembly: AssemblyDescription("A ResoniteModLoader mod for Resonite that adds Overhauled ProtoFlux Visuals Customizations!")]
 [assembly: AssemblyCompany("Dexy")]
 [assembly: AssemblyCopyright("Copyright © 2024 Dexy")]

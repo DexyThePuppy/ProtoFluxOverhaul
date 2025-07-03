@@ -1,10 +1,10 @@
 using System;
 using ResoniteModLoader;
 
-namespace ProtoFluxVisualsOverhaul
+namespace ProtoFluxOverhaul
 {
     /// <summary>
-    /// Handles logging for ProtoFluxVisualsOverhaul with configurable debug levels
+    /// Handles logging for ProtoFluxOverhaul with configurable debug levels
     /// </summary>
     public static class Logger
     {
@@ -36,7 +36,7 @@ namespace ProtoFluxVisualsOverhaul
         /// </summary>
         public static void DebugLog(string message, LogLevel level = LogLevel.Debug, LogCategory category = LogCategory.General)
         {
-            if (!ProtoFluxVisualsOverhaul.Config?.GetValue(ProtoFluxVisualsOverhaul.DEBUG_LOGGING) ?? false)
+            if (!ProtoFluxOverhaul.Config?.GetValue(ProtoFluxOverhaul.DEBUG_LOGGING) ?? false)
                 return;
 
             string prefix = $"[{category}] ";

@@ -9,23 +9,22 @@ using Elements.Assets;
 using System.Linq;
 using FrooxEngine.UIX;
 using System.Reflection;
-using static ProtoFluxVisualsOverhaul.Logger;
+using static ProtoFluxOverhaul.Logger;
 
-namespace ProtoFluxVisualsOverhaul;
-//More info on creating mods can be found https://github.com/resonite-modding-group/ResoniteModLoader/wiki/Creating-Mods
-public class ProtoFluxVisualsOverhaul : ResoniteMod {
-	internal const string VERSION_CONSTANT = "1.4.1";
-	public override string Name => "ProtoFluxVisualsOverhaul";
+namespace ProtoFluxOverhaul;
+public class ProtoFluxOverhaul : ResoniteMod {
+	internal const string VERSION_CONSTANT = "1.4.2";
+	public override string Name => "ProtoFluxOverhaul";
 	public override string Author => "Dexy, NepuShiro";
 	public override string Version => VERSION_CONSTANT;
-	public override string Link => "https://github.com/DexyThePuppy/ProtoFluxVisualsOverhaul";
+	public override string Link => "https://github.com/DexyThePuppy/ProtoFluxOverhaul";
 
 	// Configuration
 	public static ModConfiguration Config;
 	public static readonly Dictionary<Slot, Panner2D> pannerCache = new Dictionary<Slot, Panner2D>();
 	
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<bool> ENABLED = new("Enabled", "Should ProtoFluxVisualsOverhaul be Enabled?", () => true);
+	public static readonly ModConfigurationKey<bool> ENABLED = new("Enabled", "Should ProtoFluxOverhaul be Enabled?", () => true);
 
 	[AutoRegisterConfigKey]
 	public static readonly ModConfigurationKey<bool> WIRE_SOUNDS = new("WireSounds", "Should wire interaction sounds be enabled?", () => true);
@@ -40,31 +39,31 @@ public class ProtoFluxVisualsOverhaul : ResoniteMod {
 	public static readonly ModConfigurationKey<bool> PING_PONG = new("pingPong", "Ping Pong Animation", () => false);
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<Uri> FAR_TEXTURE = new("farTexture", "Far Texture URL", () => new Uri("https://raw.githubusercontent.com/DexyThePuppy/ProtoFluxVisualsOverhaul/refs/heads/main/ProtoFluxVisualsOverhaul/Images/Texture.png"));
+	public static readonly ModConfigurationKey<Uri> FAR_TEXTURE = new("farTexture", "Far Texture URL", () => new Uri("resdb:///87782c86f11fa977dec6545006417b4b1e79cb4dfd6d9ed1ef169259512af9d7.png"));
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<Uri> NEAR_TEXTURE = new("nearTexture", "Near Texture URL", () => new Uri("https://raw.githubusercontent.com/DexyThePuppy/ProtoFluxVisualsOverhaul/refs/heads/main/ProtoFluxVisualsOverhaul/Images/Texture.png"));	
+	public static readonly ModConfigurationKey<Uri> NEAR_TEXTURE = new("nearTexture", "Near Texture URL", () => new Uri("resdb:///87782c86f11fa977dec6545006417b4b1e79cb4dfd6d9ed1ef169259512af9d7.png"));	
 
 	[AutoRegisterConfigKey]
 	public static readonly ModConfigurationKey<Uri> ROUNDED_TEXTURE = new("roundedTexture", "Rounded Texture URL", () => new Uri("resdb:///3ee5c0335455c19970d877e2b80f7869539df43fccb8fc64b38e320fc44c154f.png"));
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<Uri> CONNECTOR_INPUT_TEXTURE = new("connectorInputTexture", "Connector Input Texture URL", () => new Uri("https://raw.githubusercontent.com/DexyThePuppy/ProtoFluxVisualsOverhaul/refs/heads/main/ProtoFluxVisualsOverhaul/Images/Connector.png"));
+	public static readonly ModConfigurationKey<Uri> CONNECTOR_INPUT_TEXTURE = new("connectorInputTexture", "Connector Input Texture URL", () => new Uri("resdb:///59586a2c3a1f0bab46fd6b24103fba2f00f9dd98d438d98226b5b54859b30b30.png"));
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<Uri> CONNECTOR_OUTPUT_TEXTURE = new("connectorOutputTexture", "Connector Output Texture URL", () => new Uri("https://raw.githubusercontent.com/DexyThePuppy/ProtoFluxVisualsOverhaul/refs/heads/main/ProtoFluxVisualsOverhaul/Images/Connector.png")); 
+	public static readonly ModConfigurationKey<Uri> CONNECTOR_OUTPUT_TEXTURE = new("connectorOutputTexture", "Connector Output Texture URL", () => new Uri("resdb:///baff0353323659064d2692e3609025d2348998798ee6031cb777fbd4a13f4360.png")); 
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<Uri> CALL_CONNECTOR_OUTPUT_TEXTURE = new("callConnectorOutputTexture", "Call Connector Output Texture URL", () => new Uri("https://raw.githubusercontent.com/DexyThePuppy/ProtoFluxVisualsOverhaul/refs/heads/main/ProtoFluxVisualsOverhaul/Images/Connector_Output.png"));
+	public static readonly ModConfigurationKey<Uri> CALL_CONNECTOR_OUTPUT_TEXTURE = new("callConnectorOutputTexture", "Call Connector Output Texture URL", () => new Uri("resdb:///6cd7ec2bad20b57ba68fda3bb961912f42b3816965a941e968d6d2b237ad7335.png"));
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<Uri> CALL_CONNECTOR_INPUT_TEXTURE = new("callConnectorInputTexture", "Call Connector Input Texture URL", () => new Uri("https://raw.githubusercontent.com/DexyThePuppy/ProtoFluxVisualsOverhaul/refs/heads/main/ProtoFluxVisualsOverhaul/Images/Connector_Input.png"));
+	public static readonly ModConfigurationKey<Uri> CALL_CONNECTOR_INPUT_TEXTURE = new("callConnectorInputTexture", "Call Connector Input Texture URL", () => new Uri("resdb:///59586a2c3a1f0bab46fd6b24103fba2f00f9dd98d438d98226b5b54859b30b30.png"));
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<Uri> NODE_BACKGROUND_TEXTURE = new("nodeBackgroundTexture", "Node Background Texture URL", () => new Uri("https://raw.githubusercontent.com/DexyThePuppy/ProtoFluxVisualsOverhaul/refs/heads/main/ProtoFluxVisualsOverhaul/Images/Node_Background.png"));
+	public static readonly ModConfigurationKey<Uri> NODE_BACKGROUND_TEXTURE = new("nodeBackgroundTexture", "Node Background Texture URL", () => new Uri("resdb:///f020df95cf3b923094540d50796174b884cdd2061798032a48d5975d0570d0cd.png"));
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<Uri> NODE_BACKGROUND_HEADER_TEXTURE = new("nodeBackgroundHeaderTexture", "Node Background Header Texture URL", () => new Uri("https://raw.githubusercontent.com/DexyThePuppy/ProtoFluxVisualsOverhaul/refs/heads/main/ProtoFluxVisualsOverhaul/Images/Node_Header_Background.png"));
+	public static readonly ModConfigurationKey<Uri> NODE_BACKGROUND_HEADER_TEXTURE = new("nodeBackgroundHeaderTexture", "Node Background Header Texture URL", () => new Uri("resdb:///81ee369eaf5e92513de9a3a5bf4604d619434981ce4b4a091a7777df75bc9ec2.png"));
 
 	[AutoRegisterConfigKey]
 	public static readonly ModConfigurationKey<TextureFilterMode> FILTER_MODE = new("filterMode", "Texture Filter Mode", () => TextureFilterMode.Anisotropic);
@@ -112,13 +111,13 @@ public class ProtoFluxVisualsOverhaul : ResoniteMod {
 	public static readonly ModConfigurationKey<bool> DEBUG_LOGGING = new("debugLogging", "Enable Debug Logging", () => false);
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<Uri> GRAB_SOUND = new("grabSound", "Grab Sound URL", () => new Uri("https://raw.githubusercontent.com/DexyThePuppy/ProtoFluxVisualsOverhaul/main/ProtoFluxVisualsOverhaul/sounds/FluxWireGrab.wav"));
+	public static readonly ModConfigurationKey<Uri> GRAB_SOUND = new("grabSound", "Grab Sound URL", () => new Uri("resdb:///391ce0c681b24b79a0240a1fa2e4a4c06492619897c0e6e045640e71a34b7ec7.wav"));
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<Uri> DELETE_SOUND = new("deleteSound", "Delete Sound URL", () => new Uri("https://raw.githubusercontent.com/DexyThePuppy/ProtoFluxVisualsOverhaul/main/ProtoFluxVisualsOverhaul/sounds/FluxWireDelete.wav"));
+	public static readonly ModConfigurationKey<Uri> DELETE_SOUND = new("deleteSound", "Delete Sound URL", () => new Uri("resdb:///b0c4195cce0990b27a3525623f46787d247c530387f8bc551e50bcf0584ab28b.wav"));
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<Uri> CONNECT_SOUND = new("connectSound", "Connect Sound URL", () => new Uri("https://raw.githubusercontent.com/DexyThePuppy/ProtoFluxVisualsOverhaul/main/ProtoFluxVisualsOverhaul/sounds/FluxWireConnect.wav"));
+	public static readonly ModConfigurationKey<Uri> CONNECT_SOUND = new("connectSound", "Connect Sound URL", () => new Uri("resdb:///8c63d74efcef070bf8fec2f9b1b20eecb15a499b17c64abaad225467d138d93b.wav"));
 
 	[AutoRegisterConfigKey]
 	public static readonly ModConfigurationKey<float> AUDIO_VOLUME = new("audioVolume", "Audio Volume", () => 1f);
@@ -134,9 +133,12 @@ public class ProtoFluxVisualsOverhaul : ResoniteMod {
 		Config = GetConfiguration();
 		Config.Save(true);
 
-		Harmony harmony = new Harmony("com.Dexy.ProtoFluxVisualsOverhaul");
+		Harmony harmony = new Harmony("com.Dexy.ProtoFluxOverhaul");
 		harmony.PatchAll();
-		Logger.LogUI("Startup", "ProtoFluxVisualsOverhaul successfully loaded and patched");
+		
+		// Always log startup regardless of debug settings
+		ResoniteMod.Msg("[ProtoFluxOverhaul] Mod loaded successfully - Harmony patches applied");
+		Logger.LogUI("Startup", "ProtoFluxOverhaul successfully loaded and patched");
 		
 		Config.OnThisConfigurationChanged += (k) => {
 			if (k.Key != ENABLED) {
@@ -232,7 +234,7 @@ public class ProtoFluxVisualsOverhaul : ResoniteMod {
 				}
 			}
 			catch (Exception e) {
-				Logger.LogError("Error in ProtoFluxVisualsOverhaul OnChanges patch", e, LogCategory.UI);
+				Logger.LogError("Error in ProtoFluxOverhaul OnChanges patch", e, LogCategory.UI);
 			}
 		}
 	}
@@ -342,14 +344,18 @@ public class ProtoFluxVisualsOverhaul : ResoniteMod {
 
 	/// Creates or retrieves a shared FresnelMaterial for wire rendering
 	private static FresnelMaterial GetOrCreateSharedMaterial(Slot slot) {
-		// Create material in temporary storage
-		FresnelMaterial fresnelMaterial = slot.World.RootSlot
-			.FindChildOrAdd("__TEMP", false)
-			.FindChildOrAdd($"{slot.LocalUser.UserName}-Scrolling-ProtoFluxVisualsOverhaul", false)
-			.GetComponentOrAttach<FresnelMaterial>();
+		// Create organized hierarchy under __TEMP
+		var tempSlot = slot.World.RootSlot.FindChild("__TEMP") ?? slot.World.RootSlot.AddSlot("__TEMP", false);
+		var modSlot = tempSlot.FindChild("ProtoFluxOverhaul") ?? tempSlot.AddSlot("ProtoFluxOverhaul", false);
+		var userSlot = modSlot.FindChild(slot.LocalUser.UserName) ?? modSlot.AddSlot(slot.LocalUser.UserName, false);
+		var materialsSlot = userSlot.FindChild("Materials") ?? userSlot.AddSlot("Materials", false);
+		var materialSlot = materialsSlot.FindChild("Wire") ?? materialsSlot.AddSlot("Wire", false);
+
+		// Create material
+		FresnelMaterial fresnelMaterial = materialSlot.GetComponentOrAttach<FresnelMaterial>();
 
 		// Ensure cleanup when user leaves
-		fresnelMaterial.Slot.GetComponentOrAttach<DestroyOnUserLeave>().TargetUser.Target = slot.LocalUser;
+		userSlot.GetComponentOrAttach<DestroyOnUserLeave>().TargetUser.Target = slot.LocalUser;
 		
 		// Configure material properties
 		fresnelMaterial.NearColor.Value = new colorX(0.8f);
@@ -360,10 +366,10 @@ public class ProtoFluxVisualsOverhaul : ResoniteMod {
 		fresnelMaterial.ZWrite.Value = ZWrite.On;
 		
 		// Setup textures from config
-		var farTexture = GetOrCreateSharedTexture(fresnelMaterial.Slot, Config.GetValue(FAR_TEXTURE));
+		var farTexture = GetOrCreateSharedTexture(materialSlot, Config.GetValue(FAR_TEXTURE));
 		fresnelMaterial.FarTexture.Target = farTexture;
 		
-		var nearTexture = GetOrCreateSharedTexture(fresnelMaterial.Slot, Config.GetValue(NEAR_TEXTURE));
+		var nearTexture = GetOrCreateSharedTexture(materialSlot, Config.GetValue(NEAR_TEXTURE));
 		fresnelMaterial.NearTexture.Target = nearTexture;
 		
 		return fresnelMaterial;
@@ -371,8 +377,15 @@ public class ProtoFluxVisualsOverhaul : ResoniteMod {
 
 	/// Creates or retrieves a shared texture with specified settings
 	private static StaticTexture2D GetOrCreateSharedTexture(Slot slot, Uri uri) {
+		// Create organized hierarchy under __TEMP
+		var tempSlot = slot.World.RootSlot.FindChild("__TEMP") ?? slot.World.RootSlot.AddSlot("__TEMP", false);
+		var modSlot = tempSlot.FindChild("ProtoFluxOverhaul") ?? tempSlot.AddSlot("ProtoFluxOverhaul", false);
+		var userSlot = modSlot.FindChild(slot.LocalUser.UserName) ?? modSlot.AddSlot(slot.LocalUser.UserName, false);
+		var texturesSlot = userSlot.FindChild("Textures") ?? userSlot.AddSlot("Textures", false);
+		var textureSlot = texturesSlot.FindChild("Wire") ?? texturesSlot.AddSlot("Wire", false);
+
 		// Get or create the texture
-		StaticTexture2D texture = slot.GetComponentOrAttach<StaticTexture2D>();
+		StaticTexture2D texture = textureSlot.GetComponentOrAttach<StaticTexture2D>();
 		texture.URL.Value = uri;
 
 		// Configure texture properties from user settings
@@ -393,71 +406,8 @@ public class ProtoFluxVisualsOverhaul : ResoniteMod {
 		return texture;
 	}
 
-	[HarmonyPatch(typeof(ProtoFluxNodeVisual), "BuildUI")]
-	class ProtoFluxNodeVisual_BuildUI_Patch {
-		private static bool hasPreloadedAudio = false;
 
-		public static void Postfix(ProtoFluxNodeVisual __instance) {
-			try {
-				if (!Config.GetValue(ENABLED)) return;
-
-				// Preload audio clips only once when the first node is spawned
-				if (!hasPreloadedAudio) {
-					Logger.LogAudio("Preload", "First node spawned, preloading audio clips");
-					ProtoFluxSounds.PreloadAudioClips(__instance.World);
-					hasPreloadedAudio = true;
-				}
-
-				// Get the Overlapping Layout
-				var overlappingLayout = __instance.Slot.FindChild("Overlapping Layout");
-				if (overlappingLayout == null) return;
-
-				// Process Inputs & Operations
-				var inputsOps = overlappingLayout.FindChild("Inputs & Operations");
-				if (inputsOps != null) {
-					ProcessConnectors(inputsOps);
-				}
-
-				// Process Outputs & Impulses
-				var outputsImps = overlappingLayout.FindChild("Outputs & Impulses");
-				if (outputsImps != null) {
-					ProcessConnectors(outputsImps);
-				}
-			}
-			catch (Exception e) {
-				Logger.LogError("Error in ProtoFluxVisualsOverhaul BuildUI patch", e, LogCategory.UI);
-			}
-		}
-
-		private static void ProcessConnectors(Slot root) {
-			foreach (var child in root.Children) {
-				// Look for Connector slot
-				var connectorSlot = child.FindChild("Connector");
-				if (connectorSlot != null) {
-					// Look for WIRE_POINT
-					var wirePoint = connectorSlot.FindChild("<WIRE_POINT>");
-					if (wirePoint != null) {
-						// We no longer need to create audio clips here
-						// They will be created on-demand when sounds need to be played
-					}
-				}
-
-				// Recursively process children
-				ProcessConnectors(child);
-			}
-		}
-
-		private static string GetSlotPath(Slot slot) {
-			var path = new System.Collections.Generic.List<string>();
-			var current = slot;
-			while (current != null) {
-				path.Add(current.Name);
-				current = current.Parent;
-			}
-			path.Reverse();
-			return string.Join(" → ", path);
-		}
-	}
+	// Audio initialization is now handled on-demand by ProtoFluxSounds using engine's optimized patterns
 
 	// Patches for wire-related events
 	[HarmonyPatch(typeof(ProtoFluxWireManager))]
@@ -480,7 +430,7 @@ public class ProtoFluxVisualsOverhaul : ResoniteMod {
 					User instanceAllocUser = instance.World.GetUserByAllocationID(user1);
 					Logger.LogPermission("Instance", true, $"Instance allocation: Position={position1}, UserID={user1}, User={instanceAllocUser?.UserName}");
 					
-					// Allow the wire owner or admins to modify
+					// Allow the wire owner to modify
 					bool hasPermission = (instanceAllocUser != null && 
 						   position1 >= instanceAllocUser.AllocationIDStart &&
 						   (instanceAllocUser == instance.LocalUser || instance.LocalUser.IsHost));
@@ -489,7 +439,7 @@ public class ProtoFluxVisualsOverhaul : ResoniteMod {
 					return hasPermission;
 				}
 				
-				// Allow the wire owner or admins to modify
+				// Allow the wire owner to modify
 				bool result = wirePointAllocUser == instance.LocalUser || instance.LocalUser.IsHost;
 				Logger.LogPermission("Wire Check", result, $"Permission check (wire): Owner={wirePointAllocUser?.UserName}, IsLocalUser={wirePointAllocUser == instance.LocalUser}, IsHost={instance.LocalUser.IsHost}, Result={result}");
 				return result;
@@ -555,7 +505,7 @@ public class ProtoFluxVisualsOverhaul : ResoniteMod {
 					User instanceAllocUser = component.World.GetUserByAllocationID(user1);
 					Logger.LogPermission("Instance", true, $"Instance allocation: Position={position1}, UserID={user1}, User={instanceAllocUser?.UserName}");
 					
-					// Allow the wire owner or admins to modify
+					// Allow the wire owner to modify
 					bool hasPermission = (instanceAllocUser != null && 
 						   position1 >= instanceAllocUser.AllocationIDStart &&
 						   (instanceAllocUser == component.LocalUser || component.LocalUser.IsHost));
@@ -564,7 +514,7 @@ public class ProtoFluxVisualsOverhaul : ResoniteMod {
 					return hasPermission;
 				}
 				
-				// Allow the wire owner or admins to modify
+				// Allow the wire owner to modify
 				bool result = wirePointAllocUser == component.LocalUser || component.LocalUser.IsHost;
 				Logger.LogPermission("Wire Check", result, $"Permission check (wire): Owner={wirePointAllocUser?.UserName}, IsLocalUser={wirePointAllocUser == component.LocalUser}, IsHost={component.LocalUser.IsHost}, Result={result}");
 				return result;

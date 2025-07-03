@@ -1,8 +1,8 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
-		<RootNamespace>ProtoFluxVisualsOverhaul</RootNamespace>
-		<AssemblyName>ProtoFluxVisualsOverhaul</AssemblyName>
+		<RootNamespace>ProtoFluxOverhaul</RootNamespace>
+		<AssemblyName>ProtoFluxOverhaul</AssemblyName>
 		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
 		<TargetFramework>net472</TargetFramework>
 		<FileAlignment>512</FileAlignment>
@@ -19,6 +19,7 @@
 		<ResonitePath>G:\SteamLibrary\steamapps\common\Resonite\</ResonitePath>
 		<!-- Fallback paths if the above doesn't exist -->
 		<ResonitePath Condition="Exists('C:\Program Files (x86)\Steam\steamapps\common\Resonite\')">C:\Program Files (x86)\Steam\steamapps\common\Resonite\</ResonitePath>
+		<ResonitePath Condition="Exists('B:\SteamLibrary\steamapps\common\Resonite\')">B:\SteamLibrary\steamapps\common\Resonite\</ResonitePath>
 		<ResonitePath Condition="Exists('$(HOME)/.steam/steam/steamapps/common/Resonite/')">$(HOME)/.steam/steam/steamapps/common/Resonite/</ResonitePath>
 		<ResonitePath Condition="Exists('$(MSBuildThisFileDirectory)Resonite/')">$(MSBuildThisFileDirectory)Resonite/</ResonitePath>
 	</PropertyGroup>
@@ -49,6 +50,10 @@
 		</Reference>
 		<Reference Include="System.Numerics">
 		    <HintPath>$(ResonitePath)Resonite_Data\Managed\System.Numerics.dll</HintPath>
+		    <Private>False</Private>
+		</Reference>
+		<Reference Include="Awwdio">
+		    <HintPath>$(ResonitePath)Resonite_Data\Managed\Awwdio.dll</HintPath>
 		    <Private>False</Private>
 		</Reference>
 		<Reference Include="Elements.Assets">
