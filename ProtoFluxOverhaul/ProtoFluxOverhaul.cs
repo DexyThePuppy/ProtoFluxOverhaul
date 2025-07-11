@@ -12,6 +12,7 @@ using System.Reflection;
 using static ProtoFluxOverhaul.Logger;
 
 namespace ProtoFluxOverhaul;
+
 public class ProtoFluxOverhaul : ResoniteMod {
 	internal const string VERSION_CONSTANT = "1.4.2";
 	public override string Name => "ProtoFluxOverhaul";
@@ -23,11 +24,19 @@ public class ProtoFluxOverhaul : ResoniteMod {
 	public static ModConfiguration Config;
 	public static readonly Dictionary<Slot, Panner2D> pannerCache = new Dictionary<Slot, Panner2D>();
 	
+	// ============ BASIC SETTINGS ============
+	[AutoRegisterConfigKey]
+	public static readonly ModConfigurationKey<dummy> SPACER_BASIC = new("spacerBasic", "--- Basic Settings ---", () => new dummy());
+
 	[AutoRegisterConfigKey]
 	public static readonly ModConfigurationKey<bool> ENABLED = new("Enabled", "Should ProtoFluxOverhaul be Enabled?", () => true);
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<bool> WIRE_SOUNDS = new("WireSounds", "Should wire interaction sounds be enabled?", () => true);
+	public static readonly ModConfigurationKey<bool> DEBUG_LOGGING = new("debugLogging", "Enable Debug Logging", () => false);
+
+	// ============ ANIMATION SETTINGS ============
+	[AutoRegisterConfigKey]
+	public static readonly ModConfigurationKey<dummy> SPACER_ANIMATION = new("spacerAnimation", "--- Animation Settings ---", () => new dummy());
 
 	[AutoRegisterConfigKey]
 	public static readonly ModConfigurationKey<float2> SCROLL_SPEED = new("scrollSpeed", "Scroll Speed (X,Y)", () => new float2(-0.5f, 0f));
@@ -37,6 +46,10 @@ public class ProtoFluxOverhaul : ResoniteMod {
 	
 	[AutoRegisterConfigKey]
 	public static readonly ModConfigurationKey<bool> PING_PONG = new("pingPong", "Ping Pong Animation", () => false);
+
+	// ============ TEXTURE URLS ============
+	[AutoRegisterConfigKey]
+	public static readonly ModConfigurationKey<dummy> SPACER_TEXTURES = new("spacerTextures", "--- Texture URLs ---", () => new dummy());
 
 	[AutoRegisterConfigKey]
 	public static readonly ModConfigurationKey<Uri> FAR_TEXTURE = new("farTexture", "Far Texture URL", () => new Uri("resdb:///87782c86f11fa977dec6545006417b4b1e79cb4dfd6d9ed1ef169259512af9d7.png"));
@@ -54,10 +67,10 @@ public class ProtoFluxOverhaul : ResoniteMod {
 	public static readonly ModConfigurationKey<Uri> CONNECTOR_OUTPUT_TEXTURE = new("connectorOutputTexture", "Connector Output Texture URL", () => new Uri("resdb:///baff0353323659064d2692e3609025d2348998798ee6031cb777fbd4a13f4360.png")); 
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<Uri> CALL_CONNECTOR_OUTPUT_TEXTURE = new("callConnectorOutputTexture", "Call Connector Output Texture URL", () => new Uri("resdb:///6cd7ec2bad20b57ba68fda3bb961912f42b3816965a941e968d6d2b237ad7335.png"));
+	public static readonly ModConfigurationKey<Uri> CALL_CONNECTOR_INPUT_TEXTURE = new("callConnectorInputTexture", "Call Connector Input Texture URL", () => new Uri("resdb:///59586a2c3a1f0bab46fd6b24103fba2f00f9dd98d438d98226b5b54859b30b30.png"));
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<Uri> CALL_CONNECTOR_INPUT_TEXTURE = new("callConnectorInputTexture", "Call Connector Input Texture URL", () => new Uri("resdb:///59586a2c3a1f0bab46fd6b24103fba2f00f9dd98d438d98226b5b54859b30b30.png"));
+	public static readonly ModConfigurationKey<Uri> CALL_CONNECTOR_OUTPUT_TEXTURE = new("callConnectorOutputTexture", "Call Connector Output Texture URL", () => new Uri("resdb:///6cd7ec2bad20b57ba68fda3bb961912f42b3816965a941e968d6d2b237ad7335.png"));
 
 	[AutoRegisterConfigKey]
 	public static readonly ModConfigurationKey<Uri> NODE_BACKGROUND_TEXTURE = new("nodeBackgroundTexture", "Node Background Texture URL", () => new Uri("resdb:///f020df95cf3b923094540d50796174b884cdd2061798032a48d5975d0570d0cd.png"));
@@ -65,50 +78,12 @@ public class ProtoFluxOverhaul : ResoniteMod {
 	[AutoRegisterConfigKey]
 	public static readonly ModConfigurationKey<Uri> NODE_BACKGROUND_HEADER_TEXTURE = new("nodeBackgroundHeaderTexture", "Node Background Header Texture URL", () => new Uri("resdb:///81ee369eaf5e92513de9a3a5bf4604d619434981ce4b4a091a7777df75bc9ec2.png"));
 
+	// ============ AUDIO SETTINGS ============
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<TextureFilterMode> FILTER_MODE = new("filterMode", "Texture Filter Mode", () => TextureFilterMode.Anisotropic);
+	public static readonly ModConfigurationKey<dummy> SPACER_AUDIO = new("spacerAudio", "--- Audio Settings ---", () => new dummy());
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<bool> MIPMAPS = new("mipMaps", "Generate MipMaps", () => false);
-
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<bool> UNCOMPRESSED = new("uncompressed", "Uncompressed Texture", () => false);
-
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<bool> DIRECT_LOAD = new("directLoad", "Direct Load", () => false);
-
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<bool> FORCE_EXACT_VARIANT = new("forceExactVariant", "Force Exact Variant", () => true);
-
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<bool> CRUNCH_COMPRESSED = new("crunchCompressed", "Use Crunch Compression", () => true);
-
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<TextureWrapMode> WRAP_MODE_U = new("wrapModeU", "Texture Wrap Mode U", () => TextureWrapMode.Repeat);
-
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<TextureWrapMode> WRAP_MODE_V = new("wrapModeV", "Texture Wrap Mode V", () => TextureWrapMode.Repeat);
-
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<bool> KEEP_ORIGINAL_MIPMAPS = new("keepOriginalMipMaps", "Keep Original MipMaps", () => false);
-
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<Filtering> MIPMAP_FILTER = new("mipMapFilter", "MipMap Filter", () => Filtering.Box);
-
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<bool> READABLE = new("readable", "Readable Texture", () => true);
-
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<int> ANISOTROPIC_LEVEL = new("anisotropicLevel", "Anisotropic Level", () => 8);
-
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<TextureCompression> PREFERRED_FORMAT = new("preferredFormat", "Preferred Texture Format", () => TextureCompression.BC3_Crunched);
-
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<ColorProfile> PREFERRED_PROFILE = new("preferredProfile", "Preferred Color Profile", () => ColorProfile.sRGB);
-
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<bool> DEBUG_LOGGING = new("debugLogging", "Enable Debug Logging", () => false);
+	public static readonly ModConfigurationKey<bool> WIRE_SOUNDS = new("WireSounds", "Should wire interaction sounds be enabled?", () => true);
 
 	[AutoRegisterConfigKey]
 	public static readonly ModConfigurationKey<Uri> GRAB_SOUND = new("grabSound", "Grab Sound URL", () => new Uri("resdb:///391ce0c681b24b79a0240a1fa2e4a4c06492619897c0e6e045640e71a34b7ec7.wav"));
@@ -127,6 +102,52 @@ public class ProtoFluxOverhaul : ResoniteMod {
 
 	[AutoRegisterConfigKey]
 	public static readonly ModConfigurationKey<float> MAX_DISTANCE = new("maxDistance", "Audio Max Distance", () => 25f);
+
+	// ============ ADVANCED TEXTURE SETTINGS ============
+	[AutoRegisterConfigKey]
+	public static readonly ModConfigurationKey<dummy> SPACER_ADVANCED = new("spacerAdvanced", "--- Advanced Texture Settings ---", () => new dummy());
+
+	[AutoRegisterConfigKey]
+	public static readonly ModConfigurationKey<TextureFilterMode> FILTER_MODE = new("filterMode", "Texture Filter Mode", () => TextureFilterMode.Anisotropic);
+
+	[AutoRegisterConfigKey]
+	public static readonly ModConfigurationKey<int> ANISOTROPIC_LEVEL = new("anisotropicLevel", "Anisotropic Level", () => 8);
+
+	[AutoRegisterConfigKey]
+	public static readonly ModConfigurationKey<bool> MIPMAPS = new("mipMaps", "Generate MipMaps", () => false);
+
+	[AutoRegisterConfigKey]
+	public static readonly ModConfigurationKey<bool> KEEP_ORIGINAL_MIPMAPS = new("keepOriginalMipMaps", "Keep Original MipMaps", () => false);
+
+	[AutoRegisterConfigKey]
+	public static readonly ModConfigurationKey<Filtering> MIPMAP_FILTER = new("mipMapFilter", "MipMap Filter", () => Filtering.Box);
+
+	[AutoRegisterConfigKey]
+	public static readonly ModConfigurationKey<bool> UNCOMPRESSED = new("uncompressed", "Uncompressed Texture", () => false);
+
+	[AutoRegisterConfigKey]
+	public static readonly ModConfigurationKey<bool> DIRECT_LOAD = new("directLoad", "Direct Load", () => false);
+
+	[AutoRegisterConfigKey]
+	public static readonly ModConfigurationKey<bool> FORCE_EXACT_VARIANT = new("forceExactVariant", "Force Exact Variant", () => true);
+
+	[AutoRegisterConfigKey]
+	public static readonly ModConfigurationKey<bool> CRUNCH_COMPRESSED = new("crunchCompressed", "Use Crunch Compression", () => true);
+
+	[AutoRegisterConfigKey]
+	public static readonly ModConfigurationKey<TextureCompression> PREFERRED_FORMAT = new("preferredFormat", "Preferred Texture Format", () => TextureCompression.BC3_Crunched);
+
+	[AutoRegisterConfigKey]
+	public static readonly ModConfigurationKey<ColorProfile> PREFERRED_PROFILE = new("preferredProfile", "Preferred Color Profile", () => ColorProfile.sRGB);
+
+	[AutoRegisterConfigKey]
+	public static readonly ModConfigurationKey<TextureWrapMode> WRAP_MODE_U = new("wrapModeU", "Texture Wrap Mode U", () => TextureWrapMode.Repeat);
+
+	[AutoRegisterConfigKey]
+	public static readonly ModConfigurationKey<TextureWrapMode> WRAP_MODE_V = new("wrapModeV", "Texture Wrap Mode V", () => TextureWrapMode.Repeat);
+
+	[AutoRegisterConfigKey]
+	public static readonly ModConfigurationKey<bool> READABLE = new("readable", "Readable Texture", () => true);
 
 
 	public override void OnEngineInit() {
