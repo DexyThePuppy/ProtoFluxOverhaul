@@ -12,6 +12,7 @@ using System.Reflection;
 using ProtoFlux.Core;
 using ProtoFlux.Runtimes.Execution.Nodes.Actions;
 using FrooxEngine.ProtoFlux.CoreNodes;
+using Renderite.Shared;
 using static ProtoFluxOverhaul.Logger;
 
 namespace ProtoFluxOverhaul {

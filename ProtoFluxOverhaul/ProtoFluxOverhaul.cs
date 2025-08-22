@@ -9,6 +9,7 @@ using Elements.Assets;
 using System.Linq;
 using FrooxEngine.UIX;
 using System.Reflection;
+using Renderite.Shared;
 using static ProtoFluxOverhaul.Logger;
 
 namespace ProtoFluxOverhaul;
@@ -108,9 +109,6 @@ public class ProtoFluxOverhaul : ResoniteMod {
 	public static readonly ModConfigurationKey<dummy> SPACER_ADVANCED = new("spacerAdvanced", "--- Advanced Texture Settings ---", () => new dummy());
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<TextureFilterMode> FILTER_MODE = new("filterMode", "Texture Filter Mode", () => TextureFilterMode.Anisotropic);
-
-	[AutoRegisterConfigKey]
 	public static readonly ModConfigurationKey<int> ANISOTROPIC_LEVEL = new("anisotropicLevel", "Anisotropic Level", () => 8);
 
 	[AutoRegisterConfigKey]
@@ -138,16 +136,19 @@ public class ProtoFluxOverhaul : ResoniteMod {
 	public static readonly ModConfigurationKey<TextureCompression> PREFERRED_FORMAT = new("preferredFormat", "Preferred Texture Format", () => TextureCompression.BC3_Crunched);
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<ColorProfile> PREFERRED_PROFILE = new("preferredProfile", "Preferred Color Profile", () => ColorProfile.sRGB);
-
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<TextureWrapMode> WRAP_MODE_U = new("wrapModeU", "Texture Wrap Mode U", () => TextureWrapMode.Repeat);
-
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<TextureWrapMode> WRAP_MODE_V = new("wrapModeV", "Texture Wrap Mode V", () => TextureWrapMode.Repeat);
-
-	[AutoRegisterConfigKey]
 	public static readonly ModConfigurationKey<bool> READABLE = new("readable", "Readable Texture", () => true);
+
+	[AutoRegisterConfigKey]
+	public static readonly ModConfigurationKey<TextureFilterMode> FILTER_MODE = new("filterMode", "Texture Filter Mode", () => TextureFilterMode.Bilinear);
+
+	[AutoRegisterConfigKey]
+	public static readonly ModConfigurationKey<TextureWrapMode> WRAP_MODE_U = new("wrapModeU", "Texture Wrap Mode U", () => TextureWrapMode.Clamp);
+
+	[AutoRegisterConfigKey]
+	public static readonly ModConfigurationKey<TextureWrapMode> WRAP_MODE_V = new("wrapModeV", "Texture Wrap Mode V", () => TextureWrapMode.Clamp);
+
+	[AutoRegisterConfigKey]
+	public static readonly ModConfigurationKey<ColorProfile> PREFERRED_PROFILE = new("preferredProfile", "Preferred Color Profile", () => ColorProfile.sRGB);
 
 
 	public override void OnEngineInit() {

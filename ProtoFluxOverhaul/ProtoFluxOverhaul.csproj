@@ -4,7 +4,7 @@
 		<RootNamespace>ProtoFluxOverhaul</RootNamespace>
 		<AssemblyName>ProtoFluxOverhaul</AssemblyName>
 		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
-		<TargetFramework>net472</TargetFramework>
+		<TargetFramework>net9.0</TargetFramework>
 		<FileAlignment>512</FileAlignment>
 		<LangVersion>10.0</LangVersion>
 		<Nullable>disable</Nullable>
@@ -12,16 +12,14 @@
 		<!-- Change CopyToMods to true if you'd like builds to be moved into the Mods folder automatically-->
 		<CopyToMods Condition="'$(CopyToMods)'==''">true</CopyToMods>
 		<DebugType Condition="'$(Configuration)'=='Debug'">embedded</DebugType>
+
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(ResonitePath)'==''">
 		<!-- If you don't want to provide a ResonitePath in dotnet build, you can specify one here -->
-		<ResonitePath>G:\SteamLibrary\steamapps\common\Resonite\</ResonitePath>
+		<ResonitePath>B:\SteamLibrary\steamapps\common\Resonite</ResonitePath>
 		<!-- Fallback paths if the above doesn't exist -->
-		<ResonitePath Condition="Exists('C:\Program Files (x86)\Steam\steamapps\common\Resonite\')">C:\Program Files (x86)\Steam\steamapps\common\Resonite\</ResonitePath>
 		<ResonitePath Condition="Exists('B:\SteamLibrary\steamapps\common\Resonite\')">B:\SteamLibrary\steamapps\common\Resonite\</ResonitePath>
-		<ResonitePath Condition="Exists('$(HOME)/.steam/steam/steamapps/common/Resonite/')">$(HOME)/.steam/steam/steamapps/common/Resonite/</ResonitePath>
-		<ResonitePath Condition="Exists('$(MSBuildThisFileDirectory)Resonite/')">$(MSBuildThisFileDirectory)Resonite/</ResonitePath>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -37,35 +35,39 @@
 			<Private>False</Private>
 		</Reference>
 		<Reference Include="FrooxEngine">
-		    <HintPath>$(ResonitePath)Resonite_Data\Managed\FrooxEngine.dll</HintPath>
+		    <HintPath>$(ResonitePath)FrooxEngine.dll</HintPath>
 		    <Private>False</Private>
 		</Reference>
 		<Reference Include="Elements.Core">
-		    <HintPath>$(ResonitePath)Resonite_Data\Managed\Elements.Core.dll</HintPath>
+		    <HintPath>$(ResonitePath)Elements.Core.dll</HintPath>
 		    <Private>False</Private>
 		</Reference>
 		<Reference Include="System">
-		    <HintPath>$(ResonitePath)Resonite_Data\Managed\System.dll</HintPath>
+		    <HintPath>$(ResonitePath)System.dll</HintPath>
 		    <Private>False</Private>
 		</Reference>
 		<Reference Include="System.Numerics">
-		    <HintPath>$(ResonitePath)Resonite_Data\Managed\System.Numerics.dll</HintPath>
+		    <HintPath>$(ResonitePath)System.Numerics.dll</HintPath>
 		    <Private>False</Private>
 		</Reference>
 		<Reference Include="Awwdio">
-		    <HintPath>$(ResonitePath)Resonite_Data\Managed\Awwdio.dll</HintPath>
+		    <HintPath>$(ResonitePath)Awwdio.dll</HintPath>
 		    <Private>False</Private>
 		</Reference>
 		<Reference Include="Elements.Assets">
-		    <HintPath>$(ResonitePath)Resonite_Data\Managed\Elements.Assets.dll</HintPath>
+		    <HintPath>$(ResonitePath)Elements.Assets.dll</HintPath>
 		    <Private>False</Private>
 		</Reference>
 		<Reference Include="ProtoFlux.Core">
-		    <HintPath>$(ResonitePath)Resonite_Data\Managed\ProtoFlux.Core.dll</HintPath>
+		    <HintPath>$(ResonitePath)ProtoFlux.Core.dll</HintPath>
 		    <Private>False</Private>
 		</Reference>
 		<Reference Include="ProtoFlux.Nodes.FrooxEngine">
-		    <HintPath>$(ResonitePath)Resonite_Data\Managed\ProtoFlux.Nodes.FrooxEngine.dll</HintPath>
+		    <HintPath>$(ResonitePath)ProtoFlux.Nodes.FrooxEngine.dll</HintPath>
+		</Reference>
+		<Reference Include="Renderite.Shared">
+		    <HintPath>$(ResonitePath)Renderite.Shared.dll</HintPath>
+		    <Private>False</Private>
 		</Reference>
 	</ItemGroup>
 
