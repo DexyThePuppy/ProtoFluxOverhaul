@@ -73,6 +73,19 @@ public class ProtoFluxOverhaul : ResoniteMod {
 	[AutoRegisterConfigKey]
 	public static readonly ModConfigurationKey<Uri> CALL_CONNECTOR_OUTPUT_TEXTURE = new("callConnectorOutputTexture", "Call Connector Output Texture URL", () => new Uri("resdb:///6cd7ec2bad20b57ba68fda3bb961912f42b3816965a941e968d6d2b237ad7335.png"));
 
+
+	[AutoRegisterConfigKey]
+	public static readonly ModConfigurationKey<Uri> VECTOR_X1_CONNECTOR_TEXTURE = new("vectorX1ConnectorTexture", "Vector x1 Connector Texture URL", () => new Uri("resdb:///baff0353323659064d2692e3609025d2348998798ee6031cb777fbd4a13f4360.png"));
+
+	[AutoRegisterConfigKey]
+	public static readonly ModConfigurationKey<Uri> VECTOR_X2_CONNECTOR_TEXTURE = new("vectorX2ConnectorTexture", "Vector x2 Connector Texture URL", () => new Uri("resdb:///baff0353323659064d2692e3609025d2348998798ee6031cb777fbd4a13f4360.png"));
+
+	[AutoRegisterConfigKey]
+	public static readonly ModConfigurationKey<Uri> VECTOR_X3_CONNECTOR_TEXTURE = new("vectorX3ConnectorTexture", "Vector x3 Connector Texture URL", () => new Uri("resdb:///baff0353323659064d2692e3609025d2348998798ee6031cb777fbd4a13f4360.png"));
+
+	[AutoRegisterConfigKey]
+	public static readonly ModConfigurationKey<Uri> VECTOR_X4_CONNECTOR_TEXTURE = new("vectorX4ConnectorTexture", "Vector x4 Connector Texture URL", () => new Uri("resdb:///baff0353323659064d2692e3609025d2348998798ee6031cb777fbd4a13f4360.png"));
+
 	[AutoRegisterConfigKey]
 	public static readonly ModConfigurationKey<Uri> NODE_BACKGROUND_TEXTURE = new("nodeBackgroundTexture", "Node Background Texture URL", () => new Uri("resdb:///f020df95cf3b923094540d50796174b884cdd2061798032a48d5975d0570d0cd.png"));
 
