@@ -715,8 +715,6 @@ namespace ProtoFluxOverhaul {
                     categoryText.AlignmentMode.Value = AlignmentMode.LineBased;
                     categoryText.LineHeight.Value = 0.35f;
                 }
-
-                // Overview panel transparency is handled in UpdateNodeStatus patch
             }
             catch (Exception e) {
                 Logger.LogError("Failed to process node visual", e, LogCategory.UI);
