@@ -53,10 +53,10 @@ public class ProtoFluxOverhaul : ResoniteMod {
 	public static readonly ModConfigurationKey<dummy> SPACER_TEXTURES = new("spacerTextures", "--- Texture URLs ---", () => new dummy());
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<Uri> FAR_TEXTURE = new("farTexture", "Far Texture URL", () => new Uri("resdb:///87782c86f11fa977dec6545006417b4b1e79cb4dfd6d9ed1ef169259512af9d7.png"));
+	public static readonly ModConfigurationKey<Uri> FAR_TEXTURE = new("farTexture", "Far Texture URL", () => new Uri("resdb:///3377097a9fe82cd9a2c7b2e9f89aa984a96fd605d54363c833bd5a6b5c47bc15.png"));
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<Uri> NEAR_TEXTURE = new("nearTexture", "Near Texture URL", () => new Uri("resdb:///87782c86f11fa977dec6545006417b4b1e79cb4dfd6d9ed1ef169259512af9d7.png"));	
+	public static readonly ModConfigurationKey<Uri> NEAR_TEXTURE = new("nearTexture", "Near Texture URL", () => new Uri("resdb:///3377097a9fe82cd9a2c7b2e9f89aa984a96fd605d54363c833bd5a6b5c47bc15.png"));	
 
 	[AutoRegisterConfigKey]
 	public static readonly ModConfigurationKey<Uri> ROUNDED_TEXTURE = new("roundedTexture", "Rounded Texture URL", () => new Uri("resdb:///3ee5c0335455c19970d877e2b80f7869539df43fccb8fc64b38e320fc44c154f.png"));
@@ -75,16 +75,16 @@ public class ProtoFluxOverhaul : ResoniteMod {
 
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<Uri> VECTOR_X1_CONNECTOR_TEXTURE = new("vectorX1ConnectorTexture", "Vector x1 Connector Texture URL", () => new Uri("https://github.com/DexyThePuppy/ProtoFluxOverhaul/blob/c67ceb3280c144a82ccb74861dc14f361d8c37d5/ProtoFluxOverhaul/Images/Connector_x1.png"));
+	public static readonly ModConfigurationKey<Uri> VECTOR_X1_CONNECTOR_TEXTURE = new("vectorX1ConnectorTexture", "Vector x1 Connector Texture URL", () => new Uri("resdb:///948c008dd2eecf1fba556126598c7b4a48b8ff6b60c867ea4ffd894f558fcd06.png"));
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<Uri> VECTOR_X2_CONNECTOR_TEXTURE = new("vectorX2ConnectorTexture", "Vector x2 Connector Texture URL", () => new Uri("https://github.com/DexyThePuppy/ProtoFluxOverhaul/blob/c67ceb3280c144a82ccb74861dc14f361d8c37d5/ProtoFluxOverhaul/Images/Connector_x2.png?"));
+	public static readonly ModConfigurationKey<Uri> VECTOR_X2_CONNECTOR_TEXTURE = new("vectorX2ConnectorTexture", "Vector x2 Connector Texture URL", () => new Uri("resdb:///d00646d0ee8b7409511ad59ab18d3f1fc5f80643447ec80d05ba4b0abf9e3dbd.png"));
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<Uri> VECTOR_X3_CONNECTOR_TEXTURE = new("vectorX3ConnectorTexture", "Vector x3 Connector Texture URL", () => new Uri("https://github.com/DexyThePuppy/ProtoFluxOverhaul/blob/c67ceb3280c144a82ccb74861dc14f361d8c37d5/ProtoFluxOverhaul/Images/Connector_x3.png?"));
+	public static readonly ModConfigurationKey<Uri> VECTOR_X3_CONNECTOR_TEXTURE = new("vectorX3ConnectorTexture", "Vector x3 Connector Texture URL", () => new Uri("resdb:///523160f0132c1468e73efb1f9b8e005a80060704a380b83bc01b5d019f582596.png"));
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<Uri> VECTOR_X4_CONNECTOR_TEXTURE = new("vectorX4ConnectorTexture", "Vector x4 Connector Texture URL", () => new Uri("https://github.com/DexyThePuppy/ProtoFluxOverhaul/blob/c67ceb3280c144a82ccb74861dc14f361d8c37d5/ProtoFluxOverhaul/Images/Connector_x4.png?"));
+	public static readonly ModConfigurationKey<Uri> VECTOR_X4_CONNECTOR_TEXTURE = new("vectorX4ConnectorTexture", "Vector x4 Connector Texture URL", () => new Uri("resdb:///2260b99b316fe6efbe9101521f8d8922ccfba8216940cd07a283ba3059ff9dfd.png"));
 
 	[AutoRegisterConfigKey]
 	public static readonly ModConfigurationKey<Uri> NODE_BACKGROUND_TEXTURE = new("nodeBackgroundTexture", "Node Background Texture URL", () => new Uri("resdb:///f020df95cf3b923094540d50796174b884cdd2061798032a48d5975d0570d0cd.png"));
