@@ -282,25 +282,126 @@ namespace ProtoFluxOverhaul {
         }
 
         /// <summary>
+        /// Determines if a type should be treated as a reference type for connector texture
+        /// </summary>
+        private static bool IsReferenceType(System.Type type) {
+            if (type == null) return false;
+
+            // Logging to understand type detection
+            Logger.LogUI("Reference Detection", $"Analyzing type: {type.FullName}");
+
+            // Universal reference type detection strategies
+
+            // 1. Check for known reference-related interfaces and base classes
+            if (typeof(IWorldElement).IsAssignableFrom(type) ||
+                typeof(Component).IsAssignableFrom(type) ||
+                typeof(INode).IsAssignableFrom(type)) {
+                Logger.LogUI("Reference Detection", $"Type matches known reference interfaces: {type.FullName}");
+                return true;
+            }
+
+            // 2. Check for generic reference types
+            if (type.IsGenericType) {
+                var genericTypeDef = type.GetGenericTypeDefinition();
+                var genericArgs = type.GetGenericArguments();
+
+                // Common reference-like generic patterns
+                string[] referenceGenericPatterns = {
+                    "SyncRef`1", "RelayRef`1", "RefProxy`1", 
+                    "SyncRef", "RelayRef", "RefProxy"
+                };
+
+                if (referenceGenericPatterns.Any(pattern => 
+                    genericTypeDef.Name.StartsWith(pattern))) {
+                    Logger.LogUI("Reference Detection", $"Type matches reference generic pattern: {type.FullName}");
+                    return true;
+                }
+            }
+
+            // 3. Check for ProtoFlux-specific reference proxies
+            if (typeof(ProtoFluxRefProxy).IsAssignableFrom(type)) {
+                Logger.LogUI("Reference Detection", $"Type is a ProtoFlux reference proxy: {type.FullName}");
+                return true;
+            }
+
+            // 4. Reflection-based heuristics for reference-like types
+            try {
+                // Look for properties/methods typical of reference types
+                var targetProperty = type.GetProperty("Target");
+                var referenceProperty = type.GetProperty("Reference");
+                var nodeProperty = type.GetProperty("Node");
+
+                if ((targetProperty != null && !targetProperty.PropertyType.IsPrimitive) ||
+                    (referenceProperty != null && !referenceProperty.PropertyType.IsPrimitive) ||
+                    (nodeProperty != null && !nodeProperty.PropertyType.IsPrimitive)) {
+                    Logger.LogUI("Reference Detection", $"Type has reference-like properties: {type.FullName}");
+                    return true;
+                }
+            }
+            catch (Exception ex) {
+                // Log any reflection errors, but don't prevent detection
+                Logger.LogUI("Reference Detection", $"Reflection error analyzing {type.FullName}: {ex.Message}");
+            }
+
+            // 5. Last resort: check if type is not a value type and not a primitive
+            if (!type.IsValueType && type != typeof(string) && !type.IsPrimitive) {
+                Logger.LogUI("Reference Detection", $"Type is non-value, non-primitive type: {type.FullName}");
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
         /// Gets the connector dimension using official ProtoFlux data type analysis.
         /// Uses the same logic as Resonite's official GetTypeConnectorSprite method.
         /// </summary>
         private static int GetConnectorDimensionFromProxy(Slot connectorSlot) {
+            // Add debugging to see what proxies we find
+            var allComponents = connectorSlot.GetComponentsInParents<Component>().Where(c => c.GetType().Name.Contains("Proxy")).ToList();
+            Logger.LogUI("Proxy Debug", $"Found proxy components in hierarchy for slot {connectorSlot.Name}: {string.Join(", ", allComponents.Select(c => c.GetType().Name))}");
+            
+            // Check for Impulse/Operation connectors first - these should NOT use vector textures
+            var impulseProxy = connectorSlot.GetComponent<ProtoFluxImpulseProxy>();
+            var operationProxy = connectorSlot.GetComponent<ProtoFluxOperationProxy>();
+            if (impulseProxy != null || operationProxy != null) {
+                return -1; // Signal that this is an Impulse connector, not a vector
+            }
+            
             // Look for Input/Output proxy components that contain the actual type information
             var inputProxy = connectorSlot.GetComponent<ProtoFluxInputProxy>();
             if (inputProxy != null && inputProxy.InputType.Value != null) {
+                Logger.LogUI("Input Proxy", $"Found InputProxy with type {inputProxy.InputType.Value.Name} on slot {connectorSlot.Name}");
+                
+                // Universal reference type detection
+                if (IsReferenceType(inputProxy.InputType.Value)) {
+                    Logger.LogUI("Reference Detection", $"Reference type detected: {inputProxy.InputType.Value.Name} on slot {connectorSlot.Name}");
+                    return -2; // Use regular connector texture
+                }
+                
                 return GetDimensionFromType(inputProxy.InputType.Value);
             }
             
             var outputProxy = connectorSlot.GetComponent<ProtoFluxOutputProxy>();
             if (outputProxy != null && outputProxy.OutputType.Value != null) {
+                Logger.LogUI("Output Proxy", $"Found OutputProxy with type {outputProxy.OutputType.Value.Name} on slot {connectorSlot.Name}");
+                
+                // Universal reference type detection for output proxies
+                if (IsReferenceType(outputProxy.OutputType.Value)) {
+                    Logger.LogUI("Reference Detection", $"Reference type detected: {outputProxy.OutputType.Value.Name} on slot {connectorSlot.Name}");
+                    return -2; // Use regular connector texture
+                }
+                
                 return GetDimensionFromType(outputProxy.OutputType.Value);
             }
             
-            // Fallback for other proxy types
-            var refProxy = connectorSlot.GetComponent<ProtoFluxRefProxy>();
-            if (refProxy != null && refProxy.ValueType.Value != null) {
-                return GetDimensionFromType(refProxy.ValueType.Value);
+            // Check for Reference connectors - these should NEVER use vector textures
+            var refProxy = connectorSlot.GetComponentInParents<ProtoFluxRefProxy>();
+            var referenceProxy = connectorSlot.GetComponentInParents<ProtoFluxReferenceProxy>();
+            var globalRefProxy = connectorSlot.GetComponentInParents<ProtoFluxGlobalRefProxy>();
+            if (refProxy != null || referenceProxy != null || globalRefProxy != null) {
+                Logger.LogUI("Reference Connector", $"Reference connector detected in slot {connectorSlot.Name} (RefProxy: {refProxy != null}, ReferenceProxy: {referenceProxy != null}, GlobalRefProxy: {globalRefProxy != null}), using regular texture");
+                return -2; // Signal that this is a Reference connector, should use regular texture
             }
             
             return 0; // No type information found
@@ -333,6 +434,8 @@ namespace ProtoFluxOverhaul {
                 Logger.LogUI("Vector Connector", $"Using official connector Dim{connectorDimension} for connector in slot {slot.Name} (isOutput: {isOutput})");
                 return GetOrCreateSharedVectorConnectorSprite(slot, isOutput, connectorDimension);
             }
+            // If connectorDimension is -1, it means this is an Impulse connector, so skip vector logic
+            // If connectorDimension is -2, it means this is a Reference connector, so skip vector logic
             
             var cacheKey = (slot, isOutput);
             
@@ -991,20 +1094,17 @@ namespace ProtoFluxOverhaul {
                         var header = titleParent.FindChild("Header");
                         if (header != null) {
                             header.ActiveSelf = !overviewModeEnabled;
-                            Logger.LogUI("Dynamic Header Toggle", $"Header set to {(!overviewModeEnabled ? "VISIBLE" : "HIDDEN")} due to overview mode change");
                         }
                     }
                     
                     // Toggle Overview visibility (same as overview mode)
                     overviewSlot.Slot.ActiveSelf = overviewModeEnabled;
-                    Logger.LogUI("Dynamic Overview Toggle", $"Overview slot set to {(overviewModeEnabled ? "VISIBLE" : "HIDDEN")} due to overview mode change");
                 } else {
                     // No overview slot found, keep header visible
                     if (titleParent != null) {
                         var header = titleParent.FindChild("Header");
                         if (header != null) {
                             header.ActiveSelf = true;
-                            Logger.LogUI("Dynamic Header Toggle", "No overview slot found - keeping header visible");
                         }
                     }
                 }

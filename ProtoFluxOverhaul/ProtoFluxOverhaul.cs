@@ -278,9 +278,6 @@ public class ProtoFluxOverhaul : ResoniteMod {
 	// This patch ensures proper wire orientation and appearance based on wire type
 	[HarmonyPatch(typeof(ProtoFluxWireManager), "Setup")]
 	class ProtoFluxWireManager_Setup_Patch {        
-		// UV scale constants for wire texture direction
-		private const float DEFAULT_UV_SCALE = 1f;
-		private const float INVERTED_UV_SCALE = -1f;
 
 		public static void Postfix(ProtoFluxWireManager __instance, WireType type, SyncRef<StripeWireMesh> ____wireMesh, SyncRef<MeshRenderer> ____renderer) {
 			try {
@@ -339,19 +336,40 @@ public class ProtoFluxOverhaul : ResoniteMod {
 					return;
 			}
 
-			// Lock UV scale to prevent changes
-			var valueCopy = instance.Slot.GetComponentOrAttach<ValueCopy<float2>>();
-			valueCopy.Source.Target = wireMesh.UVScale;
-			valueCopy.Target.Target = wireMesh.UVScale;
+		// Set custom UV scale for extended wire texture atlas
+		// Impulse wires use x=1, all other wires use x=-1
+		bool isImpulseWire = IsImpulseWire(instance.Slot);
+		float uvX = isImpulseWire ? 1f : -1f;
+		wireMesh.UVScale.Value = new float2(uvX, 0.17f);
+		
+		Logger.LogWire("UVScale", $"Wire UV scale set to ({uvX}, 0.17) - IsImpulse: {isImpulseWire}");
+		
+		// Lock UV scale to prevent changes
+		var valueCopy = instance.Slot.GetComponentOrAttach<ValueCopy<float2>>();
+		valueCopy.Source.Target = wireMesh.UVScale;
+		valueCopy.Target.Target = wireMesh.UVScale;
+		}
+		
+		// Checks if this wire is an Impulse/Flow wire
+		private static bool IsImpulseWire(Slot wireSlot) {
+			var impulseProxy = wireSlot.GetComponentInParents<ProtoFluxImpulseProxy>();
+			var operationProxy = wireSlot.GetComponentInParents<ProtoFluxOperationProxy>();
+			return impulseProxy != null || operationProxy != null;
 		}
 		
 		// Gets the atlas offset from proxy components and applies custom offset to skip atlas index 1
 		private static int GetAtlasOffsetFromProxy(Slot wireSlot) {
-			// Check for Impulse/Flow wires first
+			// Check for Impulse/Flow wires first - use their official AtlasIndex (4) + custom mapping
 			var impulseProxy = wireSlot.GetComponentInParents<ProtoFluxImpulseProxy>();
+			if (impulseProxy != null) {
+				int officialOffset = impulseProxy.AtlasIndex; // Official: 4 for Impulse
+				return GetCustomAtlasOffset(officialOffset);
+			}
+			
 			var operationProxy = wireSlot.GetComponentInParents<ProtoFluxOperationProxy>();
-			if (impulseProxy != null || operationProxy != null) {
-				return GetImpulseWireOffset(); // Special offset for Impulse/Flow wires
+			if (operationProxy != null) {
+				int officialOffset = operationProxy.AtlasIndex; // Official: 4 for Operation
+				return GetCustomAtlasOffset(officialOffset);
 			}
 			
 			// Look for the proxy component that contains the type information
@@ -379,12 +397,6 @@ public class ProtoFluxOverhaul : ResoniteMod {
 			return 0;
 		}
 		
-		// Gets the atlas offset for Impulse/Flow wires (+1 from the extended texture)
-		private static int GetImpulseWireOffset() {
-			// Your extended texture has an additional row for Impulse wires
-			// This should use the bottom row of your 6-row atlas
-			return 5; // Bottom row (0-indexed: 0,1,2,3,4,5)
-		}
 		
 		// Checks if a type is a reference or other non-vector type that should use atlas 0
 		private static bool IsReferenceOrNonVectorType(System.Type type) {
@@ -410,56 +422,69 @@ public class ProtoFluxOverhaul : ResoniteMod {
 				case 1: return 2; // vector2 (float2, int2, etc.) → atlas 2 (skip original 1)
 				case 2: return 3; // vector3 (float3, int3, etc.) → atlas 3
 				case 3: return 4; // vector4 (float4, int4, etc.) → atlas 4
+				case 4: return 5; // impulse (call, operation, etc.) → atlas 5 (bottom row)
 				default: return officialOffset; // fallback
+			}
+		}
+		
+		// Gets precise UV Y offset for 6-row wire texture atlas (128x128 tiles)
+		// Atlas height: 6 × 128 = 768 pixels
+		// UV Y = (768 - 128 × (row + 1)) / 768
+		private static float GetCustomUVOffset(int atlasRow) {
+			switch (atlasRow) {
+				case 0: return 0.8333333f; // (768 - 128×1) / 768 = 640/768
+				case 1: return 0.6666667f; // (768 - 128×2) / 768 = 512/768
+				case 2: return 0.5000000f; // (768 - 128×3) / 768 = 384/768
+				case 3: return 0.3333333f; // (768 - 128×4) / 768 = 256/768
+				case 4: return 0.1666667f; // (768 - 128×5) / 768 = 128/768
+				case 5: return 0.0000000f; // (768 - 128×6) / 768 = 0/768
+				default: return 0.0f; // fallback to bottom row
 			}
 		}
 
 		// Configures an input wire with:
-		// - Inverted UV scale for correct texture direction
 		// - Left-pointing tangent
 		// - Input orientation for both ends
 		// - Official atlas offset for vector dimension
 		private static void ConfigureInputWire(StripeWireMesh wireMesh, int atlasOffset) {
-			wireMesh.UVScale.Value = new float2(INVERTED_UV_SCALE, ProtoFluxWireManager.WIRE_ATLAS_RATIO);
 			wireMesh.Tangent0.Value = float3.Left * ProtoFluxWireManager.TANGENT_MAGNITUDE;
 			wireMesh.Orientation0.Value = ProtoFluxWireManager.WIRE_ORIENTATION_INPUT;
 			wireMesh.Orientation1.Value = ProtoFluxWireManager.WIRE_ORIENTATION_INPUT;
 			
-			// Apply official atlas offset calculation (same as official Setup method)
-			wireMesh.UVOffset.Value = new float2(0f, (float)(ProtoFluxWireManager.WIRE_ATLAS_IMAGE_COUNT - 1 - atlasOffset) * ProtoFluxWireManager.WIRE_ATLAS_RATIO);
-			Logger.LogWire("Atlas", $"Input wire using atlas offset {atlasOffset} -> UV Y offset {wireMesh.UVOffset.Value.y}");
+			// Apply custom atlas offset calculation for 6-row texture (128x128 tiles)
+			float uvY = GetCustomUVOffset(atlasOffset);
+			wireMesh.UVOffset.Value = new float2(0f, uvY);
+			Logger.LogWire("Atlas", $"Input wire using atlas offset {atlasOffset} -> UV Y offset {uvY}");
 		}
 
 		// Configures an output wire with:
-		// - Default UV scale for normal texture direction
 		// - Right-pointing tangent
 		// - Output orientation for both ends
 		// - Official atlas offset for vector dimension
 		private static void ConfigureOutputWire(StripeWireMesh wireMesh, int atlasOffset) {
-			wireMesh.UVScale.Value = new float2(DEFAULT_UV_SCALE, ProtoFluxWireManager.WIRE_ATLAS_RATIO);
 			wireMesh.Tangent0.Value = float3.Right * ProtoFluxWireManager.TANGENT_MAGNITUDE;
 			wireMesh.Orientation0.Value = ProtoFluxWireManager.WIRE_ORIENTATION_OUTPUT;
 			wireMesh.Orientation1.Value = ProtoFluxWireManager.WIRE_ORIENTATION_OUTPUT;
 			
-			// Apply official atlas offset calculation (same as official Setup method)
-			wireMesh.UVOffset.Value = new float2(0f, (float)(ProtoFluxWireManager.WIRE_ATLAS_IMAGE_COUNT - 1 - atlasOffset) * ProtoFluxWireManager.WIRE_ATLAS_RATIO);
-			Logger.LogWire("Atlas", $"Output wire using atlas offset {atlasOffset} -> UV Y offset {wireMesh.UVOffset.Value.y}");
+			// Apply custom atlas offset calculation for 6-row texture (128x128 tiles)
+			float uvY = GetCustomUVOffset(atlasOffset);
+			wireMesh.UVOffset.Value = new float2(0f, uvY);
+			Logger.LogWire("Atlas", $"Output wire using atlas offset {atlasOffset} -> UV Y offset {uvY}");
 		}
 
 		// Configures a reference wire with:
-		// - Default UV scale for normal texture direction
 		// - Downward-pointing tangent
 		// - Reference orientation for both ends
 		// - Official atlas offset for vector dimension
 		private static void ConfigureReferenceWire(StripeWireMesh wireMesh, int atlasOffset) {
-			wireMesh.UVScale.Value = new float2(DEFAULT_UV_SCALE, ProtoFluxWireManager.WIRE_ATLAS_RATIO);
 			wireMesh.Tangent0.Value = float3.Down * ProtoFluxWireManager.TANGENT_MAGNITUDE;
 			wireMesh.Orientation0.Value = ProtoFluxWireManager.WIRE_ORIENTATION_REFERENCE;
 			wireMesh.Orientation1.Value = ProtoFluxWireManager.WIRE_ORIENTATION_REFERENCE;
 			
-			// Apply official atlas offset calculation (same as official Setup method)
-			wireMesh.UVOffset.Value = new float2(0f, (float)(ProtoFluxWireManager.WIRE_ATLAS_IMAGE_COUNT - 1 - atlasOffset) * ProtoFluxWireManager.WIRE_ATLAS_RATIO);
-			Logger.LogWire("Atlas", $"Reference wire using atlas offset {atlasOffset} -> UV Y offset {wireMesh.UVOffset.Value.y}");
+			// Apply custom atlas offset calculation for 6-row texture (128x128 tiles)
+			float uvY = GetCustomUVOffset(atlasOffset);
+			wireMesh.UVOffset.Value = new float2(0f, uvY);
+			Logger.LogWire("Atlas", $"Reference wire using atlas offset {atlasOffset} -> UV Y offset {uvY}");
 		}
 	}
 
