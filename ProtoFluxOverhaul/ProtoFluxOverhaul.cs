@@ -75,16 +75,16 @@ public class ProtoFluxOverhaul : ResoniteMod {
 
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<Uri> VECTOR_X1_CONNECTOR_TEXTURE = new("vectorX1ConnectorTexture", "Vector x1 Connector Texture URL", () => new Uri("resdb:///baff0353323659064d2692e3609025d2348998798ee6031cb777fbd4a13f4360.png"));
+	public static readonly ModConfigurationKey<Uri> VECTOR_X1_CONNECTOR_TEXTURE = new("vectorX1ConnectorTexture", "Vector x1 Connector Texture URL", () => new Uri("https://github.com/DexyThePuppy/ProtoFluxOverhaul/blob/c67ceb3280c144a82ccb74861dc14f361d8c37d5/ProtoFluxOverhaul/Images/Connector_x1.png"));
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<Uri> VECTOR_X2_CONNECTOR_TEXTURE = new("vectorX2ConnectorTexture", "Vector x2 Connector Texture URL", () => new Uri("resdb:///baff0353323659064d2692e3609025d2348998798ee6031cb777fbd4a13f4360.png"));
+	public static readonly ModConfigurationKey<Uri> VECTOR_X2_CONNECTOR_TEXTURE = new("vectorX2ConnectorTexture", "Vector x2 Connector Texture URL", () => new Uri("https://github.com/DexyThePuppy/ProtoFluxOverhaul/blob/c67ceb3280c144a82ccb74861dc14f361d8c37d5/ProtoFluxOverhaul/Images/Connector_x2.png?"));
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<Uri> VECTOR_X3_CONNECTOR_TEXTURE = new("vectorX3ConnectorTexture", "Vector x3 Connector Texture URL", () => new Uri("resdb:///baff0353323659064d2692e3609025d2348998798ee6031cb777fbd4a13f4360.png"));
+	public static readonly ModConfigurationKey<Uri> VECTOR_X3_CONNECTOR_TEXTURE = new("vectorX3ConnectorTexture", "Vector x3 Connector Texture URL", () => new Uri("https://github.com/DexyThePuppy/ProtoFluxOverhaul/blob/c67ceb3280c144a82ccb74861dc14f361d8c37d5/ProtoFluxOverhaul/Images/Connector_x3.png?"));
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<Uri> VECTOR_X4_CONNECTOR_TEXTURE = new("vectorX4ConnectorTexture", "Vector x4 Connector Texture URL", () => new Uri("resdb:///baff0353323659064d2692e3609025d2348998798ee6031cb777fbd4a13f4360.png"));
+	public static readonly ModConfigurationKey<Uri> VECTOR_X4_CONNECTOR_TEXTURE = new("vectorX4ConnectorTexture", "Vector x4 Connector Texture URL", () => new Uri("https://github.com/DexyThePuppy/ProtoFluxOverhaul/blob/c67ceb3280c144a82ccb74861dc14f361d8c37d5/ProtoFluxOverhaul/Images/Connector_x4.png?"));
 
 	[AutoRegisterConfigKey]
 	public static readonly ModConfigurationKey<Uri> NODE_BACKGROUND_TEXTURE = new("nodeBackgroundTexture", "Node Background Texture URL", () => new Uri("resdb:///f020df95cf3b923094540d50796174b884cdd2061798032a48d5975d0570d0cd.png"));
@@ -291,7 +291,7 @@ public class ProtoFluxOverhaul : ResoniteMod {
 				// We only need to check if we're the one who can see/interact with the wire
 				if (!__instance.Enabled || __instance.Slot == null) return;
 
-				// Apply wire-type specific configuration
+				// Apply wire-type specific configuration with correct atlas offset
 				ConfigureWireByType(__instance, ____wireMesh.Target, type);
 
 				// Only apply material changes if we have permission
@@ -315,20 +315,23 @@ public class ProtoFluxOverhaul : ResoniteMod {
 				   wireMesh?.Target != null;
 		}
 
-		// Configures wire mesh properties based on wire type
+		// Configures wire mesh properties based on wire type and uses official atlas offset
 		// This should run regardless of permissions since it affects visual appearance
 		private static void ConfigureWireByType(ProtoFluxWireManager instance, StripeWireMesh wireMesh, WireType type) {
+			// Get the official atlas offset from the proxy component that has the type information
+			int atlasOffset = GetAtlasOffsetFromProxy(instance.Slot);
+			
 			switch(type) {
 				case WireType.Input:
-					ConfigureInputWire(wireMesh);
+					ConfigureInputWire(wireMesh, atlasOffset);
 					break;
 
 				case WireType.Output:
-					ConfigureOutputWire(wireMesh);
+					ConfigureOutputWire(wireMesh, atlasOffset);
 					break;
 
 				case WireType.Reference:
-					ConfigureReferenceWire(wireMesh);
+					ConfigureReferenceWire(wireMesh, atlasOffset);
 					break;
 
 				default:
@@ -341,38 +344,122 @@ public class ProtoFluxOverhaul : ResoniteMod {
 			valueCopy.Source.Target = wireMesh.UVScale;
 			valueCopy.Target.Target = wireMesh.UVScale;
 		}
+		
+		// Gets the atlas offset from proxy components and applies custom offset to skip atlas index 1
+		private static int GetAtlasOffsetFromProxy(Slot wireSlot) {
+			// Check for Impulse/Flow wires first
+			var impulseProxy = wireSlot.GetComponentInParents<ProtoFluxImpulseProxy>();
+			var operationProxy = wireSlot.GetComponentInParents<ProtoFluxOperationProxy>();
+			if (impulseProxy != null || operationProxy != null) {
+				return GetImpulseWireOffset(); // Special offset for Impulse/Flow wires
+			}
+			
+			// Look for the proxy component that contains the type information
+			var inputProxy = wireSlot.GetComponentInParents<ProtoFluxInputProxy>();
+			if (inputProxy != null) {
+				// Check if this is a reference or other non-vector type
+				if (IsReferenceOrNonVectorType(inputProxy.InputType.Value)) {
+					return 0; // References and non-vector types use atlas 0
+				}
+				int officialOffset = inputProxy.AtlasIndex; // Official: 0, 1, 2, 3 for scalar, vec2, vec3, vec4
+				return GetCustomAtlasOffset(officialOffset);
+			}
+			
+			var outputProxy = wireSlot.GetComponentInParents<ProtoFluxOutputProxy>();
+			if (outputProxy != null) {
+				// Check if this is a reference or other non-vector type
+				if (IsReferenceOrNonVectorType(outputProxy.OutputType.Value)) {
+					return 0; // References and non-vector types use atlas 0
+				}
+				int officialOffset = outputProxy.AtlasIndex; // Official: 0, 1, 2, 3 for scalar, vec2, vec3, vec4
+				return GetCustomAtlasOffset(officialOffset);
+			}
+			
+			// Fallback to 0 (references, etc.) if no proxy found
+			return 0;
+		}
+		
+		// Gets the atlas offset for Impulse/Flow wires (+1 from the extended texture)
+		private static int GetImpulseWireOffset() {
+			// Your extended texture has an additional row for Impulse wires
+			// This should use the bottom row of your 6-row atlas
+			return 5; // Bottom row (0-indexed: 0,1,2,3,4,5)
+		}
+		
+		// Checks if a type is a reference or other non-vector type that should use atlas 0
+		private static bool IsReferenceOrNonVectorType(System.Type type) {
+			if (type == null) return true;
+			
+			// References (Slot, User, Component types, etc.)
+			if (typeof(IWorldElement).IsAssignableFrom(type)) return true;
+			if (typeof(Component).IsAssignableFrom(type)) return true;
+			if (type == typeof(Slot) || type == typeof(User)) return true;
+			
+			// Other non-primitive types (except vectors)
+			if (!type.IsPrimitive && type != typeof(string) && !typeof(IVector).IsAssignableFrom(type)) {
+				return true;
+			}
+			
+			return false;
+		}
+		
+		// Custom atlas offset mapping to skip index 1
+		private static int GetCustomAtlasOffset(int officialOffset) {
+			switch (officialOffset) {
+				case 0: return 1; // scalar (float, int, etc.) → atlas 1 (was 0)
+				case 1: return 2; // vector2 (float2, int2, etc.) → atlas 2 (skip original 1)
+				case 2: return 3; // vector3 (float3, int3, etc.) → atlas 3
+				case 3: return 4; // vector4 (float4, int4, etc.) → atlas 4
+				default: return officialOffset; // fallback
+			}
+		}
 
 		// Configures an input wire with:
 		// - Inverted UV scale for correct texture direction
 		// - Left-pointing tangent
 		// - Input orientation for both ends
-		private static void ConfigureInputWire(StripeWireMesh wireMesh) {
+		// - Official atlas offset for vector dimension
+		private static void ConfigureInputWire(StripeWireMesh wireMesh, int atlasOffset) {
 			wireMesh.UVScale.Value = new float2(INVERTED_UV_SCALE, ProtoFluxWireManager.WIRE_ATLAS_RATIO);
 			wireMesh.Tangent0.Value = float3.Left * ProtoFluxWireManager.TANGENT_MAGNITUDE;
 			wireMesh.Orientation0.Value = ProtoFluxWireManager.WIRE_ORIENTATION_INPUT;
 			wireMesh.Orientation1.Value = ProtoFluxWireManager.WIRE_ORIENTATION_INPUT;
+			
+			// Apply official atlas offset calculation (same as official Setup method)
+			wireMesh.UVOffset.Value = new float2(0f, (float)(ProtoFluxWireManager.WIRE_ATLAS_IMAGE_COUNT - 1 - atlasOffset) * ProtoFluxWireManager.WIRE_ATLAS_RATIO);
+			Logger.LogWire("Atlas", $"Input wire using atlas offset {atlasOffset} -> UV Y offset {wireMesh.UVOffset.Value.y}");
 		}
 
 		// Configures an output wire with:
 		// - Default UV scale for normal texture direction
 		// - Right-pointing tangent
 		// - Output orientation for both ends
-		private static void ConfigureOutputWire(StripeWireMesh wireMesh) {
+		// - Official atlas offset for vector dimension
+		private static void ConfigureOutputWire(StripeWireMesh wireMesh, int atlasOffset) {
 			wireMesh.UVScale.Value = new float2(DEFAULT_UV_SCALE, ProtoFluxWireManager.WIRE_ATLAS_RATIO);
 			wireMesh.Tangent0.Value = float3.Right * ProtoFluxWireManager.TANGENT_MAGNITUDE;
 			wireMesh.Orientation0.Value = ProtoFluxWireManager.WIRE_ORIENTATION_OUTPUT;
 			wireMesh.Orientation1.Value = ProtoFluxWireManager.WIRE_ORIENTATION_OUTPUT;
+			
+			// Apply official atlas offset calculation (same as official Setup method)
+			wireMesh.UVOffset.Value = new float2(0f, (float)(ProtoFluxWireManager.WIRE_ATLAS_IMAGE_COUNT - 1 - atlasOffset) * ProtoFluxWireManager.WIRE_ATLAS_RATIO);
+			Logger.LogWire("Atlas", $"Output wire using atlas offset {atlasOffset} -> UV Y offset {wireMesh.UVOffset.Value.y}");
 		}
 
 		// Configures a reference wire with:
 		// - Default UV scale for normal texture direction
 		// - Downward-pointing tangent
 		// - Reference orientation for both ends
-		private static void ConfigureReferenceWire(StripeWireMesh wireMesh) {
+		// - Official atlas offset for vector dimension
+		private static void ConfigureReferenceWire(StripeWireMesh wireMesh, int atlasOffset) {
 			wireMesh.UVScale.Value = new float2(DEFAULT_UV_SCALE, ProtoFluxWireManager.WIRE_ATLAS_RATIO);
 			wireMesh.Tangent0.Value = float3.Down * ProtoFluxWireManager.TANGENT_MAGNITUDE;
 			wireMesh.Orientation0.Value = ProtoFluxWireManager.WIRE_ORIENTATION_REFERENCE;
 			wireMesh.Orientation1.Value = ProtoFluxWireManager.WIRE_ORIENTATION_REFERENCE;
+			
+			// Apply official atlas offset calculation (same as official Setup method)
+			wireMesh.UVOffset.Value = new float2(0f, (float)(ProtoFluxWireManager.WIRE_ATLAS_IMAGE_COUNT - 1 - atlasOffset) * ProtoFluxWireManager.WIRE_ATLAS_RATIO);
+			Logger.LogWire("Atlas", $"Reference wire using atlas offset {atlasOffset} -> UV Y offset {wireMesh.UVOffset.Value.y}");
 		}
 	}
 
