@@ -15,7 +15,7 @@ using static ProtoFluxOverhaul.Logger;
 namespace ProtoFluxOverhaul;
 
 public class ProtoFluxOverhaul : ResoniteMod {
-	internal const string VERSION_CONSTANT = "1.4.3";
+	internal const string VERSION_CONSTANT = "1.4.4";
 	public override string Name => "ProtoFluxOverhaul";
 	public override string Author => "Dexy, NepuShiro";
 	public override string Version => VERSION_CONSTANT;
@@ -27,141 +27,129 @@ public class ProtoFluxOverhaul : ResoniteMod {
 	
 	// ============ BASIC SETTINGS ============
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<dummy> SPACER_BASIC = new("spacerBasic", "--- Basic Settings ---", () => new dummy());
+	public static readonly ModConfigurationKey<dummy> SPACER_BASIC = new("spacerMain", "--- Main Settings ---", () => new dummy());
 
 	[AutoRegisterConfigKey]
 	public static readonly ModConfigurationKey<bool> ENABLED = new("Enabled", "Should ProtoFluxOverhaul be Enabled?", () => true);
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<bool> DEBUG_LOGGING = new("debugLogging", "Enable Debug Logging", () => false);
+	public static readonly ModConfigurationKey<bool> DEBUG_LOGGING = new("Enable Debug Logging", "Enable Debug Logging", () => false);
+
+	[AutoRegisterConfigKey]
+	public static readonly ModConfigurationKey<bool> USE_HEADER_COLOR_FOR_BACKGROUND = new("Colored Node Background", "Use Node Type Color as Background Color for Nodes", () => false);
 
 	// ============ ANIMATION SETTINGS ============
 	[AutoRegisterConfigKey]
 	public static readonly ModConfigurationKey<dummy> SPACER_ANIMATION = new("spacerAnimation", "--- Animation Settings ---", () => new dummy());
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<float2> SCROLL_SPEED = new("scrollSpeed", "Scroll Speed (X,Y)", () => new float2(-0.5f, 0f));
+	public static readonly ModConfigurationKey<float2> SCROLL_SPEED = new("Scroll Speed", "Scroll Speed (X,Y)", () => new float2(-0.5f, 0f));
 	
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<float2> SCROLL_REPEAT = new("scrollRepeat", "Scroll Repeat Interval (X,Y)", () => new float2(1f, 1f));
+	public static readonly ModConfigurationKWIRE_TEXTUREey<float2> SCROLL_REPEAT = new("Scroll Repeat Interval", "Scroll Repeat Interval (X,Y)", () => new float2(1f, 1f));
 	
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<bool> PING_PONG = new("pingPong", "Ping Pong Animation", () => false);
 
 	// ============ TEXTURE URLS ============
 	[AutoRegisterConfigKey]
 	public static readonly ModConfigurationKey<dummy> SPACER_TEXTURES = new("spacerTextures", "--- Texture URLs ---", () => new dummy());
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<Uri> FAR_TEXTURE = new("farTexture", "Far Texture URL", () => new Uri("resdb:///3377097a9fe82cd9a2c7b2e9f89aa984a96fd605d54363c833bd5a6b5c47bc15.png"));
+	public static readonly ModConfigurationKey<Uri> WIRE_TEXTURE = new("Wire Texture", "Wire Texture URL", () => new Uri("resdb:///75bfbcf76ebd1319013405fb2a33762aca2e4d0a0e494ecf69e20091ddf2a6de.png"));
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<Uri> NEAR_TEXTURE = new("nearTexture", "Near Texture URL", () => new Uri("resdb:///3377097a9fe82cd9a2c7b2e9f89aa984a96fd605d54363c833bd5a6b5c47bc15.png"));	
+	public static readonly ModConfigurationKey<Uri> CONNECTOR_INPUT_TEXTURE = new("Default Connector | Both | Texture", "Default Connector Texture URL", () => new Uri("resdb:///86f073f1eca1168ec2b36819cf99f3a6be56d1fd8c5d7b4a8165832ef9ffdaa4.png"));
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<Uri> ROUNDED_TEXTURE = new("roundedTexture", "Rounded Texture URL", () => new Uri("resdb:///3ee5c0335455c19970d877e2b80f7869539df43fccb8fc64b38e320fc44c154f.png"));
+	public static readonly ModConfigurationKey<Uri> CALL_CONNECTOR_INPUT_TEXTURE = new("Call Connector | Input | Texture", "Call Connector Input Texture URL", () => new Uri("resdb:///9b2b22316dd9775d512006995bbcdeaf0bfcebe0e7ee22034facf699b2d76d06.png"));
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<Uri> CONNECTOR_INPUT_TEXTURE = new("connectorInputTexture", "Connector Input Texture URL", () => new Uri("resdb:///baff0353323659064d2692e3609025d2348998798ee6031cb777fbd4a13f4360.png"));
+	public static readonly ModConfigurationKey<Uri> CALL_CONNECTOR_OUTPUT_TEXTURE = new("Call Connector | Output | Texture", "Call Connector Output Texture URL", () => new Uri("resdb:///52d53736e60f77c9f7856c87483d827eec7b0946310cd6aefc25b3c22bcd810e.png"));
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<Uri> CONNECTOR_OUTPUT_TEXTURE = new("connectorOutputTexture", "Connector Output Texture URL", () => new Uri("resdb:///baff0353323659064d2692e3609025d2348998798ee6031cb777fbd4a13f4360.png")); 
+	public static readonly ModConfigurationKey<Uri> VECTOR_X1_CONNECTOR_TEXTURE = new("x1 Connector | Texture", "Vector x1 Connector Texture URL", () => new Uri("resdb:///829214df5aaacecb2782da6c7b9eb4b5f45b7498a0c180ac65155afc0f92453c.png"));
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<Uri> CALL_CONNECTOR_INPUT_TEXTURE = new("callConnectorInputTexture", "Call Connector Input Texture URL", () => new Uri("resdb:///59586a2c3a1f0bab46fd6b24103fba2f00f9dd98d438d98226b5b54859b30b30.png"));
+	public static readonly ModConfigurationKey<Uri> VECTOR_X2_CONNECTOR_TEXTURE = new("x2 Connector | Texture", "Vector x2 Connector Texture URL", () => new Uri("resdb:///27105afe77edf1ef5f7105548d95cd0189f38436c26f59923c84787b2109333d.png"));
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<Uri> CALL_CONNECTOR_OUTPUT_TEXTURE = new("callConnectorOutputTexture", "Call Connector Output Texture URL", () => new Uri("resdb:///6cd7ec2bad20b57ba68fda3bb961912f42b3816965a941e968d6d2b237ad7335.png"));
-
-
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<Uri> VECTOR_X1_CONNECTOR_TEXTURE = new("vectorX1ConnectorTexture", "Vector x1 Connector Texture URL", () => new Uri("resdb:///948c008dd2eecf1fba556126598c7b4a48b8ff6b60c867ea4ffd894f558fcd06.png"));
+	public static readonly ModConfigurationKey<Uri> VECTOR_X3_CONNECTOR_TEXTURE = new("x3 Connector | Texture", "Vector x3 Connector Texture URL", () => new Uri("resdb:///69f01c5e9ad9084125cbae13d860ae4284f9adfbce0f67fb8f21431d5d659704.png"));
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<Uri> VECTOR_X2_CONNECTOR_TEXTURE = new("vectorX2ConnectorTexture", "Vector x2 Connector Texture URL", () => new Uri("resdb:///d00646d0ee8b7409511ad59ab18d3f1fc5f80643447ec80d05ba4b0abf9e3dbd.png"));
+	public static readonly ModConfigurationKey<Uri> NODE_BACKGROUND_TEXTURE = new("Node Background | Texture", "Node Background Texture URL", () => new Uri("resdb:///f020df95cf3b923094540d50796174b884cdd2061798032a48d5975d0570d0cd.png"));
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<Uri> VECTOR_X3_CONNECTOR_TEXTURE = new("vectorX3ConnectorTexture", "Vector x3 Connector Texture URL", () => new Uri("resdb:///523160f0132c1468e73efb1f9b8e005a80060704a380b83bc01b5d019f582596.png"));
-
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<Uri> VECTOR_X4_CONNECTOR_TEXTURE = new("vectorX4ConnectorTexture", "Vector x4 Connector Texture URL", () => new Uri("resdb:///2260b99b316fe6efbe9101521f8d8922ccfba8216940cd07a283ba3059ff9dfd.png"));
-
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<Uri> NODE_BACKGROUND_TEXTURE = new("nodeBackgroundTexture", "Node Background Texture URL", () => new Uri("resdb:///f020df95cf3b923094540d50796174b884cdd2061798032a48d5975d0570d0cd.png"));
-
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<Uri> NODE_BACKGROUND_HEADER_TEXTURE = new("nodeBackgroundHeaderTexture", "Node Background Header Texture URL", () => new Uri("resdb:///81ee369eaf5e92513de9a3a5bf4604d619434981ce4b4a091a7777df75bc9ec2.png"));
+	public static readonly ModConfigurationKey<Uri> NODE_BACKGROUND_HEADER_TEXTURE = new("Node Background Header | Texture", "Node Background Header Texture URL", () => new Uri("resdb:///81ee369eaf5e92513de9a3a5bf4604d619434981ce4b4a091a7777df75bc9ec2.png"));
 
 	// ============ AUDIO SETTINGS ============
 	[AutoRegisterConfigKey]
 	public static readonly ModConfigurationKey<dummy> SPACER_AUDIO = new("spacerAudio", "--- Audio Settings ---", () => new dummy());
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<bool> WIRE_SOUNDS = new("WireSounds", "Should wire interaction sounds be enabled?", () => true);
+	public static readonly ModConfigurationKey<bool> WIRE_SOUNDS = new("Wire Sounds", "Should wire interaction sounds be enabled?", () => true);
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<Uri> GRAB_SOUND = new("grabSound", "Grab Sound URL", () => new Uri("resdb:///391ce0c681b24b79a0240a1fa2e4a4c06492619897c0e6e045640e71a34b7ec7.wav"));
+	public static readonly ModConfigurationKey<Uri> GRAB_SOUND = new("Grab Sound", "Grab Sound URL", () => new Uri("resdb:///391ce0c681b24b79a0240a1fa2e4a4c06492619897c0e6e045640e71a34b7ec7.wav"));
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<Uri> DELETE_SOUND = new("deleteSound", "Delete Sound URL", () => new Uri("resdb:///b0c4195cce0990b27a3525623f46787d247c530387f8bc551e50bcf0584ab28b.wav"));
+	public static readonly ModConfigurationKey<Uri> DELETE_SOUND = new("Delete Sound", "Delete Sound URL", () => new Uri("resdb:///b0c4195cce0990b27a3525623f46787d247c530387f8bc551e50bcf0584ab28b.wav"));
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<Uri> CONNECT_SOUND = new("connectSound", "Connect Sound URL", () => new Uri("resdb:///8c63d74efcef070bf8fec2f9b1b20eecb15a499b17c64abaad225467d138d93b.wav"));
+	public static readonly ModConfigurationKey<Uri> CONNECT_SOUND = new("Connect Sound", "Connect Sound URL", () => new Uri("resdb:///8c63d74efcef070bf8fec2f9b1b20eecb15a499b17c64abaad225467d138d93b.wav"));
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<float> AUDIO_VOLUME = new("audioVolume", "Audio Volume", () => 1f);
+	public static readonly ModConfigurationKey<float> AUDIO_VOLUME = new("Audio Volume", "Audio Volume", () => 1f);
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<float> MIN_DISTANCE = new("minDistance", "Audio Min Distance", () => 0.1f);
+	public static readonly ModConfigurationKey<float> MIN_DISTANCE = new("Audio Min Distance", "Audio Min Distance", () => 0.1f);
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<float> MAX_DISTANCE = new("maxDistance", "Audio Max Distance", () => 25f);
+	public static readonly ModConfigurationKey<float> MAX_DISTANCE = new("Audio Max Distance", "Audio Max Distance", () => 25f);
 
 	// ============ ADVANCED TEXTURE SETTINGS ============
 	[AutoRegisterConfigKey]
 	public static readonly ModConfigurationKey<dummy> SPACER_ADVANCED = new("spacerAdvanced", "--- Advanced Texture Settings ---", () => new dummy());
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<int> ANISOTROPIC_LEVEL = new("anisotropicLevel", "Anisotropic Level", () => 8);
+	public static readonly ModConfigurationKey<int> ANISOTROPIC_LEVEL = new("Anisotropic Level", "Anisotropic Level", () => 8);
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<bool> MIPMAPS = new("mipMaps", "Generate MipMaps", () => false);
+	public static readonly ModConfigurationKey<bool> MIPMAPS = new("Generate MipMaps", "Generate MipMaps", () => false);
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<bool> KEEP_ORIGINAL_MIPMAPS = new("keepOriginalMipMaps", "Keep Original MipMaps", () => false);
+	public static readonly ModConfigurationKey<bool> KEEP_ORIGINAL_MIPMAPS = new("Keep Original MipMaps", "Keep Original MipMaps", () => false);
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<Filtering> MIPMAP_FILTER = new("mipMapFilter", "MipMap Filter", () => Filtering.Box);
+	public static readonly ModConfigurationKey<Filtering> MIPMAP_FILTER = new("MipMap Filter", "MipMap Filter", () => Filtering.Box);
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<bool> UNCOMPRESSED = new("uncompressed", "Uncompressed Texture", () => false);
+	public static readonly ModConfigurationKey<bool> UNCOMPRESSED = new("Uncompressed Texture", "Uncompressed Texture", () => false);
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<bool> DIRECT_LOAD = new("directLoad", "Direct Load", () => false);
+	public static readonly ModConfigurationKey<bool> DIRECT_LOAD = new("Direct Load", "Direct Load", () => false);
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<bool> FORCE_EXACT_VARIANT = new("forceExactVariant", "Force Exact Variant", () => true);
+	public static readonly ModConfigurationKey<bool> FORCE_EXACT_VARIANT = new("Force Exact Variant", "Force Exact Variant", () => true);
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<bool> CRUNCH_COMPRESSED = new("crunchCompressed", "Use Crunch Compression", () => true);
+	public static readonly ModConfigurationKey<bool> CRUNCH_COMPRESSED = new("Crunch Compression", "Use Crunch Compression", () => true);
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<TextureCompression> PREFERRED_FORMAT = new("preferredFormat", "Preferred Texture Format", () => TextureCompression.BC3_Crunched);
+	public static readonly ModConfigurationKey<TextureCompression> PREFERRED_FORMAT = new("Preferred Texture Format", "Preferred Texture Format", () => TextureCompression.BC3_Crunched);
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<bool> READABLE = new("readable", "Readable Texture", () => true);
+	public static readonly ModConfigurationKey<bool> READABLE = new("Readable Texture", "Readable Texture", () => true);
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<TextureFilterMode> FILTER_MODE = new("filterMode", "Texture Filter Mode", () => TextureFilterMode.Bilinear);
+	public static readonly ModConfigurationKey<TextureFilterMode> FILTER_MODE = new("Texture Filter Mode", "Texture Filter Mode", () => TextureFilterMode.Bilinear);
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<TextureWrapMode> WRAP_MODE_U = new("wrapModeU", "Texture Wrap Mode U", () => TextureWrapMode.Repeat);
+	public static readonly ModConfigurationKey<TextureWrapMode> WRAP_MODE_U = new("Texture Wrap Mode U", "Texture Wrap Mode U", () => TextureWrapMode.Repeat);
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<TextureWrapMode> WRAP_MODE_V = new("wrapModeV", "Texture Wrap Mode V", () => TextureWrapMode.Repeat);
+	public static readonly ModConfigurationKey<TextureWrapMode> WRAP_MODE_V = new("Texture Wrap Mode V", "Texture Wrap Mode V", () => TextureWrapMode.Repeat);
 
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<ColorProfile> PREFERRED_PROFILE = new("preferredProfile", "Preferred Color Profile", () => ColorProfile.sRGB);
+	public static readonly ModConfigurationKey<ColorProfile> PREFERRED_PROFILE = new("Preferred Color Profile", "Preferred Color Profile", () => ColorProfile.sRGB);
 
 
 	public override void OnEngineInit() {
@@ -185,15 +173,14 @@ public class ProtoFluxOverhaul : ResoniteMod {
 
 						panner.Speed = Config.GetValue(SCROLL_SPEED);
 						panner.Repeat = Config.GetValue(SCROLL_REPEAT);
-						panner.PingPong.Value = Config.GetValue(PING_PONG);
 
 						// Get the FresnelMaterial
 						var fresnelMaterial = kvp.Key.GetComponent<FresnelMaterial>();
 						if (fresnelMaterial != null) {
-							var farTexture = GetOrCreateSharedTexture(fresnelMaterial.Slot, Config.GetValue(FAR_TEXTURE));
+							var farTexture = GetOrCreateSharedTexture(fresnelMaterial.Slot, Config.GetValue(WIRE_TEXTURE));
 							fresnelMaterial.FarTexture.Target = farTexture;
 							
-							var nearTexture = GetOrCreateSharedTexture(fresnelMaterial.Slot, Config.GetValue(NEAR_TEXTURE));
+							var nearTexture = GetOrCreateSharedTexture(fresnelMaterial.Slot, Config.GetValue(WIRE_TEXTURE));
 							fresnelMaterial.NearTexture.Target = nearTexture;
 						}
 					}
@@ -216,18 +203,10 @@ public class ProtoFluxOverhaul : ResoniteMod {
 					__instance.Slot == null) return;
 				
 				// === User Permission Check ===
-				// Get the AllocUser for wire point
-				__instance.Slot.ReferenceID.ExtractIDs(out ulong position, out byte user);
-				User wirePointAllocUser = __instance.World.GetUserByAllocationID(user);
-				
-				// Only process if wire belongs to local user
-				if (wirePointAllocUser == null || position < wirePointAllocUser.AllocationIDStart) {
-					__instance.ReferenceID.ExtractIDs(out ulong position1, out byte user1);
-					User instanceAllocUser = __instance.World.GetUserByAllocationID(user1);
-					
-					if (instanceAllocUser == null || position1 < instanceAllocUser.AllocationIDStart || instanceAllocUser != __instance.LocalUser) return;
+				if (!WirePermissionHelper.HasPermission(__instance)) {
+					// Skip silently for unauthorized wires to reduce log spam
+					return;
 				}
-				else if (wirePointAllocUser != __instance.LocalUser) return;
 				
 				// === Material Setup ===
 				// Get or create the shared Fresnel Material
@@ -244,15 +223,14 @@ public class ProtoFluxOverhaul : ResoniteMod {
 					// Configure panner with user settings
 					panner.Speed = Config.GetValue(SCROLL_SPEED);
 					panner.Repeat = Config.GetValue(SCROLL_REPEAT);
-					panner.PingPong.Value = Config.GetValue(PING_PONG);
 					
 					pannerCache[fresnelMaterial.Slot] = panner;
 
 					// Set the textures from config
-					var farTexture = GetOrCreateSharedTexture(fresnelMaterial.Slot, Config.GetValue(FAR_TEXTURE));
+					var farTexture = GetOrCreateSharedTexture(fresnelMaterial.Slot, Config.GetValue(WIRE_TEXTURE));
 					fresnelMaterial.FarTexture.Target = farTexture;
 					
-					var nearTexture = GetOrCreateSharedTexture(fresnelMaterial.Slot, Config.GetValue(NEAR_TEXTURE));
+					var nearTexture = GetOrCreateSharedTexture(fresnelMaterial.Slot, Config.GetValue(WIRE_TEXTURE));
 					fresnelMaterial.NearTexture.Target = nearTexture;
 				}
 
@@ -284,20 +262,20 @@ public class ProtoFluxOverhaul : ResoniteMod {
 				// Skip if basic requirements aren't met
 				if (!IsValidSetup(__instance, ____wireMesh)) return;
 
-				// For wire direction/appearance, we don't need ownership permission
-				// We only need to check if we're the one who can see/interact with the wire
+				// Check basic wire state
 				if (!__instance.Enabled || __instance.Slot == null) return;
 
-				// Apply wire-type specific configuration with correct atlas offset
-				ConfigureWireByType(__instance, ____wireMesh.Target, type);
-
-				// Only apply material changes if we have permission
-				if (PermissionHelper.HasPermission(__instance)) {
+				// Apply material and UV/Atlas changes together if we have permission
+				if (WirePermissionHelper.HasPermission(__instance)) {
 					// Get or create the shared Fresnel Material
 					var fresnelMaterial = GetOrCreateSharedMaterial(__instance.Slot);
 					if (fresnelMaterial != null && ____renderer?.Target != null) {
 						____renderer.Target.Material.Target = fresnelMaterial;
 					}
+					
+					// Apply wire-type specific configuration with correct atlas offset
+					// This is tied to material permission since they're both visual modifications
+					ConfigureWireByType(__instance, ____wireMesh.Target, type);
 				}
 			}
 			catch (Exception e) {
@@ -312,42 +290,44 @@ public class ProtoFluxOverhaul : ResoniteMod {
 				   wireMesh?.Target != null;
 		}
 
-		// Configures wire mesh properties based on wire type and uses official atlas offset
-		// This should run regardless of permissions since it affects visual appearance
+		// Configures wire mesh properties using Resonite's official setup approach
+		// Permission is checked by caller - this method assumes authorization
 		private static void ConfigureWireByType(ProtoFluxWireManager instance, StripeWireMesh wireMesh, WireType type) {
-			// Get the official atlas offset from the proxy component that has the type information
-			int atlasOffset = GetAtlasOffsetFromProxy(instance.Slot);
+			// Get the official atlas offset from the proxy component
+			int atlasOffset = GetOfficialAtlasOffsetFromProxy(instance.Slot);
 			
-			switch(type) {
-				case WireType.Input:
-					ConfigureInputWire(wireMesh, atlasOffset);
-					break;
-
-				case WireType.Output:
-					ConfigureOutputWire(wireMesh, atlasOffset);
-					break;
-
-				case WireType.Reference:
-					ConfigureReferenceWire(wireMesh, atlasOffset);
-					break;
-
-				default:
-					Logger.LogWire("Type", $"Unexpected wire type: {type}");
-					return;
-			}
-
-		// Set custom UV scale for extended wire texture atlas
-		// Impulse wires use x=1, all other wires use x=-1
-		bool isImpulseWire = IsImpulseWire(instance.Slot);
-		float uvX = isImpulseWire ? 1f : -1f;
-		wireMesh.UVScale.Value = new float2(uvX, 0.17f);
-		
-		Logger.LogWire("UVScale", $"Wire UV scale set to ({uvX}, 0.17) - IsImpulse: {isImpulseWire}");
-		
-		// Lock UV scale to prevent changes
-		var valueCopy = instance.Slot.GetComponentOrAttach<ValueCopy<float2>>();
-		valueCopy.Source.Target = wireMesh.UVScale;
-		valueCopy.Target.Target = wireMesh.UVScale;
+			// Check if this is an impulse wire for special handling
+			bool isImpulseWire = IsImpulseWire(instance.Slot);
+			bool reverseTexture = (type == WireType.Input) && !isImpulseWire;
+			
+			// Calculate the UV values using Resonite's official formula
+			var calculatedUVScale = new float2(reverseTexture ? -1f : 1f, ProtoFluxWireManager.WIRE_ATLAS_RATIO);
+			var calculatedUVOffset = new float2(y: (float)(ProtoFluxWireManager.WIRE_ATLAS_IMAGE_COUNT - 1 - atlasOffset) * ProtoFluxWireManager.WIRE_ATLAS_RATIO);
+			
+			Logger.LogWire("Official", $"Using Resonite's official setup: type={type}, atlasOffset={atlasOffset}, reverseTexture={reverseTexture}, isImpulse={isImpulseWire}");
+			Logger.LogWire("UVScale", $"Calculated UVScale: {calculatedUVScale}");
+			Logger.LogWire("UVOffset", $"Calculated UVOffset: {calculatedUVOffset}");
+			
+			// Set up driving FIRST to ensure values are locked before any mesh updates
+			var scaleVariable = instance.Slot.GetComponentOrAttach<DynamicValueVariable<float2>>();
+			scaleVariable.Value.Value = calculatedUVScale; // Store the calculated value
+			var scaleDriver = instance.Slot.GetComponentOrAttach<ValueDriver<float2>>();
+			scaleDriver.DriveTarget.Target = wireMesh.UVScale;
+			scaleDriver.ValueSource.Target = scaleVariable.Value;
+			
+			var offsetVariable = instance.Slot.GetComponentOrAttach<DynamicValueVariable<float2>>();
+			offsetVariable.Value.Value = calculatedUVOffset; // Store the calculated value
+			var offsetDriver = instance.Slot.GetComponentOrAttach<ValueDriver<float2>>();
+			offsetDriver.DriveTarget.Target = wireMesh.UVOffset;
+			offsetDriver.ValueSource.Target = offsetVariable.Value;
+			
+			Logger.LogWire("Lock", "UV scale and offset locked to prevent unauthorized changes");
+			
+			// Now that driving is set up, force a mesh update to ensure the driven values take effect
+			wireMesh.MarkChangeDirty();
+			
+			Logger.LogWire("Final UVScale", $"Final UVScale after driving: {wireMesh.UVScale.Value}");
+			Logger.LogWire("Final UVOffset", $"Final UVOffset after driving: {wireMesh.UVOffset.Value}");
 		}
 		
 		// Checks if this wire is an Impulse/Flow wire
@@ -357,134 +337,37 @@ public class ProtoFluxOverhaul : ResoniteMod {
 			return impulseProxy != null || operationProxy != null;
 		}
 		
-		// Gets the atlas offset from proxy components and applies custom offset to skip atlas index 1
-		private static int GetAtlasOffsetFromProxy(Slot wireSlot) {
-			// Check for Impulse/Flow wires first - use their official AtlasIndex (4) + custom mapping
+		// Gets the official atlas offset directly from proxy components (using Resonite's official AtlasIndex)
+		private static int GetOfficialAtlasOffsetFromProxy(Slot wireSlot) {
+			// Check for Impulse/Flow wires first
 			var impulseProxy = wireSlot.GetComponentInParents<ProtoFluxImpulseProxy>();
 			if (impulseProxy != null) {
-				int officialOffset = impulseProxy.AtlasIndex; // Official: 4 for Impulse
-				return GetCustomAtlasOffset(officialOffset);
+				Logger.LogWire("Atlas", $"Impulse proxy found with AtlasIndex: {impulseProxy.AtlasIndex}");
+				return impulseProxy.AtlasIndex;
 			}
 			
 			var operationProxy = wireSlot.GetComponentInParents<ProtoFluxOperationProxy>();
 			if (operationProxy != null) {
-				int officialOffset = operationProxy.AtlasIndex; // Official: 4 for Operation
-				return GetCustomAtlasOffset(officialOffset);
+				Logger.LogWire("Atlas", $"Operation proxy found with AtlasIndex: {operationProxy.AtlasIndex}");
+				return operationProxy.AtlasIndex;
 			}
 			
-			// Look for the proxy component that contains the type information
+			// Look for data proxies
 			var inputProxy = wireSlot.GetComponentInParents<ProtoFluxInputProxy>();
 			if (inputProxy != null) {
-				// Check if this is a reference or other non-vector type
-				if (IsReferenceOrNonVectorType(inputProxy.InputType.Value)) {
-					return 0; // References and non-vector types use atlas 0
-				}
-				int officialOffset = inputProxy.AtlasIndex; // Official: 0, 1, 2, 3 for scalar, vec2, vec3, vec4
-				return GetCustomAtlasOffset(officialOffset);
+				Logger.LogWire("Atlas", $"Input proxy found with AtlasIndex: {inputProxy.AtlasIndex} for type: {inputProxy.InputType.Value?.Name}");
+				return inputProxy.AtlasIndex;
 			}
 			
 			var outputProxy = wireSlot.GetComponentInParents<ProtoFluxOutputProxy>();
 			if (outputProxy != null) {
-				// Check if this is a reference or other non-vector type
-				if (IsReferenceOrNonVectorType(outputProxy.OutputType.Value)) {
-					return 0; // References and non-vector types use atlas 0
-				}
-				int officialOffset = outputProxy.AtlasIndex; // Official: 0, 1, 2, 3 for scalar, vec2, vec3, vec4
-				return GetCustomAtlasOffset(officialOffset);
+				Logger.LogWire("Atlas", $"Output proxy found with AtlasIndex: {outputProxy.AtlasIndex} for type: {outputProxy.OutputType.Value?.Name}");
+				return outputProxy.AtlasIndex;
 			}
 			
-			// Fallback to 0 (references, etc.) if no proxy found
+			// Fallback to 0 if no proxy found
+			Logger.LogWire("Atlas", "No proxy found, using fallback atlas index 0");
 			return 0;
-		}
-		
-		
-		// Checks if a type is a reference or other non-vector type that should use atlas 0
-		private static bool IsReferenceOrNonVectorType(System.Type type) {
-			if (type == null) return true;
-			
-			// References (Slot, User, Component types, etc.)
-			if (typeof(IWorldElement).IsAssignableFrom(type)) return true;
-			if (typeof(Component).IsAssignableFrom(type)) return true;
-			if (type == typeof(Slot) || type == typeof(User)) return true;
-			
-			// Other non-primitive types (except vectors)
-			if (!type.IsPrimitive && type != typeof(string) && !typeof(IVector).IsAssignableFrom(type)) {
-				return true;
-			}
-			
-			return false;
-		}
-		
-		// Custom atlas offset mapping to skip index 1
-		private static int GetCustomAtlasOffset(int officialOffset) {
-			switch (officialOffset) {
-				case 0: return 1; // scalar (float, int, etc.) → atlas 1 (was 0)
-				case 1: return 2; // vector2 (float2, int2, etc.) → atlas 2 (skip original 1)
-				case 2: return 3; // vector3 (float3, int3, etc.) → atlas 3
-				case 3: return 4; // vector4 (float4, int4, etc.) → atlas 4
-				case 4: return 5; // impulse (call, operation, etc.) → atlas 5 (bottom row)
-				default: return officialOffset; // fallback
-			}
-		}
-		
-		// Gets precise UV Y offset for 6-row wire texture atlas (128x128 tiles)
-		// Atlas height: 6 × 128 = 768 pixels
-		// UV Y = (768 - 128 × (row + 1)) / 768
-		private static float GetCustomUVOffset(int atlasRow) {
-			switch (atlasRow) {
-				case 0: return 0.8333333f; // (768 - 128×1) / 768 = 640/768
-				case 1: return 0.6666667f; // (768 - 128×2) / 768 = 512/768
-				case 2: return 0.5000000f; // (768 - 128×3) / 768 = 384/768
-				case 3: return 0.3333333f; // (768 - 128×4) / 768 = 256/768
-				case 4: return 0.1666667f; // (768 - 128×5) / 768 = 128/768
-				case 5: return 0.0000000f; // (768 - 128×6) / 768 = 0/768
-				default: return 0.0f; // fallback to bottom row
-			}
-		}
-
-		// Configures an input wire with:
-		// - Left-pointing tangent
-		// - Input orientation for both ends
-		// - Official atlas offset for vector dimension
-		private static void ConfigureInputWire(StripeWireMesh wireMesh, int atlasOffset) {
-			wireMesh.Tangent0.Value = float3.Left * ProtoFluxWireManager.TANGENT_MAGNITUDE;
-			wireMesh.Orientation0.Value = ProtoFluxWireManager.WIRE_ORIENTATION_INPUT;
-			wireMesh.Orientation1.Value = ProtoFluxWireManager.WIRE_ORIENTATION_INPUT;
-			
-			// Apply custom atlas offset calculation for 6-row texture (128x128 tiles)
-			float uvY = GetCustomUVOffset(atlasOffset);
-			wireMesh.UVOffset.Value = new float2(0f, uvY);
-			Logger.LogWire("Atlas", $"Input wire using atlas offset {atlasOffset} -> UV Y offset {uvY}");
-		}
-
-		// Configures an output wire with:
-		// - Right-pointing tangent
-		// - Output orientation for both ends
-		// - Official atlas offset for vector dimension
-		private static void ConfigureOutputWire(StripeWireMesh wireMesh, int atlasOffset) {
-			wireMesh.Tangent0.Value = float3.Right * ProtoFluxWireManager.TANGENT_MAGNITUDE;
-			wireMesh.Orientation0.Value = ProtoFluxWireManager.WIRE_ORIENTATION_OUTPUT;
-			wireMesh.Orientation1.Value = ProtoFluxWireManager.WIRE_ORIENTATION_OUTPUT;
-			
-			// Apply custom atlas offset calculation for 6-row texture (128x128 tiles)
-			float uvY = GetCustomUVOffset(atlasOffset);
-			wireMesh.UVOffset.Value = new float2(0f, uvY);
-			Logger.LogWire("Atlas", $"Output wire using atlas offset {atlasOffset} -> UV Y offset {uvY}");
-		}
-
-		// Configures a reference wire with:
-		// - Downward-pointing tangent
-		// - Reference orientation for both ends
-		// - Official atlas offset for vector dimension
-		private static void ConfigureReferenceWire(StripeWireMesh wireMesh, int atlasOffset) {
-			wireMesh.Tangent0.Value = float3.Down * ProtoFluxWireManager.TANGENT_MAGNITUDE;
-			wireMesh.Orientation0.Value = ProtoFluxWireManager.WIRE_ORIENTATION_REFERENCE;
-			wireMesh.Orientation1.Value = ProtoFluxWireManager.WIRE_ORIENTATION_REFERENCE;
-			
-			// Apply custom atlas offset calculation for 6-row texture (128x128 tiles)
-			float uvY = GetCustomUVOffset(atlasOffset);
-			wireMesh.UVOffset.Value = new float2(0f, uvY);
-			Logger.LogWire("Atlas", $"Reference wire using atlas offset {atlasOffset} -> UV Y offset {uvY}");
 		}
 	}
 
@@ -513,10 +396,10 @@ public class ProtoFluxOverhaul : ResoniteMod {
 		fresnelMaterial.ZWrite.Value = ZWrite.On;
 		
 		// Setup textures from config
-		var farTexture = GetOrCreateSharedTexture(materialSlot, Config.GetValue(FAR_TEXTURE));
+		var farTexture = GetOrCreateSharedTexture(materialSlot, Config.GetValue(WIRE_TEXTURE));
 		fresnelMaterial.FarTexture.Target = farTexture;
 		
-		var nearTexture = GetOrCreateSharedTexture(materialSlot, Config.GetValue(NEAR_TEXTURE));
+		var nearTexture = GetOrCreateSharedTexture(materialSlot, Config.GetValue(WIRE_TEXTURE));
 		fresnelMaterial.NearTexture.Target = nearTexture;
 		
 		return fresnelMaterial;
@@ -556,11 +439,9 @@ public class ProtoFluxOverhaul : ResoniteMod {
 
 	// Audio initialization is now handled on-demand by ProtoFluxSounds using engine's optimized patterns
 
-	// Patches for wire-related events
-	[HarmonyPatch(typeof(ProtoFluxWireManager))]
-	public class ProtoFluxWireManager_Patches {
-		// Helper method for permission checks
-		private static bool HasPermission(ProtoFluxWireManager instance) {
+	// Shared wire permission helper
+	public static class WirePermissionHelper {
+		public static bool HasPermission(ProtoFluxWireManager instance) {
 			try {
 				if (instance == null || instance.Slot == null) {
 					Logger.LogPermission("Check", false, "Permission check failed: instance or slot is null");
@@ -597,10 +478,14 @@ public class ProtoFluxOverhaul : ResoniteMod {
 				return false;
 			}
 		}
+	}
 
+	// Patches for wire-related events
+	[HarmonyPatch(typeof(ProtoFluxWireManager))]
+	public class ProtoFluxWireManager_Patches {
 		[HarmonyPatch("OnDestroy")]
-		[HarmonyPrefix]
-		public static void OnDestroy_Prefix(ProtoFluxWireManager __instance)
+		[HarmonyPostfix]
+		public static void OnDestroy_Postfix(ProtoFluxWireManager __instance)
 		{
 			try
 			{
@@ -616,13 +501,20 @@ public class ProtoFluxOverhaul : ResoniteMod {
 					return;
 				}
 
-				// Play delete sound if wire is being deleted and we have permission
-				if (__instance.DeleteHighlight.Value && HasPermission(__instance))
+				// Only process if this is an actual user deletion (DeleteHighlight = true)
+				if (!__instance.DeleteHighlight.Value) {
+					// This is a system cleanup, not a user deletion - skip silently
+					return;
+				}
+
+				// Play delete sound if we have permission for user-initiated deletion
+				bool hasPermission = WirePermissionHelper.HasPermission(__instance);
+				if (hasPermission)
 				{
 					Logger.LogWire("Delete", $"Playing wire delete sound at position {__instance.Slot.GlobalPosition}");
 					ProtoFluxSounds.OnWireDeleted(__instance.World, __instance.Slot.GlobalPosition);
 				} else {
-					Logger.LogWire("Delete", $"Wire delete sound skipped: DeleteHighlight={__instance.DeleteHighlight.Value}, HasPermission={__instance != null && HasPermission(__instance)}");
+					Logger.LogWire("Delete", $"Wire delete sound skipped: Insufficient permissions for user {__instance.LocalUser?.UserName}");
 				}
 			}
 			catch (Exception e)
@@ -685,11 +577,12 @@ public class ProtoFluxOverhaul : ResoniteMod {
 				}
 
 				// Only play sound if we have permission
-				if (proxy != null && HasPermission(proxy)) {
+				bool hasPermission = proxy != null && HasPermission(proxy);
+				if (hasPermission) {
 					Logger.LogWire("Grab", $"Playing wire grab sound at position {proxy.Slot.GlobalPosition}");
 					ProtoFluxSounds.OnWireGrabbed(__instance.World, proxy.Slot.GlobalPosition);
 				} else {
-					Logger.LogWire("Grab", $"Wire grab sound skipped: Proxy={proxy != null}, HasPermission={proxy != null && HasPermission(proxy)}");
+					Logger.LogWire("Grab", $"Wire grab sound skipped: Proxy={proxy != null}, HasPermission={hasPermission}");
 				}
 			}
 			catch (Exception e) {
@@ -709,11 +602,12 @@ public class ProtoFluxOverhaul : ResoniteMod {
 				}
 
 				// Only play sound if we have permission
-				if (input != null && output != null && HasPermission(input)) {
+				bool hasPermission = input != null && HasPermission(input);
+				if (input != null && output != null && hasPermission) {
 						Logger.LogWire("Connect", $"Playing wire connect sound (Input-Output) at position {input.Slot.GlobalPosition}");
 						ProtoFluxSounds.OnWireConnected(__instance.World, input.Slot.GlobalPosition);
 				} else {
-					Logger.LogWire("Connect", $"Wire connect sound skipped: Input={input != null}, Output={output != null}, HasPermission={input != null && HasPermission(input)}");
+					Logger.LogWire("Connect", $"Wire connect sound skipped: Input={input != null}, Output={output != null}, HasPermission={hasPermission}");
 				}
 			}
 			catch (Exception e) {
@@ -733,11 +627,12 @@ public class ProtoFluxOverhaul : ResoniteMod {
 				}
 
 				// Only play sound if we have permission
-				if (impulse != null && operation != null && HasPermission(impulse)) {
+				bool hasPermission = impulse != null && HasPermission(impulse);
+				if (impulse != null && operation != null && hasPermission) {
 					Logger.LogWire("Connect", $"Playing wire connect sound (Impulse-Operation) at position {impulse.Slot.GlobalPosition}");
 					ProtoFluxSounds.OnWireConnected(__instance.World, impulse.Slot.GlobalPosition);
 				} else {
-					Logger.LogWire("Connect", $"Wire connect sound skipped: Impulse={impulse != null}, Operation={operation != null}, HasPermission={impulse != null && HasPermission(impulse)}");
+					Logger.LogWire("Connect", $"Wire connect sound skipped: Impulse={impulse != null}, Operation={operation != null}, HasPermission={hasPermission}");
 				}
 			}
 			catch (Exception e) {
@@ -757,11 +652,12 @@ public class ProtoFluxOverhaul : ResoniteMod {
 				}
 
 				// Only play sound if we have permission
-				if (node != null && input != null && output != null && HasPermission(node)) {
+				bool hasPermission = node != null && HasPermission(node);
+				if (node != null && input != null && output != null && hasPermission) {
 					Logger.LogWire("Connect", $"Playing wire connect sound (Node-Input-Output) at position {node.Slot.GlobalPosition}");
 					ProtoFluxSounds.OnWireConnected(__instance.World, node.Slot.GlobalPosition);
 				} else {
-					Logger.LogWire("Connect", $"Wire connect sound skipped: Node={node != null}, Input={input != null}, Output={output != null}, HasPermission={node != null && HasPermission(node)}");
+					Logger.LogWire("Connect", $"Wire connect sound skipped: Node={node != null}, Input={input != null}, Output={output != null}, HasPermission={hasPermission}");
 				}
 			}
 			catch (Exception e) {
@@ -785,11 +681,12 @@ public class ProtoFluxOverhaul : ResoniteMod {
 					cutWires.Count > 0) {
 					// Play delete sound for cut wires
 					foreach (var wire in cutWires) {
-						if (wire != null && !wire.IsRemoved && HasPermission(wire)) {
+						bool hasPermission = wire != null && !wire.IsRemoved && HasPermission(wire);
+						if (hasPermission) {
 							Logger.LogWire("Delete", $"Playing wire delete sound (cut) at position {wire.Slot.GlobalPosition}");
 							ProtoFluxSounds.OnWireDeleted(__instance.World, wire.Slot.GlobalPosition);
 						} else {
-							Logger.LogWire("Delete", $"Wire delete sound skipped (cut): Wire={wire != null}, IsRemoved={wire?.IsRemoved}, HasPermission={wire != null && !wire.IsRemoved && HasPermission(wire)}");
+							Logger.LogWire("Delete", $"Wire delete sound skipped (cut): Wire={wire != null}, IsRemoved={wire?.IsRemoved}, HasPermission={hasPermission}");
 						}
 					}
 				}
