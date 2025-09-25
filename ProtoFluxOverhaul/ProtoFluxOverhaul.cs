@@ -15,7 +15,7 @@ using static ProtoFluxOverhaul.Logger;
 namespace ProtoFluxOverhaul;
 
 public class ProtoFluxOverhaul : ResoniteMod {
-	internal const string VERSION_CONSTANT = "1.4.4";
+	internal const string VERSION_CONSTANT = "1.4.5";
 	public override string Name => "ProtoFluxOverhaul";
 	public override string Author => "Dexy, NepuShiro";
 	public override string Version => VERSION_CONSTANT;
@@ -46,7 +46,7 @@ public class ProtoFluxOverhaul : ResoniteMod {
 	public static readonly ModConfigurationKey<float2> SCROLL_SPEED = new("Scroll Speed", "Scroll Speed (X,Y)", () => new float2(-0.5f, 0f));
 	
 	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKWIRE_TEXTUREey<float2> SCROLL_REPEAT = new("Scroll Repeat Interval", "Scroll Repeat Interval (X,Y)", () => new float2(1f, 1f));
+	public static readonly ModConfigurationKey<float2> SCROLL_REPEAT = new("Scroll Repeat Interval", "Scroll Repeat Interval (X,Y)", () => new float2(1f, 1f));
 	
 
 	// ============ TEXTURE URLS ============
@@ -234,16 +234,29 @@ public class ProtoFluxOverhaul : ResoniteMod {
 					fresnelMaterial.NearTexture.Target = nearTexture;
 				}
 
+				// Set FresnelMaterial texture scales to x=-1 for correct wire flow direction
+				fresnelMaterial.FarTextureScale.Value = new float2(-1f, fresnelMaterial.FarTextureScale.Value.y);
+				fresnelMaterial.NearTextureScale.Value = new float2(-1f, fresnelMaterial.NearTextureScale.Value.y);
+
 				// === Texture Offset Setup ===
 				// Setup texture offset drivers if they don't exist
 				if (!fresnelMaterial.FarTextureOffset.IsLinked) {
-					panner.Target = fresnelMaterial.FarTextureOffset;
+					// Only link if the panner target is not already set
+					if (panner.Target == null)
+					{
+						panner.Target = fresnelMaterial.FarTextureOffset;
+					}
 				}
 
 				if (!fresnelMaterial.NearTextureOffset.IsLinked) {
 					ValueDriver<float2> newNearDrive = fresnelMaterial.Slot.GetComponentOrAttach<ValueDriver<float2>>();
-					newNearDrive.DriveTarget.Target = fresnelMaterial.NearTextureOffset;
-					newNearDrive.ValueSource.Target = panner.Target;
+					
+					// Only link if the target is not already linked
+					if (!newNearDrive.DriveTarget.IsLinkValid)
+					{
+						newNearDrive.DriveTarget.Target = fresnelMaterial.NearTextureOffset;
+						newNearDrive.ValueSource.Target = panner.Target;
+					}
 				}
 			}
 			catch (Exception e) {
@@ -290,87 +303,52 @@ public class ProtoFluxOverhaul : ResoniteMod {
 				   wireMesh?.Target != null;
 		}
 
-		// Configures wire mesh properties using Resonite's official setup approach
-		// Permission is checked by caller - this method assumes authorization
+		// Configures wire mesh properties - now simplified to only handle material assignment
+		// UVScale and UVOffset are handled by Resonite's default implementation
 		private static void ConfigureWireByType(ProtoFluxWireManager instance, StripeWireMesh wireMesh, WireType type) {
-			// Get the official atlas offset from the proxy component
-			int atlasOffset = GetOfficialAtlasOffsetFromProxy(instance.Slot);
-			
-			// Check if this is an impulse wire for special handling
-			bool isImpulseWire = IsImpulseWire(instance.Slot);
-			bool reverseTexture = (type == WireType.Input) && !isImpulseWire;
-			
-			// Calculate the UV values using Resonite's official formula
-			var calculatedUVScale = new float2(reverseTexture ? -1f : 1f, ProtoFluxWireManager.WIRE_ATLAS_RATIO);
-			var calculatedUVOffset = new float2(y: (float)(ProtoFluxWireManager.WIRE_ATLAS_IMAGE_COUNT - 1 - atlasOffset) * ProtoFluxWireManager.WIRE_ATLAS_RATIO);
-			
-			Logger.LogWire("Official", $"Using Resonite's official setup: type={type}, atlasOffset={atlasOffset}, reverseTexture={reverseTexture}, isImpulse={isImpulseWire}");
-			Logger.LogWire("UVScale", $"Calculated UVScale: {calculatedUVScale}");
-			Logger.LogWire("UVOffset", $"Calculated UVOffset: {calculatedUVOffset}");
-			
-			// Set up driving FIRST to ensure values are locked before any mesh updates
-			var scaleVariable = instance.Slot.GetComponentOrAttach<DynamicValueVariable<float2>>();
-			scaleVariable.Value.Value = calculatedUVScale; // Store the calculated value
-			var scaleDriver = instance.Slot.GetComponentOrAttach<ValueDriver<float2>>();
-			scaleDriver.DriveTarget.Target = wireMesh.UVScale;
-			scaleDriver.ValueSource.Target = scaleVariable.Value;
-			
-			var offsetVariable = instance.Slot.GetComponentOrAttach<DynamicValueVariable<float2>>();
-			offsetVariable.Value.Value = calculatedUVOffset; // Store the calculated value
-			var offsetDriver = instance.Slot.GetComponentOrAttach<ValueDriver<float2>>();
-			offsetDriver.DriveTarget.Target = wireMesh.UVOffset;
-			offsetDriver.ValueSource.Target = offsetVariable.Value;
-			
-			Logger.LogWire("Lock", "UV scale and offset locked to prevent unauthorized changes");
-			
-			// Now that driving is set up, force a mesh update to ensure the driven values take effect
-			wireMesh.MarkChangeDirty();
-			
-			Logger.LogWire("Final UVScale", $"Final UVScale after driving: {wireMesh.UVScale.Value}");
-			Logger.LogWire("Final UVOffset", $"Final UVOffset after driving: {wireMesh.UVOffset.Value}");
+			// Resonite's default implementation already handles UVScale and UVOffset correctly
+			// We only need to ensure the material is applied, which is handled by the caller
+			Logger.LogWire("Material", $"Wire material configured for type: {type}");
 		}
 		
-		// Checks if this wire is an Impulse/Flow wire
-		private static bool IsImpulseWire(Slot wireSlot) {
-			var impulseProxy = wireSlot.GetComponentInParents<ProtoFluxImpulseProxy>();
-			var operationProxy = wireSlot.GetComponentInParents<ProtoFluxOperationProxy>();
-			return impulseProxy != null || operationProxy != null;
-		}
-		
-		// Gets the official atlas offset directly from proxy components (using Resonite's official AtlasIndex)
-		private static int GetOfficialAtlasOffsetFromProxy(Slot wireSlot) {
-			// Check for Impulse/Flow wires first
-			var impulseProxy = wireSlot.GetComponentInParents<ProtoFluxImpulseProxy>();
-			if (impulseProxy != null) {
-				Logger.LogWire("Atlas", $"Impulse proxy found with AtlasIndex: {impulseProxy.AtlasIndex}");
-				return impulseProxy.AtlasIndex;
-			}
-			
-			var operationProxy = wireSlot.GetComponentInParents<ProtoFluxOperationProxy>();
-			if (operationProxy != null) {
-				Logger.LogWire("Atlas", $"Operation proxy found with AtlasIndex: {operationProxy.AtlasIndex}");
-				return operationProxy.AtlasIndex;
-			}
-			
-			// Look for data proxies
-			var inputProxy = wireSlot.GetComponentInParents<ProtoFluxInputProxy>();
-			if (inputProxy != null) {
-				Logger.LogWire("Atlas", $"Input proxy found with AtlasIndex: {inputProxy.AtlasIndex} for type: {inputProxy.InputType.Value?.Name}");
-				return inputProxy.AtlasIndex;
-			}
-			
-			var outputProxy = wireSlot.GetComponentInParents<ProtoFluxOutputProxy>();
-			if (outputProxy != null) {
-				Logger.LogWire("Atlas", $"Output proxy found with AtlasIndex: {outputProxy.AtlasIndex} for type: {outputProxy.OutputType.Value?.Name}");
-				return outputProxy.AtlasIndex;
-			}
-			
-			// Fallback to 0 if no proxy found
-			Logger.LogWire("Atlas", "No proxy found, using fallback atlas index 0");
-			return 0;
-		}
 	}
 
+	// Patch to modify UVScale for correct wire flow direction (Input -> Output)
+	[HarmonyPatch(typeof(StripeWireMesh), "PrepareMeshData")]
+	class StripeWireMesh_PrepareMeshData_Patch {
+		public static void Postfix(StripeWireMesh __instance, ref bool changedGeometry, in float2 uvScale, in float2 uvOffset, int steps, MeshX meshx) {
+			try {
+				// Skip if mod is disabled
+				if (!Config.GetValue(ENABLED)) return;
+
+				// Get the wire manager from the slot hierarchy
+				var wireManager = __instance.Slot.GetComponentInParents<ProtoFluxWireManager>();
+				if (wireManager == null) return;
+
+				// Check if we have permission to modify this wire
+				if (!WirePermissionHelper.HasPermission(wireManager)) return;
+
+				// Modify UVScale to ensure correct flow direction (Input -> Output)
+				// For Input wires: use x=1 (normal direction)
+				// For Output wires: use x=-1 (reversed direction)
+				var modifiedUVScale = uvScale;
+				if (wireManager.Type.Value == WireType.Input) {
+					modifiedUVScale = new float2(1f, uvScale.y);
+				} else if (wireManager.Type.Value == WireType.Output) {
+					modifiedUVScale = new float2(-1f, uvScale.y);
+				}
+
+				// Apply the modified UVScale to the builder
+				if (__instance.GetType().GetField("builder", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.GetValue(__instance) is StripBuilder builder) {
+					builder.UVScale = modifiedUVScale;
+					Logger.LogWire("UVScale", $"Modified UVScale for {wireManager.Type.Value} wire: {modifiedUVScale}");
+				}
+			}
+			catch (Exception e) {
+				Logger.LogError("Error in StripeWireMesh UVScale patch", e, LogCategory.Wire);
+			}
+		}
+	}
 
 	/// Creates or retrieves a shared FresnelMaterial for wire rendering
 	private static FresnelMaterial GetOrCreateSharedMaterial(Slot slot) {

@@ -166,8 +166,13 @@ namespace ProtoFluxOverhaul {
                     var headerColorVariable = image.Slot.GetComponentOrAttach<DynamicValueVariable<colorX>>();
                     headerColorVariable.Value.Value = headerColor.Value;
                     var headerColorDriver = image.Slot.GetComponentOrAttach<ValueDriver<colorX>>();
-                    headerColorDriver.DriveTarget.Target = image.Tint;
-                    headerColorDriver.ValueSource.Target = headerColorVariable.Value;
+                    
+                    // Only link if the target is not already linked
+                    if (!headerColorDriver.DriveTarget.IsLinkValid)
+                    {
+                        headerColorDriver.DriveTarget.Target = image.Tint;
+                        headerColorDriver.ValueSource.Target = headerColorVariable.Value;
+                    }
                     Logger.LogUI("Header Color Background Update", $"Updated existing background tint to header color: R:{headerColor.Value.r:F2} G:{headerColor.Value.g:F2} B:{headerColor.Value.b:F2}");
                 }
                 return;
@@ -218,16 +223,26 @@ namespace ProtoFluxOverhaul {
                 var originalColorVariable = image.Slot.GetComponentOrAttach<DynamicValueVariable<colorX>>();
                 originalColorVariable.Value.Value = originalColor;
                 var originalColorDriver = image.Slot.GetComponentOrAttach<ValueDriver<colorX>>();
-                originalColorDriver.DriveTarget.Target = image.Tint;
-                originalColorDriver.ValueSource.Target = originalColorVariable.Value;
+                
+                // Only link if the target is not already linked
+                if (!originalColorDriver.DriveTarget.IsLinkValid)
+                {
+                    originalColorDriver.DriveTarget.Target = image.Tint;
+                    originalColorDriver.ValueSource.Target = originalColorVariable.Value;
+                }
                 Logger.LogUI("Color Preserved", $"Preserved original color for connector label: R:{originalColor.r:F2} G:{originalColor.g:F2} B:{originalColor.b:F2}");
             } else if (!isHeader && headerColor.HasValue && ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.USE_HEADER_COLOR_FOR_BACKGROUND)) {
                 // Drive header color to background if config option is enabled to prevent changes over time
                 var headerColorVariable = image.Slot.GetComponentOrAttach<DynamicValueVariable<colorX>>();
                 headerColorVariable.Value.Value = headerColor.Value;
                 var headerColorDriver = image.Slot.GetComponentOrAttach<ValueDriver<colorX>>();
-                headerColorDriver.DriveTarget.Target = image.Tint;
-                headerColorDriver.ValueSource.Target = headerColorVariable.Value;
+                
+                // Only link if the target is not already linked
+                if (!headerColorDriver.DriveTarget.IsLinkValid)
+                {
+                    headerColorDriver.DriveTarget.Target = image.Tint;
+                    headerColorDriver.ValueSource.Target = headerColorVariable.Value;
+                }
                 Logger.LogUI("Header Color Background", $"Applied header color to background: R:{headerColor.Value.r:F2} G:{headerColor.Value.g:F2} B:{headerColor.Value.b:F2}");
             }
             
@@ -503,8 +518,8 @@ namespace ProtoFluxOverhaul {
             if (spriteProvider.Texture.Target == null) {
                 var texture = spriteProvider.Slot.AttachComponent<StaticTexture2D>();
                 texture.URL.Value = isOutput ? 
-                    ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.CONNECTOR_OUTPUT_TEXTURE) : 
-                    ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.CONNECTOR_OUTPUT_TEXTURE);
+                    ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.CONNECTOR_INPUT_TEXTURE) : 
+                    ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.CONNECTOR_INPUT_TEXTURE);
                 texture.FilterMode.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.FILTER_MODE);
                 texture.WrapModeU.Value = TextureWrapMode.Clamp;
                 texture.WrapModeV.Value = TextureWrapMode.Clamp;
@@ -565,7 +580,7 @@ namespace ProtoFluxOverhaul {
                 var texture = spriteProvider.Slot.AttachComponent<StaticTexture2D>();
                 texture.URL.Value = isOutput ? 
                     ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.CALL_CONNECTOR_OUTPUT_TEXTURE) : 
-                    ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.CALL_CONNECTOR_OUTPUT_TEXTURE);
+                    ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.CALL_CONNECTOR_INPUT_TEXTURE);
                 texture.FilterMode.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.FILTER_MODE);
                 texture.WrapModeU.Value = TextureWrapMode.Clamp;
                 texture.WrapModeV.Value = TextureWrapMode.Clamp;
@@ -629,7 +644,7 @@ namespace ProtoFluxOverhaul {
                 Uri textureUrl;
                 switch (vectorSize) {
                     case 1:
-                        textureUrl = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.CONNECTOR_OUTPUT_TEXTURE);
+                        textureUrl = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.CONNECTOR_INPUT_TEXTURE);
                         Logger.LogUI("Texture Selection", $"Vector size {vectorSize} -> Using X1 texture: {textureUrl}");
                         break;
                     case 2:
@@ -647,8 +662,8 @@ namespace ProtoFluxOverhaul {
                     default:
                         // Fallback to regular connector texture
                         textureUrl = isOutput ? 
-                            ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.CONNECTOR_OUTPUT_TEXTURE) : 
-                            ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.CONNECTOR_OUTPUT_TEXTURE);
+                            ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.CONNECTOR_INPUT_TEXTURE) : 
+                            ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.CONNECTOR_INPUT_TEXTURE);
                         Logger.LogUI("Texture Selection", $"Vector size {vectorSize} (fallback) -> Using regular texture: {textureUrl}");
                         break;
                 }
@@ -807,8 +822,13 @@ namespace ProtoFluxOverhaul {
                             var spacerColorVariable = spacerImage.Slot.GetComponentOrAttach<DynamicValueVariable<colorX>>();
                             spacerColorVariable.Value.Value = RadiantUI_Constants.HEADER;
                             var spacerColorDriver = spacerImage.Slot.GetComponentOrAttach<ValueDriver<colorX>>();
-                            spacerColorDriver.DriveTarget.Target = spacerImage.Tint;
-                            spacerColorDriver.ValueSource.Target = spacerColorVariable.Value;
+                            
+                            // Only link if the target is not already linked
+                            if (!spacerColorDriver.DriveTarget.IsLinkValid)
+                            {
+                                spacerColorDriver.DriveTarget.Target = spacerImage.Tint;
+                                spacerColorDriver.ValueSource.Target = spacerColorVariable.Value;
+                            }
                             
                             // Create Text component in a child slot
                             var spacerTextSlot = spacerSlot.AddSlot("Text");
@@ -897,8 +917,13 @@ namespace ProtoFluxOverhaul {
                 var headerTintVariable = image.Slot.GetComponentOrAttach<DynamicValueVariable<colorX>>();
                 headerTintVariable.Value.Value = nodeTypeColor;
                 var headerTintDriver = image.Slot.GetComponentOrAttach<ValueDriver<colorX>>();
-                headerTintDriver.DriveTarget.Target = image.Tint;
-                headerTintDriver.ValueSource.Target = headerTintVariable.Value;
+                
+                // Only link if the target is not already linked
+                if (!headerTintDriver.DriveTarget.IsLinkValid)
+                {
+                    headerTintDriver.DriveTarget.Target = image.Tint;
+                    headerTintDriver.ValueSource.Target = headerTintVariable.Value;
+                }
                 
                 // Create a copy of the text under the new header
                 var newTextSlot = newHeaderSlot.AddSlot("Text");
@@ -1045,8 +1070,13 @@ namespace ProtoFluxOverhaul {
                         var categoryColorVariable = categoryText.Slot.GetComponentOrAttach<DynamicValueVariable<colorX>>();
                         categoryColorVariable.Value.Value = nodeTypeColor; // Use full brightness node type color
                         var categoryColorDriver = categoryText.Slot.GetComponentOrAttach<ValueDriver<colorX>>();
-                        categoryColorDriver.DriveTarget.Target = categoryText.Color;
-                        categoryColorDriver.ValueSource.Target = categoryColorVariable.Value;
+                        
+                        // Only link if the target is not already linked
+                        if (!categoryColorDriver.DriveTarget.IsLinkValid)
+                        {
+                            categoryColorDriver.DriveTarget.Target = categoryText.Color;
+                            categoryColorDriver.ValueSource.Target = categoryColorVariable.Value;
+                        }
                         Logger.LogUI("Category Color", $"Applied node type color to category text: R:{nodeTypeColor.r:F2} G:{nodeTypeColor.g:F2} B:{nodeTypeColor.b:F2}");
                     }
                 }
@@ -1435,18 +1465,23 @@ namespace ProtoFluxOverhaul {
                 var bgColorVariable = bgImageRef.Target.Slot.GetComponentOrAttach<DynamicValueVariable<colorX>>();
                 bgColorVariable.Value.Value = finalColor;
                 var bgColorDriver = bgImageRef.Target.Slot.GetComponentOrAttach<ValueDriver<colorX>>();
-                bgColorDriver.DriveTarget.Target = bgImageRef.Target.Tint;
-                bgColorDriver.ValueSource.Target = bgColorVariable.Value;
+                
+                // Only link if the target is not already linked
+                if (!bgColorDriver.DriveTarget.IsLinkValid)
+                {
+                    bgColorDriver.DriveTarget.Target = bgImageRef.Target.Tint;
+                    bgColorDriver.ValueSource.Target = bgColorVariable.Value;
+                }
                 
                 // Handle overview background if it exists
                 var overviewBgField = AccessTools.Field(typeof(ProtoFluxNodeVisual), "_overviewBg").GetValue(__instance);
                 if (overviewBgField is FieldDrive<colorX> overviewBg && overviewBg.IsLinkValid)
                 {
-                    var overviewColorVariable = __instance.Slot.GetComponentOrAttach<DynamicValueVariable<colorX>>();
-                    overviewColorVariable.Value.Value = finalColor;
-                    var overviewColorDriver = __instance.Slot.GetComponentOrAttach<ValueDriver<colorX>>();
-                    overviewColorDriver.DriveTarget.Target = overviewBg.Target;
-                    overviewColorDriver.ValueSource.Target = overviewColorVariable.Value;
+                    // Set the value directly on the target that overviewBg is driving
+                    if (overviewBg.Target != null)
+                    {
+                        overviewBg.Target.Value = finalColor;
+                    }
                 }
                 
                 Logger.LogUI("Background Color Override", $"Applied custom UpdateNodeStatus with header color base: R:{finalColor.r:F2} G:{finalColor.g:F2} B:{finalColor.b:F2}");
