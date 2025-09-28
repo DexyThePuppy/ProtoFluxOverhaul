@@ -171,8 +171,15 @@ public class ProtoFluxOverhaul : ResoniteMod {
 						var panner = kvp.Value;
 						if (panner == null) continue;
 
-						panner.Speed = Config.GetValue(SCROLL_SPEED);
-						panner.Repeat = Config.GetValue(SCROLL_REPEAT);
+						// Ensure the panner is properly initialized before setting properties
+						try {
+							panner.Speed = Config.GetValue(SCROLL_SPEED);
+							panner.Repeat = Config.GetValue(SCROLL_REPEAT);
+						} catch (System.NullReferenceException) {
+							// Skip this panner if it's not properly initialized
+							Logger.LogWarning($"Skipping uninitialized Panner2D on {kvp.Key.Name}");
+							continue;
+						}
 
 						// Get the FresnelMaterial
 						var fresnelMaterial = kvp.Key.GetComponent<FresnelMaterial>();
@@ -221,8 +228,14 @@ public class ProtoFluxOverhaul : ResoniteMod {
 					panner = fresnelMaterial.Slot.GetComponentOrAttach<Panner2D>();
 				
 					// Configure panner with user settings
-					panner.Speed = Config.GetValue(SCROLL_SPEED);
-					panner.Repeat = Config.GetValue(SCROLL_REPEAT);
+					try {
+						panner.Speed = Config.GetValue(SCROLL_SPEED);
+						panner.Repeat = Config.GetValue(SCROLL_REPEAT);
+					} catch (System.NullReferenceException) {
+						// Skip this panner if it's not properly initialized
+						Logger.LogWarning($"Skipping uninitialized Panner2D in patch for {fresnelMaterial.Slot.Name}");
+						return;
+					}
 					
 					pannerCache[fresnelMaterial.Slot] = panner;
 
