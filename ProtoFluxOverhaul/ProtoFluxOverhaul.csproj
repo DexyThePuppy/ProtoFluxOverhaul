@@ -42,14 +42,6 @@
 		    <HintPath>$(ResonitePath)Elements.Core.dll</HintPath>
 		    <Private>False</Private>
 		</Reference>
-		<Reference Include="System">
-		    <HintPath>$(ResonitePath)System.dll</HintPath>
-		    <Private>False</Private>
-		</Reference>
-		<Reference Include="System.Numerics">
-		    <HintPath>$(ResonitePath)System.Numerics.dll</HintPath>
-		    <Private>False</Private>
-		</Reference>
 		<Reference Include="Awwdio">
 		    <HintPath>$(ResonitePath)Awwdio.dll</HintPath>
 		    <Private>False</Private>

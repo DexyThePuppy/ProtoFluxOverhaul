@@ -59,6 +59,14 @@ namespace ProtoFluxOverhaul
         }
 
         /// <summary>
+        /// Logs a warning message
+        /// </summary>
+        public static void LogWarning(string message, LogCategory category = LogCategory.General)
+        {
+            DebugLog(message, LogLevel.Warning, category);
+        }
+
+        /// <summary>
         /// Logs an error message with exception details
         /// </summary>
         public static void LogError(string message, Exception e, LogCategory category = LogCategory.General)

@@ -154,6 +154,26 @@ namespace ProtoFluxOverhaul {
 
     // Helper class for shared functionality
     public static class RoundedCornersHelper {
+        public static bool TryLinkValueDriver(ValueDriver<colorX> driver, IField<colorX> targetField, IValue<colorX> sourceValue)
+        {
+            if (driver == null || targetField == null || sourceValue == null)
+                return false;
+
+            if (targetField.IsDriven)
+                return false;
+
+            if (driver.DriveTarget.IsLinkValid)
+            {
+                if (driver.DriveTarget.Target == targetField && driver.ValueSource.Target == sourceValue)
+                    return true;
+                return false;
+            }
+
+            driver.DriveTarget.Target = targetField;
+            driver.ValueSource.Target = sourceValue;
+            return true;
+        }
+
         public static void ApplyRoundedCorners(Image image, bool isHeader = false, colorX? headerColor = null, bool preserveOriginalColor = false) {
             // Store original color if we need to preserve it
             colorX originalColor = image.Tint.Value;
@@ -163,15 +183,14 @@ namespace ProtoFluxOverhaul {
                 // If this is a background and we have a header color and the config is enabled, update the tint
                 if (!isHeader && !preserveOriginalColor && headerColor.HasValue && ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.USE_HEADER_COLOR_FOR_BACKGROUND)) {
                     // Drive the header color to prevent changes over time
-                    var headerColorVariable = image.Slot.GetComponentOrAttach<DynamicValueVariable<colorX>>();
-                    headerColorVariable.Value.Value = headerColor.Value;
+                    var headerColorField = image.Slot.GetComponentOrAttach<ValueField<colorX>>();
+                    headerColorField.Value.Value = headerColor.Value;
                     var headerColorDriver = image.Slot.GetComponentOrAttach<ValueDriver<colorX>>();
                     
                     // Only link if the target is not already linked
-                    if (!headerColorDriver.DriveTarget.IsLinkValid)
+                    if (!TryLinkValueDriver(headerColorDriver, image.Tint, headerColorField.Value))
                     {
-                        headerColorDriver.DriveTarget.Target = image.Tint;
-                        headerColorDriver.ValueSource.Target = headerColorVariable.Value;
+                        Logger.LogUI("Header Color Background Update", "Skipped tint override; existing drive detected");
                     }
                     Logger.LogUI("Header Color Background Update", $"Updated existing background tint to header color: R:{headerColor.Value.r:F2} G:{headerColor.Value.g:F2} B:{headerColor.Value.b:F2}");
                 }
@@ -220,28 +239,26 @@ namespace ProtoFluxOverhaul {
             // Apply color logic
             if (preserveOriginalColor) {
                 // Drive the original color for connector labels to prevent changes over time
-                var originalColorVariable = image.Slot.GetComponentOrAttach<DynamicValueVariable<colorX>>();
-                originalColorVariable.Value.Value = originalColor;
+                var originalColorField = image.Slot.GetComponentOrAttach<ValueField<colorX>>();
+                originalColorField.Value.Value = originalColor;
                 var originalColorDriver = image.Slot.GetComponentOrAttach<ValueDriver<colorX>>();
                 
                 // Only link if the target is not already linked
-                if (!originalColorDriver.DriveTarget.IsLinkValid)
+                if (!TryLinkValueDriver(originalColorDriver, image.Tint, originalColorField.Value))
                 {
-                    originalColorDriver.DriveTarget.Target = image.Tint;
-                    originalColorDriver.ValueSource.Target = originalColorVariable.Value;
+                    Logger.LogUI("Rounded Corners", "Skipped original color preservation; existing drive detected");
                 }
                 Logger.LogUI("Color Preserved", $"Preserved original color for connector label: R:{originalColor.r:F2} G:{originalColor.g:F2} B:{originalColor.b:F2}");
             } else if (!isHeader && headerColor.HasValue && ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.USE_HEADER_COLOR_FOR_BACKGROUND)) {
                 // Drive header color to background if config option is enabled to prevent changes over time
-                var headerColorVariable = image.Slot.GetComponentOrAttach<DynamicValueVariable<colorX>>();
-                headerColorVariable.Value.Value = headerColor.Value;
+                var headerColorField = image.Slot.GetComponentOrAttach<ValueField<colorX>>();
+                headerColorField.Value.Value = headerColor.Value;
                 var headerColorDriver = image.Slot.GetComponentOrAttach<ValueDriver<colorX>>();
                 
                 // Only link if the target is not already linked
-                if (!headerColorDriver.DriveTarget.IsLinkValid)
+                if (!TryLinkValueDriver(headerColorDriver, image.Tint, headerColorField.Value))
                 {
-                    headerColorDriver.DriveTarget.Target = image.Tint;
-                    headerColorDriver.ValueSource.Target = headerColorVariable.Value;
+                    Logger.LogUI("Rounded Corners", "Skipped header background color update; existing drive detected");
                 }
                 Logger.LogUI("Header Color Background", $"Applied header color to background: R:{headerColor.Value.r:F2} G:{headerColor.Value.g:F2} B:{headerColor.Value.b:F2}");
             }
@@ -819,15 +836,14 @@ namespace ProtoFluxOverhaul {
                             // Create Image component
                             var spacerImage = spacerSlot.AttachComponent<Image>();
                             // Drive the spacer image tint to prevent changes over time
-                            var spacerColorVariable = spacerImage.Slot.GetComponentOrAttach<DynamicValueVariable<colorX>>();
-                            spacerColorVariable.Value.Value = RadiantUI_Constants.HEADER;
+                            var spacerColorField = spacerImage.Slot.GetComponentOrAttach<ValueField<colorX>>();
+                            spacerColorField.Value.Value = RadiantUI_Constants.HEADER;
                             var spacerColorDriver = spacerImage.Slot.GetComponentOrAttach<ValueDriver<colorX>>();
                             
                             // Only link if the target is not already linked
-                            if (!spacerColorDriver.DriveTarget.IsLinkValid)
+                            if (!RoundedCornersHelper.TryLinkValueDriver(spacerColorDriver, spacerImage.Tint, spacerColorField.Value))
                             {
-                                spacerColorDriver.DriveTarget.Target = spacerImage.Tint;
-                                spacerColorDriver.ValueSource.Target = spacerColorVariable.Value;
+                                Logger.LogUI("Header Creation", "Skipped spacer tint override; existing drive detected");
                             }
                             
                             // Create Text component in a child slot
@@ -914,15 +930,14 @@ namespace ProtoFluxOverhaul {
                 Logger.LogUI("Node Color", $"Node type color: R:{nodeTypeColor.r:F2} G:{nodeTypeColor.g:F2} B:{nodeTypeColor.b:F2}");
                 
                 // Drive the color to the header image to prevent changes over time
-                var headerTintVariable = image.Slot.GetComponentOrAttach<DynamicValueVariable<colorX>>();
-                headerTintVariable.Value.Value = nodeTypeColor;
+                var headerTintField = image.Slot.GetComponentOrAttach<ValueField<colorX>>();
+                headerTintField.Value.Value = nodeTypeColor;
                 var headerTintDriver = image.Slot.GetComponentOrAttach<ValueDriver<colorX>>();
                 
                 // Only link if the target is not already linked
-                if (!headerTintDriver.DriveTarget.IsLinkValid)
+                if (!RoundedCornersHelper.TryLinkValueDriver(headerTintDriver, image.Tint, headerTintField.Value))
                 {
-                    headerTintDriver.DriveTarget.Target = image.Tint;
-                    headerTintDriver.ValueSource.Target = headerTintVariable.Value;
+                    Logger.LogUI("Header Tint", "Skipped header tint override; existing drive detected");
                 }
                 
                 // Create a copy of the text under the new header
@@ -1022,31 +1037,37 @@ namespace ProtoFluxOverhaul {
                     RoundedCornersHelper.ApplyRoundedCorners(backgroundImageRef.Target, false, nodeTypeColor);
                 }
 
-                // Apply node background sprite to connector label backgrounds if config is enabled
-                if (ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.USE_HEADER_COLOR_FOR_BACKGROUND)) {
-                    var connectorImages = ui.Root.GetComponentsInChildren<Image>()
-                        .Where(img => img.Slot.Name == "Connector")
-                        .ToList();
+                // Apply node background sprite to connector label backgrounds (always applied by default)
+                var connectorImages = ui.Root.GetComponentsInChildren<Image>()
+                    .Where(img => img.Slot.Name == "Connector")
+                    .ToList();
 
-                    foreach (var connectorImage in connectorImages) {
-                        // Find the label background image (sibling Image component that's not the Connector)
-                        var parentSlot = connectorImage.Slot.Parent;
-                        var labelBackgroundImage = parentSlot?.GetComponentsInChildren<Image>()
-                            .FirstOrDefault(img => img.Slot.Name != "Connector" && img.Slot != connectorImage.Slot);
+                foreach (var connectorImage in connectorImages) {
+                    // Find the label background image (sibling Image component that's not the Connector)
+                    var parentSlot = connectorImage.Slot.Parent;
+                    var labelBackgroundImage = parentSlot?.GetComponentsInChildren<Image>()
+                        .FirstOrDefault(img => img.Slot.Name != "Connector" && img.Slot != connectorImage.Slot);
+                    
+                    if (labelBackgroundImage != null) {
+                        // Apply the header sprite provider for connector labels but preserve original color
+                        RoundedCornersHelper.ApplyRoundedCorners(labelBackgroundImage, true, null, true);
+
+                        // Align vertical offsets with base ProtoFlux layout (only adjust Y values)
+                        RectTransform labelRect = labelBackgroundImage.RectTransform;
+                        float2 offsetMin = labelRect.OffsetMin.Value;
+                        float2 offsetMax = labelRect.OffsetMax.Value;
+                        labelRect.OffsetMin.Value = new float2(offsetMin.x, 1f);
+                        labelRect.OffsetMax.Value = new float2(offsetMax.x, -1f);
+
+                        Logger.LogUI("Connector Label Background", $"Applied header sprite to connector label background while preserving original color");
                         
-                        if (labelBackgroundImage != null) {
-                            // Apply the header sprite provider for connector labels but preserve original color
-                            RoundedCornersHelper.ApplyRoundedCorners(labelBackgroundImage, true, null, true);
-                            Logger.LogUI("Connector Label Background", $"Applied header sprite to connector label background while preserving original color");
-                            
-                            // Find and center the text in the label
-                            var textSlot = labelBackgroundImage.Slot.FindChild("Text");
-                            if (textSlot != null) {
-                                var textComponent = textSlot.GetComponent<Text>();
-                                if (textComponent != null) {
-                                    textComponent.VerticalAlign.Value = TextVerticalAlignment.Middle;
-                                    Logger.LogUI("Connector Label Text", $"Set connector label text to center alignment");
-                                }
+                        // Find and center the text in the label
+                        var textSlot = labelBackgroundImage.Slot.FindChild("Text");
+                        if (textSlot != null) {
+                            var textComponent = textSlot.GetComponent<Text>();
+                            if (textComponent != null) {
+                                textComponent.VerticalAlign.Value = TextVerticalAlignment.Middle;
+                                Logger.LogUI("Connector Label Text", $"Set connector label text to center alignment");
                             }
                         }
                     }
@@ -1067,15 +1088,14 @@ namespace ProtoFluxOverhaul {
                     // Apply node type color to category text if config is enabled
                     if (ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.USE_HEADER_COLOR_FOR_BACKGROUND)) {
                         // Drive the category text color to prevent changes over time
-                        var categoryColorVariable = categoryText.Slot.GetComponentOrAttach<DynamicValueVariable<colorX>>();
-                        categoryColorVariable.Value.Value = nodeTypeColor; // Use full brightness node type color
+                        var categoryColorField = categoryText.Slot.GetComponentOrAttach<ValueField<colorX>>();
+                        categoryColorField.Value.Value = nodeTypeColor; // Use full brightness node type color
                         var categoryColorDriver = categoryText.Slot.GetComponentOrAttach<ValueDriver<colorX>>();
                         
                         // Only link if the target is not already linked
-                        if (!categoryColorDriver.DriveTarget.IsLinkValid)
+                        if (!RoundedCornersHelper.TryLinkValueDriver(categoryColorDriver, categoryText.Color, categoryColorField.Value))
                         {
-                            categoryColorDriver.DriveTarget.Target = categoryText.Color;
-                            categoryColorDriver.ValueSource.Target = categoryColorVariable.Value;
+                            Logger.LogUI("Category Color", "Skipped category color override; existing drive detected");
                         }
                         Logger.LogUI("Category Color", $"Applied node type color to category text: R:{nodeTypeColor.r:F2} G:{nodeTypeColor.g:F2} B:{nodeTypeColor.b:F2}");
                     }
@@ -1124,7 +1144,8 @@ namespace ProtoFluxOverhaul {
                 // Apply rounded corners to background with header color if config is enabled
                 var bgImageRef = (SyncRef<Image>)bgImageField.GetValue(__instance);
                 if (bgImageRef?.Target != null) {
-                    RoundedCornersHelper.ApplyRoundedCorners(bgImageRef.Target, false, nodeTypeColor);
+                    colorX darkenedColor = nodeTypeColor * 0.5f;
+                    RoundedCornersHelper.ApplyRoundedCorners(bgImageRef.Target, false, darkenedColor);
                 }
 
                 // Find all connector slots in the hierarchy
@@ -1166,26 +1187,32 @@ namespace ProtoFluxOverhaul {
                     connectorImage.PreserveAspect.Value = true;
                     connectorImage.FlipHorizontally.Value = false; // We handle flipping in the sprite provider
                     
-                    // Apply node background sprite to connector label background if config is enabled
-                    if (ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.USE_HEADER_COLOR_FOR_BACKGROUND)) {
-                        // Find the label background image (sibling Image component that's not the Connector)
-                        var parentSlot = connectorImage.Slot.Parent;
-                        var labelBackgroundImage = parentSlot?.GetComponentsInChildren<Image>()
-                            .FirstOrDefault(img => img.Slot.Name != "Connector" && img.Slot != connectorImage.Slot);
+                    // Apply node background sprite to connector label background (always applied by default)
+                    // Find the label background image (sibling Image component that's not the Connector)
+                    var parentSlot = connectorImage.Slot.Parent;
+                    var labelBackgroundImage = parentSlot?.GetComponentsInChildren<Image>()
+                        .FirstOrDefault(img => img.Slot.Name != "Connector" && img.Slot != connectorImage.Slot);
+                    
+                    if (labelBackgroundImage != null) {
+                        // Apply the header sprite provider for connector labels but preserve original color
+                        RoundedCornersHelper.ApplyRoundedCorners(labelBackgroundImage, true, null, true);
+
+                        // Align vertical offsets with base ProtoFlux layout (only adjust Y values)
+                        RectTransform labelRect = labelBackgroundImage.RectTransform;
+                        float2 offsetMin = labelRect.OffsetMin.Value;
+                        float2 offsetMax = labelRect.OffsetMax.Value;
+                        labelRect.OffsetMin.Value = new float2(offsetMin.x, 1f);
+                        labelRect.OffsetMax.Value = new float2(offsetMax.x, -1f);
+
+                        Logger.LogUI("Connector Label Background", $"Applied header sprite to connector label background in GenerateVisual while preserving original color");
                         
-                        if (labelBackgroundImage != null) {
-                            // Apply the header sprite provider for connector labels but preserve original color
-                            RoundedCornersHelper.ApplyRoundedCorners(labelBackgroundImage, true, null, true);
-                            Logger.LogUI("Connector Label Background", $"Applied header sprite to connector label background in GenerateVisual while preserving original color");
-                            
-                            // Find and center the text in the label
-                            var textSlot = labelBackgroundImage.Slot.FindChild("Text");
-                            if (textSlot != null) {
-                                var textComponent = textSlot.GetComponent<Text>();
-                                if (textComponent != null) {
-                                    textComponent.VerticalAlign.Value = TextVerticalAlignment.Middle;
-                                    Logger.LogUI("Connector Label Text", $"Set connector label text to center alignment in GenerateVisual");
-                                }
+                        // Find and center the text in the label
+                        var textSlot = labelBackgroundImage.Slot.FindChild("Text");
+                        if (textSlot != null) {
+                            var textComponent = textSlot.GetComponent<Text>();
+                            if (textComponent != null) {
+                                textComponent.VerticalAlign.Value = TextVerticalAlignment.Middle;
+                                Logger.LogUI("Connector Label Text", $"Set connector label text to center alignment in GenerateVisual");
                             }
                         }
                     }
@@ -1252,41 +1279,32 @@ namespace ProtoFluxOverhaul {
                     // Set the correct RectTransform settings for input connectors
                     connectorImage.RectTransform.SetFixedHorizontal(0.0f, 16f, 0.0f);
 
-                    // Apply node background sprite to connector label background if config is enabled
-                    if (ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.USE_HEADER_COLOR_FOR_BACKGROUND)) {
-                        var node = __instance.Node.Target;
-                        if (node != null) {
-                            colorX nodeTypeColor;
-                            var nodeType = node.GetType();
-                            if (nodeType.IsSubclassOf(typeof(UpdateBase)) || nodeType.IsSubclassOf(typeof(UserUpdateBase)))
-                            {
-                                bool isAsyncNode = nodeType.GetInterfaces().Any(i => i == typeof(IAsyncNodeOperation));
-                                nodeTypeColor = isAsyncNode ? DatatypeColorHelper.ASYNC_FLOW_COLOR : DatatypeColorHelper.SYNC_FLOW_COLOR;
-                            }
-                            else 
-                            {
-                                nodeTypeColor = DatatypeColorHelper.GetTypeColor(nodeType);
-                            }
+                    // Apply node background sprite to connector label background (always applied by default)
+                    // Find the label background image (sibling Image component that's not the Connector)
+                    var parentSlot = connectorImage.Slot.Parent;
+                    var labelBackgroundImage = parentSlot?.GetComponentsInChildren<Image>()
+                        .FirstOrDefault(img => img.Slot.Name != "Connector" && img.Slot != connectorImage.Slot);
+                    
+                    if (labelBackgroundImage != null) {
+                        // Apply the header sprite provider for connector labels but preserve original color
+                        RoundedCornersHelper.ApplyRoundedCorners(labelBackgroundImage, true, null, true);
 
-                            // Find the label background image (sibling Image component that's not the Connector)
-                            var parentSlot = connectorImage.Slot.Parent;
-                            var labelBackgroundImage = parentSlot?.GetComponentsInChildren<Image>()
-                                .FirstOrDefault(img => img.Slot.Name != "Connector" && img.Slot != connectorImage.Slot);
-                            
-                            if (labelBackgroundImage != null) {
-                                // Apply the header sprite provider for connector labels but preserve original color
-                                RoundedCornersHelper.ApplyRoundedCorners(labelBackgroundImage, true, null, true);
-                                Logger.LogUI("Connector Label Background", $"Applied header sprite to dynamic input connector label background while preserving original color");
-                                
-                                // Find and center the text in the label
-                                var textSlot = labelBackgroundImage.Slot.FindChild("Text");
-                                if (textSlot != null) {
-                                    var textComponent = textSlot.GetComponent<Text>();
-                                    if (textComponent != null) {
-                                        textComponent.VerticalAlign.Value = TextVerticalAlignment.Middle;
-                                        Logger.LogUI("Connector Label Text", $"Set dynamic input connector label text to center alignment");
-                                    }
-                                }
+                        // Align vertical offsets with base ProtoFlux layout (only adjust Y values)
+                        RectTransform labelRect = labelBackgroundImage.RectTransform;
+                        float2 offsetMin = labelRect.OffsetMin.Value;
+                        float2 offsetMax = labelRect.OffsetMax.Value;
+                        labelRect.OffsetMin.Value = new float2(offsetMin.x, 1f);
+                        labelRect.OffsetMax.Value = new float2(offsetMax.x, -1f);
+
+                        Logger.LogUI("Connector Label Background", $"Applied header sprite to dynamic input connector label background while preserving original color");
+                        
+                        // Find and center the text in the label
+                        var textSlot = labelBackgroundImage.Slot.FindChild("Text");
+                        if (textSlot != null) {
+                            var textComponent = textSlot.GetComponent<Text>();
+                            if (textComponent != null) {
+                                textComponent.VerticalAlign.Value = TextVerticalAlignment.Middle;
+                                Logger.LogUI("Connector Label Text", $"Set dynamic input connector label text to center alignment");
                             }
                         }
                     }
@@ -1356,41 +1374,32 @@ namespace ProtoFluxOverhaul {
                     // Set the correct RectTransform settings for output connectors
                     connectorImage.RectTransform.SetFixedHorizontal(-16f, 0.0f, 1f);
 
-                    // Apply node background sprite to connector label background if config is enabled
-                    if (ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.USE_HEADER_COLOR_FOR_BACKGROUND)) {
-                        var node = __instance.Node.Target;
-                        if (node != null) {
-                            colorX nodeTypeColor;
-                            var nodeType = node.GetType();
-                            if (nodeType.IsSubclassOf(typeof(UpdateBase)) || nodeType.IsSubclassOf(typeof(UserUpdateBase)))
-                            {
-                                bool isAsyncNode = nodeType.GetInterfaces().Any(i => i == typeof(IAsyncNodeOperation));
-                                nodeTypeColor = isAsyncNode ? DatatypeColorHelper.ASYNC_FLOW_COLOR : DatatypeColorHelper.SYNC_FLOW_COLOR;
-                            }
-                            else 
-                            {
-                                nodeTypeColor = DatatypeColorHelper.GetTypeColor(nodeType);
-                            }
+                    // Apply node background sprite to connector label background (always applied by default)
+                    // Find the label background image (sibling Image component that's not the Connector)
+                    var parentSlot = connectorImage.Slot.Parent;
+                    var labelBackgroundImage = parentSlot?.GetComponentsInChildren<Image>()
+                        .FirstOrDefault(img => img.Slot.Name != "Connector" && img.Slot != connectorImage.Slot);
+                    
+                    if (labelBackgroundImage != null) {
+                        // Apply the header sprite provider for connector labels but preserve original color
+                        RoundedCornersHelper.ApplyRoundedCorners(labelBackgroundImage, true, null, true);
 
-                            // Find the label background image (sibling Image component that's not the Connector)
-                            var parentSlot = connectorImage.Slot.Parent;
-                            var labelBackgroundImage = parentSlot?.GetComponentsInChildren<Image>()
-                                .FirstOrDefault(img => img.Slot.Name != "Connector" && img.Slot != connectorImage.Slot);
-                            
-                            if (labelBackgroundImage != null) {
-                                // Apply the header sprite provider for connector labels but preserve original color
-                                RoundedCornersHelper.ApplyRoundedCorners(labelBackgroundImage, true, null, true);
-                                Logger.LogUI("Connector Label Background", $"Applied header sprite to dynamic output connector label background while preserving original color");
-                                
-                                // Find and center the text in the label
-                                var textSlot = labelBackgroundImage.Slot.FindChild("Text");
-                                if (textSlot != null) {
-                                    var textComponent = textSlot.GetComponent<Text>();
-                                    if (textComponent != null) {
-                                        textComponent.VerticalAlign.Value = TextVerticalAlignment.Middle;
-                                        Logger.LogUI("Connector Label Text", $"Set dynamic output connector label text to center alignment");
-                                    }
-                                }
+                        // Align vertical offsets with base ProtoFlux layout (only adjust Y values)
+                        RectTransform labelRect = labelBackgroundImage.RectTransform;
+                        float2 offsetMin = labelRect.OffsetMin.Value;
+                        float2 offsetMax = labelRect.OffsetMax.Value;
+                        labelRect.OffsetMin.Value = new float2(offsetMin.x, 1f);
+                        labelRect.OffsetMax.Value = new float2(offsetMax.x, -1f);
+
+                        Logger.LogUI("Connector Label Background", $"Applied header sprite to dynamic output connector label background while preserving original color");
+                        
+                        // Find and center the text in the label
+                        var textSlot = labelBackgroundImage.Slot.FindChild("Text");
+                        if (textSlot != null) {
+                            var textComponent = textSlot.GetComponent<Text>();
+                            if (textComponent != null) {
+                                textComponent.VerticalAlign.Value = TextVerticalAlignment.Middle;
+                                Logger.LogUI("Connector Label Text", $"Set dynamic output connector label text to center alignment");
                             }
                         }
                     }
@@ -1400,97 +1409,6 @@ namespace ProtoFluxOverhaul {
             }
             catch (Exception e) {
                 Logger.LogError("Error in output element generation", e, LogCategory.UI);
-            }
-        }
-    }
-
-    // Patch to override UpdateNodeStatus to respect header color for background
-    [HarmonyPatch(typeof(ProtoFluxNodeVisual), "UpdateNodeStatus")]
-    public class ProtoFluxNodeVisual_UpdateNodeStatus_Patch {
-        public static bool Prefix(ProtoFluxNodeVisual __instance) {
-            try {
-                // If our mod is disabled or the config option is disabled, let the original method run
-                if (!ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.ENABLED) || 
-                    !ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.USE_HEADER_COLOR_FOR_BACKGROUND)) {
-                    return true; // Continue with original method
-                }
-
-                // Skip if we don't own this node
-                if (!PermissionHelper.HasPermission(__instance)) {
-                    return true; // Continue with original method
-                }
-
-                // Get the background image using reflection
-                var bgImageRef = (SyncRef<Image>)AccessTools.Field(typeof(ProtoFluxNodeVisual), "_bgImage").GetValue(__instance);
-                if (bgImageRef?.Target == null) {
-                    return true; // Continue with original method
-                }
-
-                // Get the node's type color
-                var node = __instance.Node.Target;
-                if (node == null) {
-                    return true; // Continue with original method
-                }
-
-                colorX nodeTypeColor;
-                var nodeType = node.GetType();
-                if (nodeType.IsSubclassOf(typeof(UpdateBase)) || nodeType.IsSubclassOf(typeof(UserUpdateBase)))
-                {
-                    // Check if it's an async update node
-                    bool isAsync = nodeType.GetInterfaces().Any(i => i == typeof(IAsyncNodeOperation));
-                    nodeTypeColor = isAsync ? DatatypeColorHelper.ASYNC_FLOW_COLOR : DatatypeColorHelper.SYNC_FLOW_COLOR;
-                }
-                else 
-                {
-                    nodeTypeColor = DatatypeColorHelper.GetTypeColor(nodeType);
-                }
-
-                // Replicate the original UpdateNodeStatus logic but with our header color as the base
-                colorX finalColor = new colorX(nodeTypeColor.r * 0.35f, nodeTypeColor.g * 0.35f, nodeTypeColor.b * 0.35f, nodeTypeColor.a); // Start with header color at 50% brightness (darker) but preserve alpha
-                
-                if (__instance.IsSelected.Value)
-                {
-                    finalColor = MathX.LerpUnclamped(finalColor, colorX.Cyan, 0.5f);
-                }
-                if (__instance.IsHighlighted.Value)
-                {
-                    finalColor = MathX.LerpUnclamped(finalColor, colorX.Yellow, 0.1f);
-                }
-                if (!__instance.IsNodeValid)
-                {
-                    finalColor = MathX.LerpUnclamped(finalColor, colorX.Red, 0.5f);
-                }
-                
-                // Drive the final color to prevent changes over time
-                var bgColorVariable = bgImageRef.Target.Slot.GetComponentOrAttach<DynamicValueVariable<colorX>>();
-                bgColorVariable.Value.Value = finalColor;
-                var bgColorDriver = bgImageRef.Target.Slot.GetComponentOrAttach<ValueDriver<colorX>>();
-                
-                // Only link if the target is not already linked
-                if (!bgColorDriver.DriveTarget.IsLinkValid)
-                {
-                    bgColorDriver.DriveTarget.Target = bgImageRef.Target.Tint;
-                    bgColorDriver.ValueSource.Target = bgColorVariable.Value;
-                }
-                
-                // Handle overview background if it exists
-                var overviewBgField = AccessTools.Field(typeof(ProtoFluxNodeVisual), "_overviewBg").GetValue(__instance);
-                if (overviewBgField is FieldDrive<colorX> overviewBg && overviewBg.IsLinkValid)
-                {
-                    // Set the value directly on the target that overviewBg is driving
-                    if (overviewBg.Target != null)
-                    {
-                        overviewBg.Target.Value = finalColor;
-                    }
-                }
-                
-                Logger.LogUI("Background Color Override", $"Applied custom UpdateNodeStatus with header color base: R:{finalColor.r:F2} G:{finalColor.g:F2} B:{finalColor.b:F2}");
-                
-                return false; // Skip the original method
-            }
-            catch (Exception e) {
-                Logger.LogError("Error in UpdateNodeStatus patch", e, LogCategory.UI);
-                return true; // Continue with original method on error
             }
         }
     }
@@ -1543,6 +1461,92 @@ namespace ProtoFluxOverhaul {
 
             } catch (Exception e) {
                 Logger.LogError("Error in OnChanges patch", e, LogCategory.UI);
+            }
+        }
+    }
+
+    // Patch to make background color compatible with node status (selection, highlighting, validation)
+    [HarmonyPatch(typeof(ProtoFluxNodeVisual), "UpdateNodeStatus")]
+    public class ProtoFluxNodeVisual_UpdateNodeStatus_Patch {
+        private static readonly FieldInfo bgImageField = AccessTools.Field(typeof(ProtoFluxNodeVisual), "_bgImage");
+
+        public static bool Prefix(ProtoFluxNodeVisual __instance) {
+            try {
+                // Skip if disabled or not using header color for background
+                if (!ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.ENABLED)) return true;
+                if (!ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.USE_HEADER_COLOR_FOR_BACKGROUND)) return true;
+
+                // Get background image
+                var bgImageRef = (SyncRef<Image>)bgImageField.GetValue(__instance);
+                if (bgImageRef?.Target == null) return true;
+
+                // === User Permission Check ===
+                if (!PermissionHelper.HasPermission(__instance)) return true;
+
+                // Get the node's type color as base
+                colorX baseColor;
+                var node = __instance.Node.Target;
+                if (node != null) {
+                    var nodeType = node.GetType();
+                    if (nodeType.IsSubclassOf(typeof(UpdateBase)) || nodeType.IsSubclassOf(typeof(UserUpdateBase)))
+                    {
+                        bool isAsync = nodeType.GetInterfaces().Any(i => i == typeof(IAsyncNodeOperation));
+                        baseColor = isAsync ? DatatypeColorHelper.ASYNC_FLOW_COLOR : DatatypeColorHelper.SYNC_FLOW_COLOR;
+                    }
+                    else 
+                    {
+                        baseColor = DatatypeColorHelper.GetTypeColor(nodeType);
+                    }
+                    // Darken it like we do when initially applying (preserve alpha)
+                    baseColor = baseColor.MulRGB(0.5f);
+                } else {
+                    baseColor = RadiantUI_Constants.BG_COLOR; // fallback
+                }
+
+                // Apply status color lerps (same logic as original UpdateNodeStatus)
+                colorX finalColor = baseColor;
+                
+                if (__instance.IsSelected.Value) {
+                    finalColor = MathX.LerpUnclamped(finalColor, colorX.Cyan, 0.5f);
+                }
+                
+                if (__instance.IsHighlighted.Value) {
+                    finalColor = MathX.LerpUnclamped(finalColor, colorX.Yellow, 0.1f);
+                }
+                
+                if (!__instance.IsNodeValid) {
+                    finalColor = MathX.LerpUnclamped(finalColor, colorX.Red, 0.5f);
+                }
+
+                // Update the ValueField source so the driver propagates the new color
+                var bgImage = bgImageRef.Target;
+                var colorField = bgImage.Slot.GetComponent<ValueField<colorX>>();
+                if (colorField != null) {
+                    colorField.Value.Value = finalColor;
+                    Logger.LogUI("UpdateNodeStatus", $"Updated ValueField for status color: R:{finalColor.r:F2} G:{finalColor.g:F2} B:{finalColor.b:F2}");
+                } else {
+                    // Fallback: if no ValueField exists, set directly
+                    if (!bgImage.Tint.IsDriven) {
+                        bgImage.Tint.Value = finalColor;
+                        Logger.LogUI("UpdateNodeStatus", $"Set tint directly (no driver): R:{finalColor.r:F2} G:{finalColor.g:F2} B:{finalColor.b:F2}");
+                    } else {
+                        Logger.LogUI("UpdateNodeStatus", "Skipped: tint is driven but no ValueField found");
+                    }
+                }
+
+                // Also update overview background if it exists
+                var overviewBgField = AccessTools.Field(typeof(ProtoFluxNodeVisual), "_overviewBg");
+                var overviewBg = (FieldDrive<colorX>)overviewBgField.GetValue(__instance);
+                if (overviewBg.IsLinkValid) {
+                    overviewBg.Target.Value = finalColor;
+                }
+
+                // Skip original method since we handled it
+                return false;
+            } catch (Exception e) {
+                Logger.LogError("Error in UpdateNodeStatus patch", e, LogCategory.UI);
+                // Let original run if we fail
+                return true;
             }
         }
     }

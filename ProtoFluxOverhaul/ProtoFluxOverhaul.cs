@@ -15,7 +15,7 @@ using static ProtoFluxOverhaul.Logger;
 namespace ProtoFluxOverhaul;
 
 public class ProtoFluxOverhaul : ResoniteMod {
-	internal const string VERSION_CONSTANT = "1.4.5";
+	internal const string VERSION_CONSTANT = "1.4.6";
 	public override string Name => "ProtoFluxOverhaul";
 	public override string Author => "Dexy, NepuShiro";
 	public override string Version => VERSION_CONSTANT;
@@ -24,6 +24,7 @@ public class ProtoFluxOverhaul : ResoniteMod {
 	// Configuration
 	public static ModConfiguration Config;
 	public static readonly Dictionary<Slot, Panner2D> pannerCache = new Dictionary<Slot, Panner2D>();
+	public static readonly Dictionary<MeshRenderer, FresnelMaterial> materialCache = new Dictionary<MeshRenderer, FresnelMaterial>();
 	
 	// ============ BASIC SETTINGS ============
 	[AutoRegisterConfigKey]
@@ -184,11 +185,11 @@ public class ProtoFluxOverhaul : ResoniteMod {
 						// Get the FresnelMaterial
 						var fresnelMaterial = kvp.Key.GetComponent<FresnelMaterial>();
 						if (fresnelMaterial != null) {
-							var farTexture = GetOrCreateSharedTexture(fresnelMaterial.Slot, Config.GetValue(WIRE_TEXTURE));
-							fresnelMaterial.FarTexture.Target = farTexture;
-							
-							var nearTexture = GetOrCreateSharedTexture(fresnelMaterial.Slot, Config.GetValue(WIRE_TEXTURE));
-							fresnelMaterial.NearTexture.Target = nearTexture;
+					var farTexture = GetOrCreateSharedTexture(kvp.Key, Config.GetValue(WIRE_TEXTURE));
+						fresnelMaterial.FarTexture.Target = farTexture;
+						
+						var nearTexture = GetOrCreateSharedTexture(kvp.Key, Config.GetValue(WIRE_TEXTURE));
+						fresnelMaterial.NearTexture.Target = nearTexture;
 						}
 					}
 				});
@@ -216,45 +217,61 @@ public class ProtoFluxOverhaul : ResoniteMod {
 				}
 				
 				// === Material Setup ===
-				// Get or create the shared Fresnel Material
-				var fresnelMaterial = GetOrCreateSharedMaterial(__instance.Slot);
-				if (fresnelMaterial != null) {
-					____renderer.Target.Material.Target = fresnelMaterial;
+				var renderer = ____renderer?.Target;
+				if (renderer == null) return;
+
+				if (!materialCache.TryGetValue(renderer, out var fresnelMaterial) || fresnelMaterial == null || fresnelMaterial.IsRemoved) {
+					var originalMaterial = renderer.Material.Target as FresnelMaterial;
+					if (originalMaterial == null) {
+						return;
+					}
+
+					var newMaterial = renderer.Slot.AttachComponent<FresnelMaterial>();
+					newMaterial.NearColor.Value = originalMaterial.NearColor.Value;
+					newMaterial.FarColor.Value = originalMaterial.FarColor.Value;
+					newMaterial.Sidedness.Value = originalMaterial.Sidedness.Value;
+					newMaterial.UseVertexColors.Value = originalMaterial.UseVertexColors.Value;
+					newMaterial.BlendMode.Value = originalMaterial.BlendMode.Value;
+					newMaterial.ZWrite.Value = originalMaterial.ZWrite.Value;
+					newMaterial.NearTextureScale.Value = originalMaterial.NearTextureScale.Value;
+					newMaterial.NearTextureOffset.Value = originalMaterial.NearTextureOffset.Value;
+					newMaterial.FarTextureScale.Value = originalMaterial.FarTextureScale.Value;
+					newMaterial.FarTextureOffset.Value = originalMaterial.FarTextureOffset.Value;
+
+					materialCache[renderer] = newMaterial;
+					fresnelMaterial = newMaterial;
+					renderer.Material.Target = fresnelMaterial;
 				}
 
 				// === Animation Setup ===
 				// Get or create Panner2D for scrolling effect
-				if (!pannerCache.TryGetValue(fresnelMaterial.Slot, out var panner)) {
-					panner = fresnelMaterial.Slot.GetComponentOrAttach<Panner2D>();
-				
-					// Configure panner with user settings
-					try {
-						panner.Speed = Config.GetValue(SCROLL_SPEED);
-						panner.Repeat = Config.GetValue(SCROLL_REPEAT);
-					} catch (System.NullReferenceException) {
-						// Skip this panner if it's not properly initialized
-						Logger.LogWarning($"Skipping uninitialized Panner2D in patch for {fresnelMaterial.Slot.Name}");
-						return;
-					}
-					
-					pannerCache[fresnelMaterial.Slot] = panner;
-
-					// Set the textures from config
-					var farTexture = GetOrCreateSharedTexture(fresnelMaterial.Slot, Config.GetValue(WIRE_TEXTURE));
-					fresnelMaterial.FarTexture.Target = farTexture;
-					
-					var nearTexture = GetOrCreateSharedTexture(fresnelMaterial.Slot, Config.GetValue(WIRE_TEXTURE));
-					fresnelMaterial.NearTexture.Target = nearTexture;
+				if (!pannerCache.TryGetValue(__instance.Slot, out var panner)) {
+					panner = __instance.Slot.GetComponentOrAttach<Panner2D>();
+					pannerCache[__instance.Slot] = panner;
 				}
 
-				// Set FresnelMaterial texture scales to x=-1 for correct wire flow direction
-				fresnelMaterial.FarTextureScale.Value = new float2(-1f, fresnelMaterial.FarTextureScale.Value.y);
-				fresnelMaterial.NearTextureScale.Value = new float2(-1f, fresnelMaterial.NearTextureScale.Value.y);
+				try {
+					panner.Speed = Config.GetValue(SCROLL_SPEED);
+					panner.Repeat = Config.GetValue(SCROLL_REPEAT);
+				} catch (System.NullReferenceException) {
+					Logger.LogWarning($"Skipping uninitialized Panner2D in patch for {__instance.Slot.Name}");
+					return;
+				}
+
+				var baseSpeed = Config.GetValue(SCROLL_SPEED);
+				bool flipDirection = __instance.Type.Value == WireType.Input;
+				float directionFactor = flipDirection ? -1f : 1f;
+				panner.Speed = new float2(baseSpeed.x * directionFactor, baseSpeed.y);
+
+				var farTexture = GetOrCreateSharedTexture(__instance.Slot, Config.GetValue(WIRE_TEXTURE));
+				fresnelMaterial.FarTexture.Target = farTexture;
+
+				var nearTexture = GetOrCreateSharedTexture(__instance.Slot, Config.GetValue(WIRE_TEXTURE));
+				fresnelMaterial.NearTexture.Target = nearTexture;
 
 				// === Texture Offset Setup ===
 				// Setup texture offset drivers if they don't exist
 				if (!fresnelMaterial.FarTextureOffset.IsLinked) {
-					// Only link if the panner target is not already set
 					if (panner.Target == null)
 					{
 						panner.Target = fresnelMaterial.FarTextureOffset;
@@ -264,7 +281,6 @@ public class ProtoFluxOverhaul : ResoniteMod {
 				if (!fresnelMaterial.NearTextureOffset.IsLinked) {
 					ValueDriver<float2> newNearDrive = fresnelMaterial.Slot.GetComponentOrAttach<ValueDriver<float2>>();
 					
-					// Only link if the target is not already linked
 					if (!newNearDrive.DriveTarget.IsLinkValid)
 					{
 						newNearDrive.DriveTarget.Target = fresnelMaterial.NearTextureOffset;
@@ -278,138 +294,12 @@ public class ProtoFluxOverhaul : ResoniteMod {
 		}
 	}
 
-	// Harmony patch for ProtoFluxWireManager's Setup method to handle wire configuration
-	// This patch ensures proper wire orientation and appearance based on wire type
-	[HarmonyPatch(typeof(ProtoFluxWireManager), "Setup")]
-	class ProtoFluxWireManager_Setup_Patch {        
-
-		public static void Postfix(ProtoFluxWireManager __instance, WireType type, SyncRef<StripeWireMesh> ____wireMesh, SyncRef<MeshRenderer> ____renderer) {
-			try {
-				// Skip if basic requirements aren't met
-				if (!IsValidSetup(__instance, ____wireMesh)) return;
-
-				// Check basic wire state
-				if (!__instance.Enabled || __instance.Slot == null) return;
-
-				// Apply material and UV/Atlas changes together if we have permission
-				if (WirePermissionHelper.HasPermission(__instance)) {
-					// Get or create the shared Fresnel Material
-					var fresnelMaterial = GetOrCreateSharedMaterial(__instance.Slot);
-					if (fresnelMaterial != null && ____renderer?.Target != null) {
-						____renderer.Target.Material.Target = fresnelMaterial;
-					}
-					
-					// Apply wire-type specific configuration with correct atlas offset
-					// This is tied to material permission since they're both visual modifications
-					ConfigureWireByType(__instance, ____wireMesh.Target, type);
-				}
-			}
-			catch (Exception e) {
-				Logger.LogError("Error in ProtoFluxWireManager Setup", e, LogCategory.Wire);
-			}
-		}
-
-		// Validates that all required components are present and the mod is enabled
-		private static bool IsValidSetup(ProtoFluxWireManager instance, SyncRef<StripeWireMesh> wireMesh) {
-			return Config.GetValue(ENABLED) && 
-				   instance != null && 
-				   wireMesh?.Target != null;
-		}
-
-		// Configures wire mesh properties - now simplified to only handle material assignment
-		// UVScale and UVOffset are handled by Resonite's default implementation
-		private static void ConfigureWireByType(ProtoFluxWireManager instance, StripeWireMesh wireMesh, WireType type) {
-			// Resonite's default implementation already handles UVScale and UVOffset correctly
-			// We only need to ensure the material is applied, which is handled by the caller
-			Logger.LogWire("Material", $"Wire material configured for type: {type}");
-		}
-		
-	}
-
-	// Patch to modify UVScale for correct wire flow direction (Input -> Output)
-	[HarmonyPatch(typeof(StripeWireMesh), "PrepareMeshData")]
-	class StripeWireMesh_PrepareMeshData_Patch {
-		public static void Postfix(StripeWireMesh __instance, ref bool changedGeometry, in float2 uvScale, in float2 uvOffset, int steps, MeshX meshx) {
-			try {
-				// Skip if mod is disabled
-				if (!Config.GetValue(ENABLED)) return;
-
-				// Get the wire manager from the slot hierarchy
-				var wireManager = __instance.Slot.GetComponentInParents<ProtoFluxWireManager>();
-				if (wireManager == null) return;
-
-				// Check if we have permission to modify this wire
-				if (!WirePermissionHelper.HasPermission(wireManager)) return;
-
-				// Modify UVScale to ensure correct flow direction (Input -> Output)
-				// For Input wires: use x=1 (normal direction)
-				// For Output wires: use x=-1 (reversed direction)
-				var modifiedUVScale = uvScale;
-				if (wireManager.Type.Value == WireType.Input) {
-					modifiedUVScale = new float2(1f, uvScale.y);
-				} else if (wireManager.Type.Value == WireType.Output) {
-					modifiedUVScale = new float2(-1f, uvScale.y);
-				}
-
-				// Apply the modified UVScale to the builder
-				if (__instance.GetType().GetField("builder", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.GetValue(__instance) is StripBuilder builder) {
-					builder.UVScale = modifiedUVScale;
-					Logger.LogWire("UVScale", $"Modified UVScale for {wireManager.Type.Value} wire: {modifiedUVScale}");
-				}
-			}
-			catch (Exception e) {
-				Logger.LogError("Error in StripeWireMesh UVScale patch", e, LogCategory.Wire);
-			}
-		}
-	}
-
 	/// Creates or retrieves a shared FresnelMaterial for wire rendering
-	private static FresnelMaterial GetOrCreateSharedMaterial(Slot slot) {
-		// Create organized hierarchy under __TEMP
-		var tempSlot = slot.World.RootSlot.FindChild("__TEMP") ?? slot.World.RootSlot.AddSlot("__TEMP", false);
-		var modSlot = tempSlot.FindChild("ProtoFluxOverhaul") ?? tempSlot.AddSlot("ProtoFluxOverhaul", false);
-		var userSlot = modSlot.FindChild(slot.LocalUser.UserName) ?? modSlot.AddSlot(slot.LocalUser.UserName, false);
-		var materialsSlot = userSlot.FindChild("Materials") ?? userSlot.AddSlot("Materials", false);
-		var materialSlot = materialsSlot.FindChild("Wire") ?? materialsSlot.AddSlot("Wire", false);
-
-		// Create material
-		FresnelMaterial fresnelMaterial = materialSlot.GetComponentOrAttach<FresnelMaterial>();
-
-		// Ensure cleanup when user leaves
-		userSlot.GetComponentOrAttach<DestroyOnUserLeave>().TargetUser.Target = slot.LocalUser;
-		
-		// Configure material properties
-		fresnelMaterial.NearColor.Value = new colorX(0.8f);
-		fresnelMaterial.FarColor.Value = new colorX(1.4f);
-		fresnelMaterial.Sidedness.Value = Sidedness.Double;
-		fresnelMaterial.UseVertexColors.Value = true;
-		fresnelMaterial.BlendMode.Value = BlendMode.Alpha;
-		fresnelMaterial.ZWrite.Value = ZWrite.On;
-		
-		// Setup textures from config
-		var farTexture = GetOrCreateSharedTexture(materialSlot, Config.GetValue(WIRE_TEXTURE));
-		fresnelMaterial.FarTexture.Target = farTexture;
-		
-		var nearTexture = GetOrCreateSharedTexture(materialSlot, Config.GetValue(WIRE_TEXTURE));
-		fresnelMaterial.NearTexture.Target = nearTexture;
-		
-		return fresnelMaterial;
-	}
-
-	/// Creates or retrieves a shared texture with specified settings
+	/// Creates or retrieves a texture with specified settings directly on the wire slot
 	private static StaticTexture2D GetOrCreateSharedTexture(Slot slot, Uri uri) {
-		// Create organized hierarchy under __TEMP
-		var tempSlot = slot.World.RootSlot.FindChild("__TEMP") ?? slot.World.RootSlot.AddSlot("__TEMP", false);
-		var modSlot = tempSlot.FindChild("ProtoFluxOverhaul") ?? tempSlot.AddSlot("ProtoFluxOverhaul", false);
-		var userSlot = modSlot.FindChild(slot.LocalUser.UserName) ?? modSlot.AddSlot(slot.LocalUser.UserName, false);
-		var texturesSlot = userSlot.FindChild("Textures") ?? userSlot.AddSlot("Textures", false);
-		var textureSlot = texturesSlot.FindChild("Wire") ?? texturesSlot.AddSlot("Wire", false);
-
-		// Get or create the texture
-		StaticTexture2D texture = textureSlot.GetComponentOrAttach<StaticTexture2D>();
+		StaticTexture2D texture = slot.GetComponentOrAttach<StaticTexture2D>();
 		texture.URL.Value = uri;
 
-		// Configure texture properties from user settings
 		texture.FilterMode.Value = Config.GetValue(FILTER_MODE);
 		texture.MipMaps.Value = Config.GetValue(MIPMAPS);
 		texture.Uncompressed.Value = Config.GetValue(UNCOMPRESSED);
@@ -422,7 +312,7 @@ public class ProtoFluxOverhaul : ResoniteMod {
 		texture.KeepOriginalMipMaps.Value = Config.GetValue(KEEP_ORIGINAL_MIPMAPS);
 		texture.MipMapFilter.Value = Config.GetValue(MIPMAP_FILTER);
 		texture.Readable.Value = Config.GetValue(READABLE);
-		texture.PowerOfTwoAlignThreshold.Value = 0.05f;  // For proper texture alignment
+		texture.PowerOfTwoAlignThreshold.Value = 0.05f;
 		
 		return texture;
 	}
