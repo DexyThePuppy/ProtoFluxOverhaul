@@ -39,6 +39,15 @@ public class ProtoFluxOverhaul : ResoniteMod {
 	[AutoRegisterConfigKey]
 	public static readonly ModConfigurationKey<bool> USE_HEADER_COLOR_FOR_BACKGROUND = new("Colored Node Background", "Use Node Type Color as Background Color for Nodes", () => false);
 
+	[AutoRegisterConfigKey]
+	public static readonly ModConfigurationKey<bool> ENABLE_CONNECTOR_LABEL_BACKGROUNDS = new("Enable Connector Label Backgrounds", "Enable the background images on connector labels", () => true);
+
+	[AutoRegisterConfigKey]
+	public static readonly ModConfigurationKey<bool> ENABLE_HEADER_BACKGROUND = new("Enable Header Background", "Enable the background image on node headers", () => true);
+
+	[AutoRegisterConfigKey]
+	public static readonly ModConfigurationKey<bool> ENABLE_FOOTER_CATEGORY_TEXT = new("Enable Footer Category Text", "Enable the category text at the bottom of nodes", () => true);
+
 	// ============ ANIMATION SETTINGS ============
 	[AutoRegisterConfigKey]
 	public static readonly ModConfigurationKey<dummy> SPACER_ANIMATION = new("spacerAnimation", "--- Animation Settings ---", () => new dummy());

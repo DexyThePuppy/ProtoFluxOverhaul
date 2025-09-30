@@ -962,6 +962,9 @@ namespace ProtoFluxOverhaul {
                 newText.VerticalAutoSize.Value = true;
                 newText.ParseRichText.Value = true;
                 
+                // Store display text for later use
+                string displayText = headerText.Content.Value;
+                
                 // Calculate text color based on header image color for better contrast
                 var headerColor = image.Tint.Value;
                 Logger.LogUI("Header Color", $"Header image color: R:{headerColor.r:F2} G:{headerColor.g:F2} B:{headerColor.b:F2}");
@@ -977,10 +980,6 @@ namespace ProtoFluxOverhaul {
                 newText.Color.ForceSet(textColor);
                 newText.Size.Value = 9.00f;
                 newText.AutoSizeMin.Value = 4f;
-                
-                // Set text content - now we always have headerText since we created it for spacer slots
-                string displayText = headerText.Content.Value;
-                newText.Content.Value = $"<color={(brightness > 0.6f ? "#000000" : "#FFFFFF")}><b>{displayText}</b></color>";
                 
                 Logger.LogUI("Text Color", $"Text color set to: R:{newText.Color.Value.r:F2} G:{newText.Color.Value.g:F2} B:{newText.Color.Value.b:F2}");
                 
@@ -1031,6 +1030,27 @@ namespace ProtoFluxOverhaul {
                 // Apply rounded corners to the new header
                 RoundedCornersHelper.ApplyRoundedCorners(image, true);
 
+                // Toggle header background based on config
+                bool headerBackgroundEnabled = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.ENABLE_HEADER_BACKGROUND);
+                image.EnabledField.Value = headerBackgroundEnabled;
+                Logger.LogUI("Header Background", $"Header background {(headerBackgroundEnabled ? "enabled" : "disabled")}");
+
+                // Set text content based on whether header background is enabled
+                if (headerBackgroundEnabled) {
+                    // Use rich text color tag for contrast when background is visible
+                    newText.Content.Value = $"<color={(brightness > 0.6f ? "#000000" : "#FFFFFF")}><b>{displayText}</b></color>";
+                } else {
+                    // No color tag - let the Color field (driven by ValueCopy) control the color
+                    newText.Content.Value = $"<b>{displayText}</b>";
+                    
+                    // Copy the image tint to the text color
+                    var valueCopy = image.Slot.GetComponentOrAttach<ValueCopy<colorX>>();
+                    valueCopy.Source.Target = image.Tint;
+                    valueCopy.Target.Target = newText.Color;
+                    valueCopy.WriteBack.Value = false;
+                    Logger.LogUI("Header Text Color", $"Copying header background tint to text color (header background disabled)");
+                }
+
                 // Apply rounded corners to the background with header color if config is enabled
                 var backgroundImageRef = (SyncRef<Image>)AccessTools.Field(typeof(ProtoFluxNodeVisual), "_bgImage").GetValue(__instance);
                 if (backgroundImageRef?.Target != null) {
@@ -1059,6 +1079,10 @@ namespace ProtoFluxOverhaul {
                         labelRect.OffsetMin.Value = new float2(offsetMin.x, 1f);
                         labelRect.OffsetMax.Value = new float2(offsetMax.x, -1f);
 
+                        // Toggle enabled status based on config
+                        bool backgroundsEnabled = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.ENABLE_CONNECTOR_LABEL_BACKGROUNDS);
+                        labelBackgroundImage.EnabledField.Value = backgroundsEnabled;
+
                         Logger.LogUI("Connector Label Background", $"Applied header sprite to connector label background while preserving original color");
                         
                         // Find and center the text in the label
@@ -1068,6 +1092,15 @@ namespace ProtoFluxOverhaul {
                             if (textComponent != null) {
                                 textComponent.VerticalAlign.Value = TextVerticalAlignment.Middle;
                                 Logger.LogUI("Connector Label Text", $"Set connector label text to center alignment");
+                                
+                                // If backgrounds are disabled, copy the image tint to the text color
+                                if (!backgroundsEnabled) {
+                                    var valueCopy = labelBackgroundImage.Slot.GetComponentOrAttach<ValueCopy<colorX>>();
+                                    valueCopy.Source.Target = labelBackgroundImage.Tint;
+                                    valueCopy.Target.Target = textComponent.Color;
+                                    valueCopy.WriteBack.Value = false;
+                                    Logger.LogUI("Connector Label Text Color", $"Copying background tint to text color (backgrounds disabled)");
+                                }
                             }
                         }
                     }
@@ -1084,6 +1117,11 @@ namespace ProtoFluxOverhaul {
                     categoryText.Size.Value = 8.00f;
                     categoryText.AlignmentMode.Value = AlignmentMode.LineBased;
                     categoryText.LineHeight.Value = 0.35f;
+                    
+                    // Toggle footer category text based on config
+                    bool footerEnabled = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.ENABLE_FOOTER_CATEGORY_TEXT);
+                    categoryText.Slot.ActiveSelf = footerEnabled;
+                    Logger.LogUI("Footer Category Text", $"Footer category text {(footerEnabled ? "enabled" : "disabled")}");
                     
                     // Apply node type color to category text if config is enabled
                     if (ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.USE_HEADER_COLOR_FOR_BACKGROUND)) {
@@ -1204,6 +1242,10 @@ namespace ProtoFluxOverhaul {
                         labelRect.OffsetMin.Value = new float2(offsetMin.x, 1f);
                         labelRect.OffsetMax.Value = new float2(offsetMax.x, -1f);
 
+                        // Toggle enabled status based on config
+                        bool backgroundsEnabled = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.ENABLE_CONNECTOR_LABEL_BACKGROUNDS);
+                        labelBackgroundImage.EnabledField.Value = backgroundsEnabled;
+
                         Logger.LogUI("Connector Label Background", $"Applied header sprite to connector label background in GenerateVisual while preserving original color");
                         
                         // Find and center the text in the label
@@ -1213,6 +1255,15 @@ namespace ProtoFluxOverhaul {
                             if (textComponent != null) {
                                 textComponent.VerticalAlign.Value = TextVerticalAlignment.Middle;
                                 Logger.LogUI("Connector Label Text", $"Set connector label text to center alignment in GenerateVisual");
+                                
+                                // If backgrounds are disabled, copy the image tint to the text color
+                                if (!backgroundsEnabled) {
+                                    var valueCopy = labelBackgroundImage.Slot.GetComponentOrAttach<ValueCopy<colorX>>();
+                                    valueCopy.Source.Target = labelBackgroundImage.Tint;
+                                    valueCopy.Target.Target = textComponent.Color;
+                                    valueCopy.WriteBack.Value = false;
+                                    Logger.LogUI("Connector Label Text Color", $"Copying background tint to text color in GenerateVisual (backgrounds disabled)");
+                                }
                             }
                         }
                     }
@@ -1296,6 +1347,10 @@ namespace ProtoFluxOverhaul {
                         labelRect.OffsetMin.Value = new float2(offsetMin.x, 1f);
                         labelRect.OffsetMax.Value = new float2(offsetMax.x, -1f);
 
+                        // Toggle enabled status based on config
+                        bool backgroundsEnabled = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.ENABLE_CONNECTOR_LABEL_BACKGROUNDS);
+                        labelBackgroundImage.EnabledField.Value = backgroundsEnabled;
+
                         Logger.LogUI("Connector Label Background", $"Applied header sprite to dynamic input connector label background while preserving original color");
                         
                         // Find and center the text in the label
@@ -1305,6 +1360,15 @@ namespace ProtoFluxOverhaul {
                             if (textComponent != null) {
                                 textComponent.VerticalAlign.Value = TextVerticalAlignment.Middle;
                                 Logger.LogUI("Connector Label Text", $"Set dynamic input connector label text to center alignment");
+                                
+                                // If backgrounds are disabled, copy the image tint to the text color
+                                if (!backgroundsEnabled) {
+                                    var valueCopy = labelBackgroundImage.Slot.GetComponentOrAttach<ValueCopy<colorX>>();
+                                    valueCopy.Source.Target = labelBackgroundImage.Tint;
+                                    valueCopy.Target.Target = textComponent.Color;
+                                    valueCopy.WriteBack.Value = false;
+                                    Logger.LogUI("Connector Label Text Color", $"Copying background tint to text color for dynamic input (backgrounds disabled)");
+                                }
                             }
                         }
                     }
@@ -1391,6 +1455,10 @@ namespace ProtoFluxOverhaul {
                         labelRect.OffsetMin.Value = new float2(offsetMin.x, 1f);
                         labelRect.OffsetMax.Value = new float2(offsetMax.x, -1f);
 
+                        // Toggle enabled status based on config
+                        bool backgroundsEnabled = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.ENABLE_CONNECTOR_LABEL_BACKGROUNDS);
+                        labelBackgroundImage.EnabledField.Value = backgroundsEnabled;
+
                         Logger.LogUI("Connector Label Background", $"Applied header sprite to dynamic output connector label background while preserving original color");
                         
                         // Find and center the text in the label
@@ -1400,6 +1468,15 @@ namespace ProtoFluxOverhaul {
                             if (textComponent != null) {
                                 textComponent.VerticalAlign.Value = TextVerticalAlignment.Middle;
                                 Logger.LogUI("Connector Label Text", $"Set dynamic output connector label text to center alignment");
+                                
+                                // If backgrounds are disabled, copy the image tint to the text color
+                                if (!backgroundsEnabled) {
+                                    var valueCopy = labelBackgroundImage.Slot.GetComponentOrAttach<ValueCopy<colorX>>();
+                                    valueCopy.Source.Target = labelBackgroundImage.Tint;
+                                    valueCopy.Target.Target = textComponent.Color;
+                                    valueCopy.WriteBack.Value = false;
+                                    Logger.LogUI("Connector Label Text Color", $"Copying background tint to text color for dynamic output (backgrounds disabled)");
+                                }
                             }
                         }
                     }
