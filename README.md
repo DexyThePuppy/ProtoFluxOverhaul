@@ -1,5 +1,6 @@
 <img align="right" alt="logo" width="280" src="ProtoFluxOverhaul/Images/Logo.png">
-## *ProtoFluxOverhaul*
+
+# **ProtoFluxOverhaul**
 
 *Woof woof!* A [ResoniteModLoader](https://github.com/resonite-modding-group/ResoniteModLoader) mod for [Resonite](https://resonite.com/) that adds customizable animated textures to ProtoFlux wires! 🐾
 
