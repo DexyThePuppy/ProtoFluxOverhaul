@@ -965,6 +965,71 @@ namespace ProtoFluxOverhaul {
                 // Store display text for later use
                 string displayText = headerText.Content.Value;
                 
+                // Get the node type name with generics for header
+                var headerNodeType = node.GetType();
+                string fullTypeName = headerNodeType.GetNiceName();
+                string baseTypeName = fullTypeName;
+                string headerGenericPart = "";
+                
+                // Handle two conventions: C# generics and underscore naming
+                if (headerNodeType.IsGenericType) {
+                    // Handle C# generic types like ValueMulMulti<T>
+                    var genericArgs = headerNodeType.GetGenericArguments();
+                    if (genericArgs.Length > 0) {
+                        // Format generic arguments like <float2> or <int, bool>
+                        var genericNames = genericArgs.Select(t => t.GetNiceName()).ToArray();
+                        headerGenericPart = $"<{string.Join(", ", genericNames)}>";
+                        
+                        // GetNiceName() may already include generics (e.g., "ValueInput<float2>")
+                        // Extract just the base name by removing everything from the first '<'
+                        int genericBracketIndex = fullTypeName.IndexOf('<');
+                        if (genericBracketIndex > 0) {
+                            baseTypeName = fullTypeName.Substring(0, genericBracketIndex);
+                        }
+                        
+                        // Also remove underscore suffix if it exists (e.g., ValueMulMulti_Float2 -> ValueMulMulti)
+                        int underscoreIndex = baseTypeName.LastIndexOf('_');
+                        if (underscoreIndex > 0) {
+                            baseTypeName = baseTypeName.Substring(0, underscoreIndex);
+                        }
+                    }
+                } else {
+                    // Handle underscore naming convention like AvgMulti_Float2 (not C# generics)
+                    int underscoreIndex = fullTypeName.LastIndexOf('_');
+                    if (underscoreIndex > 0) {
+                        baseTypeName = fullTypeName.Substring(0, underscoreIndex);
+                        string typeSuffix = fullTypeName.Substring(underscoreIndex + 1);
+                        headerGenericPart = $"<{typeSuffix}>";
+                    }
+                }
+                
+                // Full type name with proper generic formatting
+                string headerNodeTypeName = baseTypeName + headerGenericPart;
+                
+                // Check if the display text already contains the generic type (e.g., "float2 Input" already has "float2")
+                // If so, don't add the generic part to avoid duplication like "float2 Input<float2>"
+                bool displayAlreadyHasGeneric = false;
+                if (!string.IsNullOrEmpty(headerGenericPart) && headerNodeType.IsGenericType) {
+                    var genericArgs = headerNodeType.GetGenericArguments();
+                    foreach (var arg in genericArgs) {
+                        string argName = arg.GetNiceName();
+                        if (displayText.Contains(argName)) {
+                            displayAlreadyHasGeneric = true;
+                            break;
+                        }
+                    }
+                }
+                
+                // If display already has the generic type, clear the generic part to avoid duplication
+                string displayGenericPart = displayAlreadyHasGeneric ? "" : headerGenericPart;
+                
+                // Create version without angle brackets for short name display (e.g., " float2" instead of "<float2>")
+                string displayGenericPartPlain = "";
+                if (!string.IsNullOrEmpty(displayGenericPart)) {
+                    // Remove < and > and add a space prefix
+                    displayGenericPartPlain = " " + displayGenericPart.Trim('<', '>');
+                }
+                
                 // Calculate text color based on header image color for better contrast
                 var headerColor = image.Tint.Value;
                 Logger.LogUI("Header Color", $"Header image color: R:{headerColor.r:F2} G:{headerColor.g:F2} B:{headerColor.b:F2}");
@@ -978,7 +1043,7 @@ namespace ProtoFluxOverhaul {
                 // Set text color multiple ways to ensure it takes effect
                 newText.Color.Value = textColor;
                 newText.Color.ForceSet(textColor);
-                newText.Size.Value = 9.00f;
+                newText.Size.Value = 10.5f;
                 newText.AutoSizeMin.Value = 4f;
                 
                 Logger.LogUI("Text Color", $"Text color set to: R:{newText.Color.Value.r:F2} G:{newText.Color.Value.g:F2} B:{newText.Color.Value.b:F2}");
@@ -1036,12 +1101,17 @@ namespace ProtoFluxOverhaul {
                 Logger.LogUI("Header Background", $"Header background {(headerBackgroundEnabled ? "enabled" : "disabled")}");
 
                 // Set text content based on whether header background is enabled
+                string shortNameText;
+                string fullNameText;
+                
                 if (headerBackgroundEnabled) {
                     // Use rich text color tag for contrast when background is visible
-                    newText.Content.Value = $"<color={(brightness > 0.6f ? "#000000" : "#FFFFFF")}><b>{displayText}</b></color>";
+                    shortNameText = $"<color={(brightness > 0.6f ? "#000000" : "#FFFFFF")}><b> {displayText}</b><size=80%>{displayGenericPartPlain}</size></color>";
+                    fullNameText = $"<color={(brightness > 0.6f ? "#000000" : "#FFFFFF")}><b>{baseTypeName}</b><size=80%>{headerGenericPart}</size></color>";
                 } else {
                     // No color tag - let the Color field (driven by ValueCopy) control the color
-                    newText.Content.Value = $"<b>{displayText}</b>";
+                    shortNameText = $"<b>{displayText}</b><size=80%> {displayGenericPartPlain}</size>";
+                    fullNameText = $"<b>{baseTypeName}</b><size=80%>{headerGenericPart}</size>";
                     
                     // Copy the image tint to the text color
                     var valueCopy = image.Slot.GetComponentOrAttach<ValueCopy<colorX>>();
@@ -1049,6 +1119,31 @@ namespace ProtoFluxOverhaul {
                     valueCopy.Target.Target = newText.Color;
                     valueCopy.WriteBack.Value = false;
                     Logger.LogUI("Header Text Color", $"Copying header background tint to text color (header background disabled)");
+                }
+                
+                // Set initial text content
+                newText.Content.Value = shortNameText;
+
+                // === Hover to Show Full Name Feature ===
+                // Use the existing HoverArea from the <NODE_UI> slot
+                var nodeHoverArea = __instance.NodeHoverArea;
+                
+                if (nodeHoverArea != null) {
+                    // Create ValueCopy to copy hover state to the driver
+                    var hoverStateCopy = newHeaderSlot.AttachComponent<ValueCopy<bool>>();
+                    hoverStateCopy.Source.Target = nodeHoverArea.IsHovering;
+                    
+                    // Create BooleanValueDriver to switch between short and full names
+                    var nameDriver = newHeaderSlot.AttachComponent<BooleanValueDriver<string>>();
+                    hoverStateCopy.Target.Target = nameDriver.State;
+                    // Not hovering (false) = short name, Hovering (true) = full name
+                    nameDriver.FalseValue.Value = shortNameText;
+                    nameDriver.TrueValue.Value = fullNameText;
+                    nameDriver.TargetField.Target = newText.Content;
+                    
+                    Logger.LogUI("Hover Feature", $"Added hover-to-show-full-name using <NODE_UI> HoverArea: '{displayText}' → '{headerNodeTypeName}'");
+                } else {
+                    Logger.LogUI("Hover Feature", "WARNING: Could not find NodeHoverArea on ProtoFluxNodeVisual");
                 }
 
                 // Apply rounded corners to the background with header color if config is enabled
@@ -1120,7 +1215,15 @@ namespace ProtoFluxOverhaul {
                     
                     // Toggle footer category text based on config
                     bool footerEnabled = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.ENABLE_FOOTER_CATEGORY_TEXT);
-                    categoryText.Slot.ActiveSelf = footerEnabled;
+                    categoryText.EnabledField.Value = footerEnabled;
+                    
+                    // Adjust the footer's LayoutElement MinHeight based on whether text is enabled
+                    var footerLayoutElement = categoryText.Slot.GetComponent<LayoutElement>();
+                    if (footerLayoutElement != null) {
+                        footerLayoutElement.MinHeight.Value = footerEnabled ? 16f : 10f;
+                        Logger.LogUI("Footer Layout", $"Footer MinHeight set to {(footerEnabled ? "16f" : "10f")}");
+                    }
+                    
                     Logger.LogUI("Footer Category Text", $"Footer category text {(footerEnabled ? "enabled" : "disabled")}");
                     
                     // Apply node type color to category text if config is enabled
@@ -1486,6 +1589,104 @@ namespace ProtoFluxOverhaul {
             }
             catch (Exception e) {
                 Logger.LogError("Error in output element generation", e, LogCategory.UI);
+            }
+        }
+    }
+
+    // Additional patch to handle dynamic impulse creation
+    [HarmonyPatch(typeof(ProtoFluxNodeVisual), "GenerateImpulseElement")]
+    public class ProtoFluxNodeVisual_GenerateImpulseElement_Patch {
+        public static void Postfix(ProtoFluxNodeVisual __instance, UIBuilder ui, ISyncRef input, string name, ImpulseType type) {
+            try {
+                // Skip if disabled
+                if (!ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.ENABLED)) return;
+
+                // === User Permission Check ===
+                if (!PermissionHelper.HasPermission(__instance)) return;
+
+                // Find wire point slot for audio setup
+                var wirePointSlot = ui.Current?.FindChild("<WIRE_POINT>");
+                if (wirePointSlot != null) {
+                    // Create AudioClips structure
+                    WireHelper.CreateAudioClipsSlot(wirePointSlot);
+                }
+
+                // Find the connector image that was just created
+                var connectorImage = ui.Current?.GetComponentInChildren<Image>(image => image.Slot.Name == "Connector");
+                if (connectorImage != null) {
+                    // This is an impulse connector (output)
+                    bool isOutput = true;
+                    
+                    // Get or create shared sprite provider for impulse/flow connector
+                    var spriteProvider = ProtoFluxNodeVisual_BuildUI_Patch.GetOrCreateSharedConnectorSprite(
+                        connectorImage.Slot, 
+                        isOutput, 
+                        type, 
+                        false, 
+                        false
+                    );
+                    
+                    // Apply the sprite provider to the connector image
+                    connectorImage.Sprite.Target = spriteProvider;
+                    connectorImage.PreserveAspect.Value = true;
+
+                    // Set the correct RectTransform settings for impulse connectors (outputs)
+                    connectorImage.RectTransform.SetFixedHorizontal(-16f, 0.0f, 1f);
+
+                    Logger.LogUI("Dynamic Impulse", $"Applied texture patch to newly created impulse connector");
+                }
+            }
+            catch (Exception e) {
+                Logger.LogError("Error in impulse element generation", e, LogCategory.UI);
+            }
+        }
+    }
+
+    // Additional patch to handle dynamic operation creation
+    [HarmonyPatch(typeof(ProtoFluxNodeVisual), "GenerateOperationElement")]
+    public class ProtoFluxNodeVisual_GenerateOperationElement_Patch {
+        public static void Postfix(ProtoFluxNodeVisual __instance, UIBuilder ui, INodeOperation operation, string name, bool isAsync) {
+            try {
+                // Skip if disabled
+                if (!ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.ENABLED)) return;
+
+                // === User Permission Check ===
+                if (!PermissionHelper.HasPermission(__instance)) return;
+
+                // Find wire point slot for audio setup
+                var wirePointSlot = ui.Current?.FindChild("<WIRE_POINT>");
+                if (wirePointSlot != null) {
+                    // Create AudioClips structure
+                    WireHelper.CreateAudioClipsSlot(wirePointSlot);
+                }
+
+                // Find the connector image that was just created
+                var connectorImage = ui.Current?.GetComponentInChildren<Image>(image => image.Slot.Name == "Connector");
+                if (connectorImage != null) {
+                    // This is an operation connector (input)
+                    bool isOutput = false;
+                    
+                    // Get or create shared sprite provider for operation/flow connector
+                    var spriteProvider = ProtoFluxNodeVisual_BuildUI_Patch.GetOrCreateSharedConnectorSprite(
+                        connectorImage.Slot, 
+                        isOutput, 
+                        null, 
+                        true, 
+                        isAsync
+                    );
+                    
+                    // Apply the sprite provider to the connector image
+                    connectorImage.Sprite.Target = spriteProvider;
+                    connectorImage.PreserveAspect.Value = true;
+
+                    // Set the correct RectTransform settings for operation connectors (inputs)
+                    connectorImage.RectTransform.SetFixedHorizontal(0.0f, 16f, 0.0f);
+
+                    Logger.LogUI("Dynamic Operation", $"Applied texture patch to newly created operation connector");
+                }
+            }
+            catch (Exception e) {
+                Logger.LogError("Error in operation element generation", e, LogCategory.UI);
             }
         }
     }

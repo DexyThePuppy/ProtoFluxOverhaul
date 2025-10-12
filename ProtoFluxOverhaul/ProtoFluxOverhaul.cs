@@ -15,7 +15,7 @@ using static ProtoFluxOverhaul.Logger;
 namespace ProtoFluxOverhaul;
 
 public class ProtoFluxOverhaul : ResoniteMod {
-	internal const string VERSION_CONSTANT = "1.4.6";
+	internal const string VERSION_CONSTANT = "1.4.7";
 	public override string Name => "ProtoFluxOverhaul";
 	public override string Author => "Dexy, NepuShiro";
 	public override string Version => VERSION_CONSTANT;
@@ -220,8 +220,10 @@ public class ProtoFluxOverhaul : ResoniteMod {
 					__instance.Slot == null) return;
 				
 				// === User Permission Check ===
+				// Don't modify wire components if we don't have permission
 				if (!WirePermissionHelper.HasPermission(__instance)) {
 					// Skip silently for unauthorized wires to reduce log spam
+					Logger.LogWire("Permission", "Skipping wire modifications: no permission");
 					return;
 				}
 				
@@ -229,27 +231,74 @@ public class ProtoFluxOverhaul : ResoniteMod {
 				var renderer = ____renderer?.Target;
 				if (renderer == null) return;
 
-				if (!materialCache.TryGetValue(renderer, out var fresnelMaterial) || fresnelMaterial == null || fresnelMaterial.IsRemoved) {
+				// Check if we have a valid cached material
+				bool needsNewMaterial = !materialCache.TryGetValue(renderer, out var fresnelMaterial) || 
+				                        fresnelMaterial == null || 
+				                        fresnelMaterial.IsRemoved;
+				
+				if (needsNewMaterial) {
+					Logger.LogWire("Material Check", $"Material cache miss or invalid. Creating/finding material for renderer.");
+					
 					var originalMaterial = renderer.Material.Target as FresnelMaterial;
 					if (originalMaterial == null) {
+						Logger.LogWire("Material Check", "Original material is not FresnelMaterial, skipping.");
 						return;
 					}
 
-					var newMaterial = renderer.Slot.AttachComponent<FresnelMaterial>();
-					newMaterial.NearColor.Value = originalMaterial.NearColor.Value;
-					newMaterial.FarColor.Value = originalMaterial.FarColor.Value;
-					newMaterial.Sidedness.Value = originalMaterial.Sidedness.Value;
-					newMaterial.UseVertexColors.Value = originalMaterial.UseVertexColors.Value;
-					newMaterial.BlendMode.Value = originalMaterial.BlendMode.Value;
-					newMaterial.ZWrite.Value = originalMaterial.ZWrite.Value;
-					newMaterial.NearTextureScale.Value = originalMaterial.NearTextureScale.Value;
-					newMaterial.NearTextureOffset.Value = originalMaterial.NearTextureOffset.Value;
-					newMaterial.FarTextureScale.Value = originalMaterial.FarTextureScale.Value;
-					newMaterial.FarTextureOffset.Value = originalMaterial.FarTextureOffset.Value;
+					// Check if renderer already has a custom material assigned that just needs caching
+					var currentMaterial = renderer.Material.Target as FresnelMaterial;
+					if (currentMaterial != null && currentMaterial != originalMaterial && !currentMaterial.IsRemoved) {
+						// The renderer already has our custom material, just update cache
+						Logger.LogWire("Material", "Found existing custom material already on renderer, updating cache");
+						materialCache[renderer] = currentMaterial;
+						fresnelMaterial = currentMaterial;
+					} else {
+						// Get all FresnelMaterial components on the slot and clean up duplicates
+						var allMaterials = renderer.Slot.GetComponents<FresnelMaterial>().ToList();
+						FresnelMaterial newMaterial = null;
+						
+						// Find a custom material (not the original) to reuse, or clean up duplicates
+						foreach (var mat in allMaterials) {
+							if (mat == originalMaterial) continue; // Skip the original material
+							
+							if (newMaterial == null) {
+								// Use the first custom material we find
+								newMaterial = mat;
+								Logger.LogWire("Material", "Reusing existing custom FresnelMaterial component");
+							} else {
+								// Remove duplicate materials
+								mat.Destroy();
+								Logger.LogWire("Material", "Cleaned up duplicate FresnelMaterial component");
+							}
+						}
+						
+						// If no custom material found, create one
+						if (newMaterial == null) {
+							newMaterial = renderer.Slot.AttachComponent<FresnelMaterial>();
+							Logger.LogWire("Material", "Created new FresnelMaterial component");
+						}
+						
+						newMaterial.NearColor.Value = colorX.White;
+						newMaterial.FarColor.Value = colorX.White;
+						newMaterial.Sidedness.Value = originalMaterial.Sidedness.Value;
+						newMaterial.UseVertexColors.Value = originalMaterial.UseVertexColors.Value;
+						newMaterial.BlendMode.Value = originalMaterial.BlendMode.Value;
+						newMaterial.ZWrite.Value = originalMaterial.ZWrite.Value;
+						newMaterial.NearTextureScale.Value = originalMaterial.NearTextureScale.Value;
+						newMaterial.NearTextureOffset.Value = originalMaterial.NearTextureOffset.Value;
+						newMaterial.FarTextureScale.Value = originalMaterial.FarTextureScale.Value;
+						newMaterial.FarTextureOffset.Value = originalMaterial.FarTextureOffset.Value;
 
-					materialCache[renderer] = newMaterial;
-					fresnelMaterial = newMaterial;
-					renderer.Material.Target = fresnelMaterial;
+						materialCache[renderer] = newMaterial;
+						fresnelMaterial = newMaterial;
+						renderer.Material.Target = fresnelMaterial;
+					}
+				}
+
+				// === Wire Mesh Setup ===
+				var wireMesh = ____wireMesh?.Target;
+				if (wireMesh != null) {
+					wireMesh.Profile.Value = ColorProfile.sRGB;
 				}
 
 				// === Animation Setup ===
@@ -375,10 +424,75 @@ public class ProtoFluxOverhaul : ResoniteMod {
 	public class ProtoFluxWireManager_Patches {
 		[HarmonyPatch("OnDestroy")]
 		[HarmonyPostfix]
-		public static void OnDestroy_Postfix(ProtoFluxWireManager __instance)
+		public static void OnDestroy_Postfix(ProtoFluxWireManager __instance, SyncRef<MeshRenderer> ____renderer)
 		{
 			try
 			{
+				// === Material Cleanup ===
+				// Clean up the cached material when wire is destroyed
+				var renderer = ____renderer?.Target;
+				if (renderer != null && materialCache.TryGetValue(renderer, out var cachedMaterial)) {
+					// Remove from cache
+					materialCache.Remove(renderer);
+					
+					// Remove the material component if it exists and wasn't already removed
+					if (cachedMaterial != null && !cachedMaterial.IsRemoved) {
+						cachedMaterial.Destroy();
+						Logger.LogWire("Cleanup", "Wire material removed from destroyed wire");
+					}
+				}
+
+				// === Renderer Slot Cleanup ===
+				// Clean up components from renderer's slot (FresnelMaterial is attached here)
+				if (renderer?.Slot != null) {
+					// Clean up any FresnelMaterial components that might not be in cache
+					var fresnelMaterials = renderer.Slot.GetComponents<FresnelMaterial>().ToList();
+					foreach (var material in fresnelMaterials) {
+						if (material != null && !material.IsRemoved) {
+							material.Destroy();
+							Logger.LogWire("Cleanup", "Additional FresnelMaterial removed from renderer slot");
+						}
+					}
+				}
+
+				// === Panner Cleanup ===
+				// Clean up the cached panner when wire is destroyed
+				if (__instance?.Slot != null && pannerCache.ContainsKey(__instance.Slot)) {
+					pannerCache.Remove(__instance.Slot);
+					Logger.LogWire("Cleanup", "Panner removed from cache for destroyed wire");
+				}
+
+				// === Wire Slot Cleanup ===
+				// Clean up Panner2D and StaticTexture2D components from the wire manager slot
+				if (__instance?.Slot != null) {
+					// Clean up Panner2D components
+					var panners = __instance.Slot.GetComponents<Panner2D>().ToList();
+					foreach (var panner in panners) {
+						if (panner != null && !panner.IsRemoved) {
+							panner.Destroy();
+							Logger.LogWire("Cleanup", "Panner2D component removed from wire slot");
+						}
+					}
+
+					// Clean up StaticTexture2D components
+					var textures = __instance.Slot.GetComponents<StaticTexture2D>().ToList();
+					foreach (var texture in textures) {
+						if (texture != null && !texture.IsRemoved) {
+							texture.Destroy();
+							Logger.LogWire("Cleanup", "StaticTexture2D removed from wire slot");
+						}
+					}
+
+					// Clean up ValueDriver components (used for texture offset animation)
+					var valueDrivers = __instance.Slot.GetComponents<ValueDriver<float2>>().ToList();
+					foreach (var driver in valueDrivers) {
+						if (driver != null && !driver.IsRemoved) {
+							driver.Destroy();
+							Logger.LogWire("Cleanup", "ValueDriver removed from wire slot");
+						}
+					}
+				}
+
 				// Skip if disabled
 				if (!Config.GetValue(ENABLED)) {
 					Logger.LogWire("Delete", "Wire delete sound skipped: Mod disabled");
