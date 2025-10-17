@@ -15,7 +15,7 @@ using static ProtoFluxOverhaul.Logger;
 namespace ProtoFluxOverhaul;
 
 public class ProtoFluxOverhaul : ResoniteMod {
-	internal const string VERSION_CONSTANT = "1.4.7";
+	internal const string VERSION_CONSTANT = "1.4.8";
 	public override string Name => "ProtoFluxOverhaul";
 	public override string Author => "Dexy, NepuShiro";
 	public override string Version => VERSION_CONSTANT;
@@ -177,9 +177,13 @@ public class ProtoFluxOverhaul : ResoniteMod {
 			if (k.Key != ENABLED) {
 				Engine.Current.GlobalCoroutineManager.StartTask(async () => {
 					await default(ToWorld);
-					foreach (var kvp in pannerCache) {
+					foreach (var kvp in pannerCache.ToList()) {
 						var panner = kvp.Value;
-						if (panner == null) continue;
+						if (panner == null || panner.IsRemoved) {
+							// Clean up stale cache entries
+							pannerCache.Remove(kvp.Key);
+							continue;
+						}
 
 						// Ensure the panner is properly initialized before setting properties
 						try {
@@ -191,14 +195,19 @@ public class ProtoFluxOverhaul : ResoniteMod {
 							continue;
 						}
 
-						// Get the FresnelMaterial
-						var fresnelMaterial = kvp.Key.GetComponent<FresnelMaterial>();
+						// The panner is now on the renderer's slot directly
+						var rendererSlot = kvp.Key;
+						var fresnelMaterial = rendererSlot.GetComponent<FresnelMaterial>();
 						if (fresnelMaterial != null) {
-					var farTexture = GetOrCreateSharedTexture(kvp.Key, Config.GetValue(WIRE_TEXTURE));
-						fresnelMaterial.FarTexture.Target = farTexture;
-						
-						var nearTexture = GetOrCreateSharedTexture(kvp.Key, Config.GetValue(WIRE_TEXTURE));
-						fresnelMaterial.NearTexture.Target = nearTexture;
+							try {
+								var farTexture = GetOrCreateSharedTexture(rendererSlot, Config.GetValue(WIRE_TEXTURE));
+								fresnelMaterial.FarTexture.Target = farTexture;
+								
+								var nearTexture = GetOrCreateSharedTexture(rendererSlot, Config.GetValue(WIRE_TEXTURE));
+								fresnelMaterial.NearTexture.Target = nearTexture;
+							} catch (Exception ex) {
+								Logger.LogError($"Error updating textures for panner on slot {rendererSlot.Name}", ex, LogCategory.UI);
+							}
 						}
 					}
 				});
@@ -220,80 +229,47 @@ public class ProtoFluxOverhaul : ResoniteMod {
 					__instance.Slot == null) return;
 				
 				// === User Permission Check ===
-				// Don't modify wire components if we don't have permission
 				if (!WirePermissionHelper.HasPermission(__instance)) {
 					// Skip silently for unauthorized wires to reduce log spam
-					Logger.LogWire("Permission", "Skipping wire modifications: no permission");
 					return;
 				}
 				
-				// === Material Setup ===
-				var renderer = ____renderer?.Target;
-				if (renderer == null) return;
+			// === Material Setup ===
+			var renderer = ____renderer?.Target;
+			if (renderer == null) return;
 
-				// Check if we have a valid cached material
-				bool needsNewMaterial = !materialCache.TryGetValue(renderer, out var fresnelMaterial) || 
-				                        fresnelMaterial == null || 
-				                        fresnelMaterial.IsRemoved;
-				
-				if (needsNewMaterial) {
-					Logger.LogWire("Material Check", $"Material cache miss or invalid. Creating/finding material for renderer.");
-					
-					var originalMaterial = renderer.Material.Target as FresnelMaterial;
-					if (originalMaterial == null) {
-						Logger.LogWire("Material Check", "Original material is not FresnelMaterial, skipping.");
-						return;
-					}
-
-					// Check if renderer already has a custom material assigned that just needs caching
-					var currentMaterial = renderer.Material.Target as FresnelMaterial;
-					if (currentMaterial != null && currentMaterial != originalMaterial && !currentMaterial.IsRemoved) {
-						// The renderer already has our custom material, just update cache
-						Logger.LogWire("Material", "Found existing custom material already on renderer, updating cache");
-						materialCache[renderer] = currentMaterial;
-						fresnelMaterial = currentMaterial;
-					} else {
-						// Get all FresnelMaterial components on the slot and clean up duplicates
-						var allMaterials = renderer.Slot.GetComponents<FresnelMaterial>().ToList();
-						FresnelMaterial newMaterial = null;
-						
-						// Find a custom material (not the original) to reuse, or clean up duplicates
-						foreach (var mat in allMaterials) {
-							if (mat == originalMaterial) continue; // Skip the original material
-							
-							if (newMaterial == null) {
-								// Use the first custom material we find
-								newMaterial = mat;
-								Logger.LogWire("Material", "Reusing existing custom FresnelMaterial component");
-							} else {
-								// Remove duplicate materials
-								mat.Destroy();
-								Logger.LogWire("Material", "Cleaned up duplicate FresnelMaterial component");
-							}
-						}
-						
-						// If no custom material found, create one
-						if (newMaterial == null) {
-							newMaterial = renderer.Slot.AttachComponent<FresnelMaterial>();
-							Logger.LogWire("Material", "Created new FresnelMaterial component");
-						}
-						
-						newMaterial.NearColor.Value = colorX.White;
-						newMaterial.FarColor.Value = colorX.White;
-						newMaterial.Sidedness.Value = originalMaterial.Sidedness.Value;
-						newMaterial.UseVertexColors.Value = originalMaterial.UseVertexColors.Value;
-						newMaterial.BlendMode.Value = originalMaterial.BlendMode.Value;
-						newMaterial.ZWrite.Value = originalMaterial.ZWrite.Value;
-						newMaterial.NearTextureScale.Value = originalMaterial.NearTextureScale.Value;
-						newMaterial.NearTextureOffset.Value = originalMaterial.NearTextureOffset.Value;
-						newMaterial.FarTextureScale.Value = originalMaterial.FarTextureScale.Value;
-						newMaterial.FarTextureOffset.Value = originalMaterial.FarTextureOffset.Value;
-
-						materialCache[renderer] = newMaterial;
-						fresnelMaterial = newMaterial;
-						renderer.Material.Target = fresnelMaterial;
-					}
+			if (!materialCache.TryGetValue(renderer, out var fresnelMaterial) || fresnelMaterial == null || fresnelMaterial.IsRemoved) {
+				var originalMaterial = renderer.Material.Target as FresnelMaterial;
+				if (originalMaterial == null) {
+					return;
 				}
+
+				// Check if a custom material already exists on the slot (for multiplayer safety)
+				var existingMaterial = renderer.Slot.GetComponent<FresnelMaterial>();
+				if (existingMaterial != null && existingMaterial != originalMaterial) {
+					// Use the existing custom material instead of creating a new one
+					materialCache[renderer] = existingMaterial;
+					fresnelMaterial = existingMaterial;
+					renderer.Material.Target = fresnelMaterial;
+				} else {
+					// Create a new material only if one doesn't exist
+					var newMaterial = renderer.Slot.AttachComponent<FresnelMaterial>();
+					newMaterial.NearColor.Value = colorX.White;
+					newMaterial.FarColor.Value = colorX.White;
+					newMaterial.Sidedness.Value = originalMaterial.Sidedness.Value;
+					newMaterial.UseVertexColors.Value = originalMaterial.UseVertexColors.Value;
+					newMaterial.BlendMode.Value = originalMaterial.BlendMode.Value;
+					newMaterial.ZWrite.Value = originalMaterial.ZWrite.Value;
+					newMaterial.NearTextureScale.Value = originalMaterial.NearTextureScale.Value;
+					newMaterial.NearTextureOffset.Value = originalMaterial.NearTextureOffset.Value;
+					newMaterial.FarTextureScale.Value = originalMaterial.FarTextureScale.Value;
+					newMaterial.FarTextureOffset.Value = originalMaterial.FarTextureOffset.Value;
+
+					materialCache[renderer] = newMaterial;
+					fresnelMaterial = newMaterial;
+					renderer.Material.Target = fresnelMaterial;
+				}
+			}
 
 				// === Wire Mesh Setup ===
 				var wireMesh = ____wireMesh?.Target;
@@ -302,10 +278,10 @@ public class ProtoFluxOverhaul : ResoniteMod {
 				}
 
 				// === Animation Setup ===
-				// Get or create Panner2D for scrolling effect
-				if (!pannerCache.TryGetValue(__instance.Slot, out var panner)) {
-					panner = __instance.Slot.GetComponentOrAttach<Panner2D>();
-					pannerCache[__instance.Slot] = panner;
+				// Get or create Panner2D for scrolling effect on the material's slot
+				if (!pannerCache.TryGetValue(renderer.Slot, out var panner)) {
+					panner = renderer.Slot.GetComponentOrAttach<Panner2D>();
+					pannerCache[renderer.Slot] = panner;
 				}
 
 				try {
@@ -321,25 +297,23 @@ public class ProtoFluxOverhaul : ResoniteMod {
 				float directionFactor = flipDirection ? -1f : 1f;
 				panner.Speed = new float2(baseSpeed.x * directionFactor, baseSpeed.y);
 
-				var farTexture = GetOrCreateSharedTexture(__instance.Slot, Config.GetValue(WIRE_TEXTURE));
+				var farTexture = GetOrCreateSharedTexture(renderer.Slot, Config.GetValue(WIRE_TEXTURE));
 				fresnelMaterial.FarTexture.Target = farTexture;
 
-				var nearTexture = GetOrCreateSharedTexture(__instance.Slot, Config.GetValue(WIRE_TEXTURE));
+				var nearTexture = GetOrCreateSharedTexture(renderer.Slot, Config.GetValue(WIRE_TEXTURE));
 				fresnelMaterial.NearTexture.Target = nearTexture;
 
 				// === Texture Offset Setup ===
 				// Setup texture offset drivers if they don't exist
-				if (!fresnelMaterial.FarTextureOffset.IsLinked) {
-					if (panner.Target == null)
-					{
-						panner.Target = fresnelMaterial.FarTextureOffset;
-					}
+				if (!fresnelMaterial.FarTextureOffset.IsLinked && panner.Target == null) {
+					panner.Target = fresnelMaterial.FarTextureOffset;
 				}
 
 				if (!fresnelMaterial.NearTextureOffset.IsLinked) {
-					ValueDriver<float2> newNearDrive = fresnelMaterial.Slot.GetComponentOrAttach<ValueDriver<float2>>();
+					// Create a ValueDriver to link NearTextureOffset to the same panner output
+					ValueDriver<float2> newNearDrive = renderer.Slot.GetComponentOrAttach<ValueDriver<float2>>();
 					
-					if (!newNearDrive.DriveTarget.IsLinkValid)
+					if (!newNearDrive.DriveTarget.IsLinkValid && panner.Target != null)
 					{
 						newNearDrive.DriveTarget.Target = fresnelMaterial.NearTextureOffset;
 						newNearDrive.ValueSource.Target = panner.Target;
@@ -355,6 +329,10 @@ public class ProtoFluxOverhaul : ResoniteMod {
 	/// Creates or retrieves a shared FresnelMaterial for wire rendering
 	/// Creates or retrieves a texture with specified settings directly on the wire slot
 	private static StaticTexture2D GetOrCreateSharedTexture(Slot slot, Uri uri) {
+		if (slot == null) {
+			throw new ArgumentNullException(nameof(slot));
+		}
+		
 		StaticTexture2D texture = slot.GetComponentOrAttach<StaticTexture2D>();
 		texture.URL.Value = uri;
 
@@ -443,7 +421,7 @@ public class ProtoFluxOverhaul : ResoniteMod {
 				}
 
 				// === Renderer Slot Cleanup ===
-				// Clean up components from renderer's slot (FresnelMaterial is attached here)
+				// Clean up components from renderer's slot (FresnelMaterial and StaticTexture2D are attached here)
 				if (renderer?.Slot != null) {
 					// Clean up any FresnelMaterial components that might not be in cache
 					var fresnelMaterials = renderer.Slot.GetComponents<FresnelMaterial>().ToList();
@@ -453,44 +431,44 @@ public class ProtoFluxOverhaul : ResoniteMod {
 							Logger.LogWire("Cleanup", "Additional FresnelMaterial removed from renderer slot");
 						}
 					}
-				}
 
-				// === Panner Cleanup ===
-				// Clean up the cached panner when wire is destroyed
-				if (__instance?.Slot != null && pannerCache.ContainsKey(__instance.Slot)) {
-					pannerCache.Remove(__instance.Slot);
-					Logger.LogWire("Cleanup", "Panner removed from cache for destroyed wire");
-				}
-
-				// === Wire Slot Cleanup ===
-				// Clean up Panner2D and StaticTexture2D components from the wire manager slot
-				if (__instance?.Slot != null) {
-					// Clean up Panner2D components
-					var panners = __instance.Slot.GetComponents<Panner2D>().ToList();
-					foreach (var panner in panners) {
-						if (panner != null && !panner.IsRemoved) {
-							panner.Destroy();
-							Logger.LogWire("Cleanup", "Panner2D component removed from wire slot");
-						}
-					}
-
-					// Clean up StaticTexture2D components
-					var textures = __instance.Slot.GetComponents<StaticTexture2D>().ToList();
+					// Clean up StaticTexture2D components from renderer's slot
+					var textures = renderer.Slot.GetComponents<StaticTexture2D>().ToList();
 					foreach (var texture in textures) {
 						if (texture != null && !texture.IsRemoved) {
 							texture.Destroy();
-							Logger.LogWire("Cleanup", "StaticTexture2D removed from wire slot");
+							Logger.LogWire("Cleanup", "StaticTexture2D removed from renderer slot");
+						}
+					}
+				}
+
+				// === Renderer Slot Additional Cleanup ===
+				// Clean up Panner2D and ValueDriver components from the renderer's slot
+				if (renderer?.Slot != null) {
+					// Clean up Panner2D components
+					var panners = renderer.Slot.GetComponents<Panner2D>().ToList();
+					foreach (var panner in panners) {
+						if (panner != null && !panner.IsRemoved) {
+							panner.Destroy();
+							Logger.LogWire("Cleanup", "Panner2D component removed from renderer slot");
 						}
 					}
 
 					// Clean up ValueDriver components (used for texture offset animation)
-					var valueDrivers = __instance.Slot.GetComponents<ValueDriver<float2>>().ToList();
+					var valueDrivers = renderer.Slot.GetComponents<ValueDriver<float2>>().ToList();
 					foreach (var driver in valueDrivers) {
 						if (driver != null && !driver.IsRemoved) {
 							driver.Destroy();
-							Logger.LogWire("Cleanup", "ValueDriver removed from wire slot");
+							Logger.LogWire("Cleanup", "ValueDriver removed from renderer slot");
 						}
 					}
+				}
+
+				// === Panner Cache Cleanup ===
+				// Clean up the cached panner when wire is destroyed (after components are destroyed)
+				if (renderer?.Slot != null && pannerCache.ContainsKey(renderer.Slot)) {
+					pannerCache.Remove(renderer.Slot);
+					Logger.LogWire("Cleanup", "Panner removed from cache for destroyed wire");
 				}
 
 				// Skip if disabled
