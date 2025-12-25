@@ -28,7 +28,8 @@ namespace ProtoFluxOverhaul
             Audio,      // Audio-related operations
             UI,         // UI-related operations
             Permission, // Permission checks
-            Wire        // Wire-related operations
+            Wire,       // Wire-related operations
+            Node        // Node-related operations
         }
 
         /// <summary>
@@ -71,7 +72,9 @@ namespace ProtoFluxOverhaul
         /// </summary>
         public static void LogError(string message, Exception e, LogCategory category = LogCategory.General)
         {
-            string errorMessage = $"{message}\nException: {e.Message}\nStack Trace: {e.StackTrace}";
+            string errorMessage = e != null 
+                ? $"{message}\nException: {e.Message}\nStack Trace: {e.StackTrace}"
+                : message;
             DebugLog(errorMessage, LogLevel.Error, category);
         }
 
@@ -120,6 +123,18 @@ namespace ProtoFluxOverhaul
                 $"Wire operation ({operation}): {details}",
                 LogLevel.Debug,
                 LogCategory.Wire
+            );
+        }
+
+        /// <summary>
+        /// Logs a node-related operation
+        /// </summary>
+        public static void LogNode(string operation, string details)
+        {
+            DebugLog(
+                $"Node operation ({operation}): {details}",
+                LogLevel.Debug,
+                LogCategory.Node
             );
         }
     }

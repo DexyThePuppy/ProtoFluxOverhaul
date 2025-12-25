@@ -19,7 +19,7 @@ namespace ProtoFluxOverhaul
         private static readonly Dictionary<string, StaticAudioClip> sharedAudioClips = new Dictionary<string, StaticAudioClip>();
         
         // List of all sound names we need to preload
-        public static readonly string[] SOUND_NAMES = { "Connect", "Delete", "Grab" };
+        public static readonly string[] SOUND_NAMES = { "Connect", "Delete", "Grab", "NodeCreate", "NodeGrab" };
         
         // Track initialization
         public static bool isInitialized = false;
@@ -54,6 +54,14 @@ namespace ProtoFluxOverhaul
                         result = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.GRAB_SOUND);
                         Logger.LogAudio("URL Config", $"Grab sound URL: {result}");
                         return result;
+                    case "NodeCreate":
+                        result = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.NODE_CREATE_SOUND);
+                        Logger.LogAudio("URL Config", $"NodeCreate sound URL: {result}");
+                        return result;
+                    case "NodeGrab":
+                        result = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.NODE_GRAB_SOUND);
+                        Logger.LogAudio("URL Config", $"NodeGrab sound URL: {result}");
+                        return result;
                     default:
                         throw new ArgumentException($"Unknown sound name: {soundName}");
                 }
@@ -74,27 +82,46 @@ namespace ProtoFluxOverhaul
             // Check cache first
             if (sharedAudioClips.TryGetValue(soundName, out var existingClip) && !existingClip.IsRemoved)
             {
+                Logger.LogAudio("Cache", $"Using cached audio clip for {soundName}");
                 return existingClip;
             }
 
-            // Create organized hierarchy under __TEMP
-            var tempSlot = world.RootSlot.FindChild("__TEMP") ?? world.RootSlot.AddSlot("__TEMP", false);
-            var modSlot = tempSlot.FindChild("ProtoFluxOverhaul") ?? tempSlot.AddSlot("ProtoFluxOverhaul", false);
-            var userSlot = modSlot.FindChild(world.LocalUser.UserName) ?? modSlot.AddSlot(world.LocalUser.UserName, false);
-            var soundsSlot = userSlot.FindChild("Sounds") ?? userSlot.AddSlot("Sounds", false);
-            var clipSlot = soundsSlot.FindChild(soundName) ?? soundsSlot.AddSlot(soundName, false);
+            try
+            {
+                // Create organized hierarchy under __TEMP
+                var tempSlot = world.RootSlot.FindChild("__TEMP") ?? world.RootSlot.AddSlot("__TEMP", false);
+                var modSlot = tempSlot.FindChild("ProtoFluxOverhaul") ?? tempSlot.AddSlot("ProtoFluxOverhaul", false);
+                var userSlot = modSlot.FindChild(world.LocalUser.UserName) ?? modSlot.AddSlot(world.LocalUser.UserName, false);
+                var soundsSlot = userSlot.FindChild("Sounds") ?? userSlot.AddSlot("Sounds", false);
+                var clipSlot = soundsSlot.FindChild(soundName) ?? soundsSlot.AddSlot(soundName, false);
 
-            // Use SlotAssets.AttachAudioClip pattern (optimized by engine)
-            var clip = clipSlot.AttachAudioClip(GetSoundUrl(soundName), getExisting: true);
-            
-            // Ensure cleanup when user leaves
-            userSlot.GetComponentOrAttach<DestroyOnUserLeave>().TargetUser.Target = world.LocalUser;
+                // Get the sound URL
+                var soundUrl = GetSoundUrl(soundName);
+                Logger.LogAudio("Debug", $"Creating audio clip for {soundName} with URL: {soundUrl}");
 
-            // Cache it
-            sharedAudioClips[soundName] = clip;
-            Logger.LogAudio("Cache", $"Created shared audio clip for {soundName} in {clipSlot.Name} under {clipSlot.Parent?.Name ?? "unknown"}");
-            
-            return clip;
+                // Use SlotAssets.AttachAudioClip pattern (optimized by engine)
+                var clip = clipSlot.AttachAudioClip(soundUrl, getExisting: true);
+                
+                if (clip == null)
+                {
+                    Logger.LogError($"Failed to create audio clip for {soundName} with URL {soundUrl}", null, LogCategory.Audio);
+                    return null;
+                }
+                
+                // Ensure cleanup when user leaves
+                userSlot.GetComponentOrAttach<DestroyOnUserLeave>().TargetUser.Target = world.LocalUser;
+
+                // Cache it
+                sharedAudioClips[soundName] = clip;
+                Logger.LogAudio("Cache", $"Created shared audio clip for {soundName} in {clipSlot.Name} under {clipSlot.Parent?.Name ?? "unknown"}");
+                
+                return clip;
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError($"Error creating shared audio clip for {soundName}", ex, LogCategory.Audio);
+                return null;
+            }
         }
 
         /// <summary>
@@ -113,8 +140,21 @@ namespace ProtoFluxOverhaul
 
             try
             {
-                // Get shared audio clip (creates if needed)
+                // Get shared audio clip (creates if needed) - ensure it's in the same world
                 var sharedClip = GetSharedAudioClip(world, soundName);
+                
+                if (sharedClip == null)
+                {
+                    Logger.LogError($"Failed to get shared audio clip for {soundName}", null, LogCategory.Audio);
+                    return;
+                }
+                
+                // Verify the clip is in the correct world
+                if (sharedClip.World != world)
+                {
+                    Logger.LogError($"Audio clip world mismatch: clip is in {sharedClip.World?.Name ?? "null"}, target world is {world?.Name ?? "null"}", null, LogCategory.Audio);
+                    return;
+                }
                 
                 // Use engine's PlayOneShot pattern for optimal performance
                 // This automatically handles AudioOutput creation, StoppedPlayableCleaner, etc.
@@ -161,6 +201,28 @@ namespace ProtoFluxOverhaul
             if (!ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.WIRE_SOUNDS)) return;
             Logger.LogWire("Grab", "Playing grab sound");
             PlaySoundAndCleanup(world, position, "Grab");
+        }
+
+        /// <summary>
+        /// Called when a ProtoFlux node is created/spawned
+        /// </summary>
+        public static void OnNodeCreated(World world, float3 position)
+        {
+            if (!isInitialized) Initialize(world);
+            if (!ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.NODE_SOUNDS)) return;
+            Logger.LogNode("Create", "Playing node creation sound");
+            PlaySoundAndCleanup(world, position, "NodeCreate");
+        }
+
+        /// <summary>
+        /// Called when a ProtoFlux node is grabbed
+        /// </summary>
+        public static void OnNodeGrabbed(World world, float3 position)
+        {
+            if (!isInitialized) Initialize(world);
+            if (!ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.NODE_SOUNDS)) return;
+            Logger.LogNode("Grab", "Playing node grab sound");
+            PlaySoundAndCleanup(world, position, "NodeGrab");
         }
     }
 } 
