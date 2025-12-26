@@ -35,41 +35,51 @@ The mod comes with extensive configurable options organized into several categor
 | Setting | Default | Description |
 |---------|---------|-------------|
 | `Enabled` | `true` | Enable/disable the mod |
-| `WireSounds` | `true` | Enable custom wire interaction sounds |
-| `debugLogging` | `false` | Enable debug logging for troubleshooting |
+| `Enable Debug Logging` | `false` | Enable debug logging for troubleshooting |
+| `Colored Node Background` | `false` | Use node type color as the node background tint |
+| `Use PlatformColorPalette` | `false` | Drive connector/node colors from `PlatformColorPalette` |
+| `Enable Connector Label Backgrounds` | `true` | Enable the background images on connector labels |
+| `Auto Rebuild Selected Nodes` | `false` | Rebuild selected nodes to apply styling (local-only visuals) |
+| `Enable Header Background` | `true` | Enable the header background image |
+| `Enable Footer Category Text` | `true` | Enable the category text at the bottom of nodes |
 
 ### Animation Settings
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `scrollSpeed` | `[-0.5; 0]` | Control the direction and speed of wire animation (X,Y) |
-| `scrollRepeat` | `[1; 1]` | How often the animation repeats (X,Y) |
-| `pingPong` | `false` | Enable back-and-forth animation instead of looping |
+| `Scroll Speed` | `[-0.5; 0]` | Wire animation speed (X,Y) |
+| `Scroll Repeat Interval` | `[1; 1]` | Wire animation repeat interval (X,Y) |
 
 ### Texture URLs
 
-| Setting | Description |
-|---------|-------------|
-| `farTexture` | Wire texture for distant viewing |
-| `nearTexture` | Wire texture for close-up viewing |
-| `roundedTexture` | Texture for rounded UI elements |
-| `connectorInputTexture` | Texture for input connectors |
-| `connectorOutputTexture` | Texture for output connectors |
-| `callConnectorInputTexture` | Texture for call/impulse input connectors |
-| `callConnectorOutputTexture` | Texture for call/impulse output connectors |
-| `nodeBackgroundTexture` | Background texture for node bodies |
-| `nodeBackgroundHeaderTexture` | Background texture for node headers |
+| Setting | Example | Description |
+|---------|---------|-------------|
+| `Wire Texture` | `resdb:///example.png` | Main wire texture |
+| `Default Connector \| Both \| Texture` | `resdb:///example.png` | Default connector texture |
+| `Call Connector \| Input \| Texture` | `resdb:///example.png` | Call/flow input connector texture |
+| `Call Connector \| Output \| Texture` | `resdb:///example.png` | Call/flow output connector texture |
+| `x1 Connector \| Texture` | `resdb:///example.png` | Vector x1 connector texture |
+| `x2 Connector \| Texture` | `resdb:///example.png` | Vector x2 connector texture |
+| `x3 Connector \| Texture` | `resdb:///example.png` | Vector x3 connector texture |
+| `Node Background \| Texture` | `resdb:///example.png` | Node background texture |
+| `Node Background Header \| Texture` | `resdb:///example.png` | Node header background texture |
+| `Shading \| Texture` | `resdb:///example.png` | Shading overlay texture |
+| `Shading Inverted \| Texture` | `resdb:///example.png` | Inverted shading overlay texture |
 
 ### Audio Settings
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `grabSound` | `resdb:///391ce0c681b24b79a0240a1fa2e4a4c06492619897c0e6e045640e71a34b7ec7.wav` | Sound when grabbing a wire |
-| `deleteSound` | `resdb:///b0c4195cce0990b27a3525623f46787d247c530387f8bc551e50bcf0584ab28b.wav` | Sound when deleting a wire |
-| `connectSound` | `resdb:///8c63d74efcef070bf8fec2f9b1b20eecb15a499b17c64abaad225467d138d93b.wav` | Sound when connecting a wire |
-| `audioVolume` | `1.0` | Volume level for wire sounds (0.0-1.0) |
-| `minDistance` | `1.0` | Minimum distance for 3D audio falloff |
-| `maxDistance` | `10.0` | Maximum distance for 3D audio falloff |
+| `Wire Sounds` | `true` | Enable wire interaction sounds |
+| `Node Sounds` | `true` | Enable node interaction sounds |
+| `Grab Sound` | `resdb:///example.wav` | Sound when grabbing a wire/node |
+| `Delete Sound` | `resdb:///example.wav` | Sound when deleting a wire |
+| `Connect Sound` | `resdb:///example.wav` | Sound when connecting a wire |
+| `Node Create Sound` | `resdb:///example.wav` | Sound when spawning a node |
+| `Node Grab Sound` | `resdb:///example.wav` | Sound when grabbing a node |
+| `Audio Volume` | `1.0` | Volume level for sounds |
+| `Audio Min Distance` | `0.1` | Minimum distance for 3D audio falloff |
+| `Audio Max Distance` | `25.0` | Maximum distance for 3D audio falloff |
 
 > **Note**: To switch a wire's appearance, it needs to be destroyed and re-created - simply reconnecting will reuse the old wire.
 
@@ -81,30 +91,30 @@ For users who want to fine-tune texture rendering, these advanced settings contr
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `filterMode` | `Anisotropic` | Texture filtering method (Point, Bilinear, Trilinear, Anisotropic) |
-| `anisotropicLevel` | `8` | Level of anisotropic filtering (1-16) |
-| `mipMaps` | `false` | Enable automatic mipmap generation |
-| `keepOriginalMipMaps` | `false` | Preserve original texture mipmaps |
-| `mipMapFilter` | `Box` | Filter method for mipmap generation |
+| `Texture Filter Mode` | `Anisotropic` | Texture filtering mode |
+| `Anisotropic Level` | `16` | Anisotropic filtering level (1-16) |
+| `Generate MipMaps` | `true` | Generate mipmaps |
+| `Keep Original MipMaps` | `false` | Keep original mipmaps |
+| `MipMap Filter` | `Lanczos3` | Mipmap filter method |
 
 ### Texture Loading & Compression
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `uncompressed` | `false` | Load textures without compression |
-| `directLoad` | `false` | Skip texture processing pipeline |
-| `forceExactVariant` | `true` | Force exact texture variant matching |
-| `crunchCompressed` | `true` | Use crunch compression for smaller file sizes |
-| `preferredFormat` | `BC3_Crunched` | Preferred texture compression format |
-| `preferredProfile` | `sRGB` | Color space profile for textures |
+| `Uncompressed Texture` | `true` | Load textures without compression |
+| `Direct Load` | `true` | Skip processing pipeline (faster load) |
+| `Force Exact Variant` | `true` | Force exact texture variant matching |
+| `Crunch Compression` | `false` | Use crunch compression |
+| `Preferred Texture Format` | `BC3_Crunched` | Preferred texture compression format |
+| `Preferred Color Profile` | `sRGBAlpha` | Color profile for textures |
 
 ### Texture Wrapping & Memory
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `wrapModeU` | `Repeat` | Horizontal texture wrapping (Repeat, Clamp, Mirror) |
-| `wrapModeV` | `Repeat` | Vertical texture wrapping (Repeat, Clamp, Mirror) |
-| `readable` | `true` | Keep texture data accessible in memory |
+| `Texture Wrap Mode U` | `Repeat` | Horizontal texture wrapping |
+| `Texture Wrap Mode V` | `Clamp` | Vertical texture wrapping |
+| `Readable Texture` | `true` | Keep texture data accessible in memory |
 
 
 ## 🐾 Notes
