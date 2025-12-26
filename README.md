@@ -1,4 +1,4 @@
-<img align="right" alt="logo" width="280" src="ProtoFluxOverhaul/Images/Logo.png">
+<img align="right" alt="logo" width="280" src="ProtoFluxOverhaul/Resources/Images/Logo.png">
 
 # **ProtoFluxOverhaul**
 
@@ -6,11 +6,11 @@
 
 | Node Closeup | Wire Closeup | Wire Texture |
 |:-------------:|:-------------:|:-------------:|
-| <img src="ProtoFluxOverhaul/Images/Node.png" alt="Preview of animated ProtoFlux wires" width="400"/> | <img src="ProtoFluxOverhaul/Images/SmallPreview.png" alt="Preview of animated ProtoFlux wires" width="300"/> | <img src="ProtoFluxOverhaul/Images/Texture.png" alt="Preview of animated ProtoFlux wires" width="60"/> 
+| <img src="ProtoFluxOverhaul/Resources/Images/Node.png" alt="Preview of animated ProtoFlux wires" width="400"/> | <img src="ProtoFluxOverhaul/Resources/Images/SmallPreview.png" alt="Preview of animated ProtoFlux wires" width="300"/> | <img src="ProtoFluxOverhaul/Resources/Images/Texture.png" alt="Preview of animated ProtoFlux wires" width="60"/> 
 
 | Example |
 |:-------------:|
-| <img src="ProtoFluxOverhaul/Images/Nodes.png" alt="Preview of animated ProtoFlux wires" width="800"/> | 
+| <img src="ProtoFluxOverhaul/Resources/Images/Nodes.png" alt="Preview of animated ProtoFlux wires" width="800"/> | 
 
 ## 🦴 Features
 
