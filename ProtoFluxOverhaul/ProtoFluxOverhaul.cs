@@ -108,13 +108,13 @@ public partial class ProtoFluxOverhaul : ResoniteMod {
 
 				bool hasPermission = (componentAllocUser != null &&
 					componentPosition >= componentAllocUser.AllocationIDStart &&
-					(componentAllocUser == component.LocalUser || component.LocalUser.IsHost));
+					componentAllocUser == component.LocalUser);
 
 				Logger.LogPermission("Instance Check", hasPermission, $"Permission check (instance): Owner={componentAllocUser?.UserName}, IsLocalUser={componentAllocUser == component.LocalUser}, IsHost={component.LocalUser.IsHost}, Result={hasPermission}, Type={component.GetType().Name}");
 				return hasPermission;
 			}
 
-			bool result = slotAllocUser == component.LocalUser || component.LocalUser.IsHost;
+			bool result = slotAllocUser == component.LocalUser;
 			Logger.LogPermission("Slot Check", result, $"Permission check (slot): Owner={slotAllocUser?.UserName}, IsLocalUser={slotAllocUser == component.LocalUser}, IsHost={component.LocalUser.IsHost}, Result={result}, Type={component.GetType().Name}");
 			return result;
 		} catch (Exception e) {

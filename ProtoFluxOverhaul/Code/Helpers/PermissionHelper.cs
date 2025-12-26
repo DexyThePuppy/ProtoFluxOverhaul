@@ -47,14 +47,14 @@ namespace ProtoFluxOverhaul
 					// Allow the owner or host/admin to modify
 					bool hasPermission = (instanceAllocUser != null &&
 						position1 >= instanceAllocUser.AllocationIDStart &&
-						(instanceAllocUser == instance.LocalUser || instance.LocalUser.IsHost));
+						instanceAllocUser == instance.LocalUser);
 
 					Logger.LogPermission("Instance Check", hasPermission, $"Permission check (instance): Owner={instanceAllocUser?.UserName}, IsLocalUser={instanceAllocUser == instance.LocalUser}, IsHost={instance.LocalUser.IsHost}, Result={hasPermission}");
 					return hasPermission;
 				}
 
 				// Allow the owner or host/admin to modify
-				bool result = slotAllocUser == instance.LocalUser || instance.LocalUser.IsHost;
+				bool result = slotAllocUser == instance.LocalUser;
 				Logger.LogPermission("Visual Check", result, $"Permission check (visual): Owner={slotAllocUser?.UserName}, IsLocalUser={slotAllocUser == instance.LocalUser}, IsHost={instance.LocalUser.IsHost}, Result={result}");
 				return result;
 			}
@@ -94,14 +94,14 @@ namespace ProtoFluxOverhaul
 					// Allow the wire owner or host/admin to modify
 					bool hasPermission = (instanceAllocUser != null &&
 						position1 >= instanceAllocUser.AllocationIDStart &&
-						(instanceAllocUser == instance.LocalUser || instance.LocalUser.IsHost));
+						instanceAllocUser == instance.LocalUser);
 
 					Logger.LogPermission("Instance Check", hasPermission, $"Permission check (instance): Owner={instanceAllocUser?.UserName}, IsLocalUser={instanceAllocUser == instance.LocalUser}, IsHost={instance.LocalUser.IsHost}, Result={hasPermission}");
 					return hasPermission;
 				}
 
 				// Allow the wire owner or host/admin to modify
-				bool result = wirePointAllocUser == instance.LocalUser || instance.LocalUser.IsHost;
+				bool result = wirePointAllocUser == instance.LocalUser;
 				Logger.LogPermission("Wire Check", result, $"Permission check (wire): Owner={wirePointAllocUser?.UserName}, IsLocalUser={wirePointAllocUser == instance.LocalUser}, IsHost={instance.LocalUser.IsHost}, Result={result}");
 				return result;
 			}
