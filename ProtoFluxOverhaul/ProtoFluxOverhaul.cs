@@ -1,194 +1,128 @@
-using FrooxEngine;
-using HarmonyLib;
-using ResoniteModLoader;
-using FrooxEngine.ProtoFlux;
-using Elements.Core;
 using System;
 using System.Collections.Generic;
-using Elements.Assets;
 using System.Linq;
-using FrooxEngine.UIX;
 using System.Reflection;
+using Elements.Assets;
+using Elements.Core;
+using FrooxEngine;
+using FrooxEngine.ProtoFlux;
+using FrooxEngine.UIX;
+using HarmonyLib;
 using Renderite.Shared;
+using ResoniteModLoader;
 using static ProtoFluxOverhaul.Logger;
 
 namespace ProtoFluxOverhaul;
 
-public class ProtoFluxOverhaul : ResoniteMod {
-	internal const string VERSION_CONSTANT = "1.4.9";
+public partial class ProtoFluxOverhaul : ResoniteMod {
+	internal const string VERSION = "1.5.0";
 	public override string Name => "ProtoFluxOverhaul";
 	public override string Author => "Dexy, NepuShiro";
-	public override string Version => VERSION_CONSTANT;
+	public override string Version => VERSION;
 	public override string Link => "https://github.com/DexyThePuppy/ProtoFluxOverhaul";
 
 	// Configuration
 	public static ModConfiguration Config;
-	public static readonly Dictionary<Slot, Panner2D> pannerCache = new Dictionary<Slot, Panner2D>();
-	public static readonly Dictionary<MeshRenderer, FresnelMaterial> materialCache = new Dictionary<MeshRenderer, FresnelMaterial>();
-	
+
 	// ============ BASIC SETTINGS ============
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<dummy> SPACER_BASIC = new("spacerMain", "--- Main Settings ---", () => new dummy());
-
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<bool> ENABLED = new("Enabled", "Should ProtoFluxOverhaul be Enabled?", () => true);
-
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<bool> DEBUG_LOGGING = new("Enable Debug Logging", "Enable Debug Logging", () => false);
-
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<bool> USE_HEADER_COLOR_FOR_BACKGROUND = new("Colored Node Background", "Use Node Type Color as Background Color for Nodes", () => false);
-
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<bool> USE_PLATFORM_COLOR_PALETTE = new(
-		"Use PlatformColorPalette",
-		"Attach PlatformColorPalette to each ProtoFlux node UI and drive header/background/overview Image.Tint via ValueCopy from the palette outputs",
-		() => false);
-
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<bool> ENABLE_CONNECTOR_LABEL_BACKGROUNDS = new("Enable Connector Label Backgrounds", "Enable the background images on connector labels", () => true);
-
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<float> CONNECTOR_LABEL_SPRITE_SCALE = new(
-		"Connector Label | Sprite Scale",
-		"Scale of the rounded sprite used for connector label backgrounds (independent from header/background)",
-		() => 0.03f);
-
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<bool> ENABLE_HEADER_BACKGROUND = new("Enable Header Background", "Enable the background image on node headers", () => true);
-
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<bool> ENABLE_FOOTER_CATEGORY_TEXT = new("Enable Footer Category Text", "Enable the category text at the bottom of nodes", () => true);
+	[AutoRegisterConfigKey] public static readonly ModConfigurationKey<dummy> SPACER_BASIC = new("spacerMain", "--- Main Settings ---", () => new dummy());
+	[AutoRegisterConfigKey] public static readonly ModConfigurationKey<bool> ENABLED = new("Enabled", "Should ProtoFluxOverhaul be Enabled?", () => true);
+	[AutoRegisterConfigKey] public static readonly ModConfigurationKey<bool> DEBUG_LOGGING = new("Enable Debug Logging", "Enable Debug Logging", () => false);
+	[AutoRegisterConfigKey] public static readonly ModConfigurationKey<bool> USE_HEADER_COLOR_FOR_BACKGROUND = new("Colored Node Background", "Use Node Type Color as Background Color for Nodes", () => false);
+	[AutoRegisterConfigKey] public static readonly ModConfigurationKey<bool> USE_PLATFORM_COLOR_PALETTE = new("Use PlatformColorPalette", "Attach PlatformColorPalette to each ProtoFlux node UI and drive header/background/overview Image.Tint via ValueCopy from the palette outputs", () => false);
+	[AutoRegisterConfigKey] public static readonly ModConfigurationKey<bool> ENABLE_CONNECTOR_LABEL_BACKGROUNDS = new("Enable Connector Label Backgrounds", "Enable the background images on connector labels", () => true);
+	[AutoRegisterConfigKey] public static readonly ModConfigurationKey<bool> AUTO_REBUILD_SELECTED_NODES = new("Auto Rebuild Selected Nodes", "When selecting ProtoFlux nodes, automatically rebuild them with ProtoFluxOverhaul styling (bypasses permission checks, not that this is only temporary and is reverted to the original behavior when the nodes are packed/unpacked).", () => false);
+	[AutoRegisterConfigKey] public static readonly ModConfigurationKey<bool> ENABLE_HEADER_BACKGROUND = new("Enable Header Background", "Enable the background image on node headers", () => true);
+	[AutoRegisterConfigKey] public static readonly ModConfigurationKey<bool> ENABLE_FOOTER_CATEGORY_TEXT = new("Enable Footer Category Text", "Enable the category text at the bottom of nodes", () => true);
 
 	// ============ ANIMATION SETTINGS ============
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<dummy> SPACER_ANIMATION = new("spacerAnimation", "--- Animation Settings ---", () => new dummy());
-
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<float2> SCROLL_SPEED = new("Scroll Speed", "Scroll Speed (X,Y)", () => new float2(-0.5f, 0f));
-	
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<float2> SCROLL_REPEAT = new("Scroll Repeat Interval", "Scroll Repeat Interval (X,Y)", () => new float2(1f, 1f));
-	
+	[AutoRegisterConfigKey] public static readonly ModConfigurationKey<dummy> SPACER_ANIMATION = new("spacerAnimation", "--- Animation Settings ---", () => new dummy());
+	[AutoRegisterConfigKey] public static readonly ModConfigurationKey<float2> SCROLL_SPEED = new("Scroll Speed", "Scroll Speed (X,Y)", () => new float2(-0.5f, 0f));
+	[AutoRegisterConfigKey] public static readonly ModConfigurationKey<float2> SCROLL_REPEAT = new("Scroll Repeat Interval", "Scroll Repeat Interval (X,Y)", () => new float2(1f, 1f));
 
 	// ============ TEXTURE URLS ============
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<dummy> SPACER_TEXTURES = new("spacerTextures", "--- Texture URLs ---", () => new dummy());
-
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<Uri> WIRE_TEXTURE = new("Wire Texture", "Wire Texture URL", () => new Uri("resdb:///75bfbcf76ebd1319013405fb2a33762aca2e4d0a0e494ecf69e20091ddf2a6de.png"));
-
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<Uri> CONNECTOR_INPUT_TEXTURE = new("Default Connector | Both | Texture", "Default Connector Texture URL", () => new Uri("resdb:///86f073f1eca1168ec2b36819cf99f3a6be56d1fd8c5d7b4a8165832ef9ffdaa4.png"));
-
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<Uri> CALL_CONNECTOR_INPUT_TEXTURE = new("Call Connector | Input | Texture", "Call Connector Input Texture URL", () => new Uri("resdb:///9b2b22316dd9775d512006995bbcdeaf0bfcebe0e7ee22034facf699b2d76d06.png"));
-
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<Uri> CALL_CONNECTOR_OUTPUT_TEXTURE = new("Call Connector | Output | Texture", "Call Connector Output Texture URL", () => new Uri("resdb:///52d53736e60f77c9f7856c87483d827eec7b0946310cd6aefc25b3c22bcd810e.png"));
-
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<Uri> VECTOR_X1_CONNECTOR_TEXTURE = new("x1 Connector | Texture", "Vector x1 Connector Texture URL", () => new Uri("resdb:///829214df5aaacecb2782da6c7b9eb4b5f45b7498a0c180ac65155afc0f92453c.png"));
-
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<Uri> VECTOR_X2_CONNECTOR_TEXTURE = new("x2 Connector | Texture", "Vector x2 Connector Texture URL", () => new Uri("resdb:///27105afe77edf1ef5f7105548d95cd0189f38436c26f59923c84787b2109333d.png"));
-
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<Uri> VECTOR_X3_CONNECTOR_TEXTURE = new("x3 Connector | Texture", "Vector x3 Connector Texture URL", () => new Uri("resdb:///69f01c5e9ad9084125cbae13d860ae4284f9adfbce0f67fb8f21431d5d659704.png"));
-
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<Uri> NODE_BACKGROUND_TEXTURE = new("Node Background | Texture", "Node Background Texture URL", () => new Uri("resdb:///440a5985be1b25ef7717047c0e1734ef31750cc01bccdfc976bf26b770dd2c08.png"));
-
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<Uri> NODE_BACKGROUND_HEADER_TEXTURE = new("Node Background Header | Texture", "Node Background Header Texture URL", () => new Uri("resdb:///440a5985be1b25ef7717047c0e1734ef31750cc01bccdfc976bf26b770dd2c08.png"));
-
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<Uri> SHADING_TEXTURE = new("Shading | Texture", "Shading overlay texture URL (used on node background, title, and label backgrounds)", () => new Uri("resdb:///80499be19181c3a3855718c62ab363166f1388cd29677e00aab00ec0e1c27101.png"));
-
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<Uri> SHADING_INVERTED_TEXTURE = new("Shading Inverted | Texture", "Shading overlay texture URL used for Title/Header and Label backgrounds", () => new Uri("resdb:///1daff2a96af606c5ea9147339cfdf5761eb4196d532af258a14461f391a467d1.png"));
+	[AutoRegisterConfigKey] public static readonly ModConfigurationKey<dummy> SPACER_TEXTURES = new("spacerTextures", "--- Texture URLs ---", () => new dummy());
+	[AutoRegisterConfigKey] public static readonly ModConfigurationKey<Uri> WIRE_TEXTURE = new("Wire Texture", "Wire Texture URL", () => new Uri("resdb:///75bfbcf76ebd1319013405fb2a33762aca2e4d0a0e494ecf69e20091ddf2a6de.png"));
+	[AutoRegisterConfigKey] public static readonly ModConfigurationKey<Uri> CONNECTOR_INPUT_TEXTURE = new("Default Connector | Both | Texture", "Default Connector Texture URL", () => new Uri("resdb:///86f073f1eca1168ec2b36819cf99f3a6be56d1fd8c5d7b4a8165832ef9ffdaa4.png"));
+	[AutoRegisterConfigKey] public static readonly ModConfigurationKey<Uri> CALL_CONNECTOR_INPUT_TEXTURE = new("Call Connector | Input | Texture", "Call Connector Input Texture URL", () => new Uri("resdb:///9b2b22316dd9775d512006995bbcdeaf0bfcebe0e7ee22034facf699b2d76d06.png"));
+	[AutoRegisterConfigKey] public static readonly ModConfigurationKey<Uri> CALL_CONNECTOR_OUTPUT_TEXTURE = new("Call Connector | Output | Texture", "Call Connector Output Texture URL", () => new Uri("resdb:///52d53736e60f77c9f7856c87483d827eec7b0946310cd6aefc25b3c22bcd810e.png"));
+	[AutoRegisterConfigKey] public static readonly ModConfigurationKey<Uri> VECTOR_X1_CONNECTOR_TEXTURE = new("x1 Connector | Texture", "Vector x1 Connector Texture URL", () => new Uri("resdb:///829214df5aaacecb2782da6c7b9eb4b5f45b7498a0c180ac65155afc0f92453c.png"));
+	[AutoRegisterConfigKey] public static readonly ModConfigurationKey<Uri> VECTOR_X2_CONNECTOR_TEXTURE = new("x2 Connector | Texture", "Vector x2 Connector Texture URL", () => new Uri("resdb:///27105afe77edf1ef5f7105548d95cd0189f38436c26f59923c84787b2109333d.png"));
+	[AutoRegisterConfigKey] public static readonly ModConfigurationKey<Uri> VECTOR_X3_CONNECTOR_TEXTURE = new("x3 Connector | Texture", "Vector x3 Connector Texture URL", () => new Uri("resdb:///69f01c5e9ad9084125cbae13d860ae4284f9adfbce0f67fb8f21431d5d659704.png"));
+	[AutoRegisterConfigKey] public static readonly ModConfigurationKey<Uri> NODE_BACKGROUND_TEXTURE = new("Node Background | Texture", "Node Background Texture URL", () => new Uri("resdb:///440a5985be1b25ef7717047c0e1734ef31750cc01bccdfc976bf26b770dd2c08.png"));
+	[AutoRegisterConfigKey] public static readonly ModConfigurationKey<Uri> NODE_BACKGROUND_HEADER_TEXTURE = new("Node Background Header | Texture", "Node Background Header Texture URL", () => new Uri("resdb:///440a5985be1b25ef7717047c0e1734ef31750cc01bccdfc976bf26b770dd2c08.png"));
+	[AutoRegisterConfigKey] public static readonly ModConfigurationKey<Uri> SHADING_TEXTURE = new("Shading | Texture", "Shading overlay texture URL (used on node background, title, and label backgrounds)", () => new Uri("resdb:///80499be19181c3a3855718c62ab363166f1388cd29677e00aab00ec0e1c27101.png"));
+	[AutoRegisterConfigKey] public static readonly ModConfigurationKey<Uri> SHADING_INVERTED_TEXTURE = new("Shading Inverted | Texture", "Shading overlay texture URL used for Title/Header and Label backgrounds", () => new Uri("resdb:///1daff2a96af606c5ea9147339cfdf5761eb4196d532af258a14461f391a467d1.png"));
 
 	// ============ AUDIO SETTINGS ============
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<dummy> SPACER_AUDIO = new("spacerAudio", "--- Audio Settings ---", () => new dummy());
-
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<bool> WIRE_SOUNDS = new("Wire Sounds", "Should wire interaction sounds be enabled?", () => true);
-
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<bool> NODE_SOUNDS = new("Node Sounds", "Should node interaction sounds be enabled?", () => true);
-
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<Uri> GRAB_SOUND = new("Grab Sound", "Grab Sound URL", () => new Uri("resdb:///391ce0c681b24b79a0240a1fa2e4a4c06492619897c0e6e045640e71a34b7ec7.wav"));
-
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<Uri> DELETE_SOUND = new("Delete Sound", "Delete Sound URL", () => new Uri("resdb:///b0c4195cce0990b27a3525623f46787d247c530387f8bc551e50bcf0584ab28b.wav"));
-
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<Uri> CONNECT_SOUND = new("Connect Sound", "Connect Sound URL", () => new Uri("resdb:///8c63d74efcef070bf8fec2f9b1b20eecb15a499b17c64abaad225467d138d93b.wav"));
-
-
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<Uri> NODE_CREATE_SOUND = new("Node Create Sound", "Node Create Sound URL", () => new Uri("resdb:///8c63d74efcef070bf8fec2f9b1b20eecb15a499b17c64abaad225467d138d93b.wav"));
-
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<Uri> NODE_GRAB_SOUND = new("Node Grab Sound", "Node Grab Sound URL", () => new Uri("resdb:///391ce0c681b24b79a0240a1fa2e4a4c06492619897c0e6e045640e71a34b7ec7.wav"));
-
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<float> AUDIO_VOLUME = new("Audio Volume", "Audio Volume", () => 1f);
-
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<float> MIN_DISTANCE = new("Audio Min Distance", "Audio Min Distance", () => 0.1f);
-
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<float> MAX_DISTANCE = new("Audio Max Distance", "Audio Max Distance", () => 25f);
+	[AutoRegisterConfigKey] public static readonly ModConfigurationKey<dummy> SPACER_AUDIO = new("spacerAudio", "--- Audio Settings ---", () => new dummy());
+	[AutoRegisterConfigKey] public static readonly ModConfigurationKey<bool> WIRE_SOUNDS = new("Wire Sounds", "Should wire interaction sounds be enabled?", () => true);
+	[AutoRegisterConfigKey] public static readonly ModConfigurationKey<bool> NODE_SOUNDS = new("Node Sounds", "Should node interaction sounds be enabled?", () => true);
+	[AutoRegisterConfigKey] public static readonly ModConfigurationKey<Uri> GRAB_SOUND = new("Grab Sound", "Grab Sound URL", () => new Uri("resdb:///391ce0c681b24b79a0240a1fa2e4a4c06492619897c0e6e045640e71a34b7ec7.wav"));
+	[AutoRegisterConfigKey] public static readonly ModConfigurationKey<Uri> DELETE_SOUND = new("Delete Sound", "Delete Sound URL", () => new Uri("resdb:///b0c4195cce0990b27a3525623f46787d247c530387f8bc551e50bcf0584ab28b.wav"));
+	[AutoRegisterConfigKey] public static readonly ModConfigurationKey<Uri> CONNECT_SOUND = new("Connect Sound", "Connect Sound URL", () => new Uri("resdb:///8c63d74efcef070bf8fec2f9b1b20eecb15a499b17c64abaad225467d138d93b.wav"));
+	[AutoRegisterConfigKey] public static readonly ModConfigurationKey<Uri> NODE_CREATE_SOUND = new("Node Create Sound", "Node Create Sound URL", () => new Uri("resdb:///8c63d74efcef070bf8fec2f9b1b20eecb15a499b17c64abaad225467d138d93b.wav"));
+	[AutoRegisterConfigKey] public static readonly ModConfigurationKey<Uri> NODE_GRAB_SOUND = new("Node Grab Sound", "Node Grab Sound URL", () => new Uri("resdb:///391ce0c681b24b79a0240a1fa2e4a4c06492619897c0e6e045640e71a34b7ec7.wav"));
+	[AutoRegisterConfigKey] public static readonly ModConfigurationKey<float> AUDIO_VOLUME = new("Audio Volume", "Audio Volume", () => 1f);
+	[AutoRegisterConfigKey] public static readonly ModConfigurationKey<float> MIN_DISTANCE = new("Audio Min Distance", "Audio Min Distance", () => 0.1f);
+	[AutoRegisterConfigKey] public static readonly ModConfigurationKey<float> MAX_DISTANCE = new("Audio Max Distance", "Audio Max Distance", () => 25f);
 
 	// ============ ADVANCED TEXTURE SETTINGS ============
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<dummy> SPACER_ADVANCED = new("spacerAdvanced", "--- Advanced Texture Settings ---", () => new dummy());
+	[AutoRegisterConfigKey] public static readonly ModConfigurationKey<dummy> SPACER_ADVANCED = new("spacerAdvanced", "--- Advanced Texture Settings ---", () => new dummy());
+	[AutoRegisterConfigKey] public static readonly ModConfigurationKey<int> ANISOTROPIC_LEVEL = new("Anisotropic Level", "Anisotropic Level", () => 16);
+	[AutoRegisterConfigKey] public static readonly ModConfigurationKey<bool> MIPMAPS = new("Generate MipMaps", "Generate MipMaps", () => true);
+	[AutoRegisterConfigKey] public static readonly ModConfigurationKey<bool> KEEP_ORIGINAL_MIPMAPS = new("Keep Original MipMaps", "Keep Original MipMaps", () => false);
+	[AutoRegisterConfigKey] public static readonly ModConfigurationKey<Filtering> MIPMAP_FILTER = new("MipMap Filter", "MipMap Filter", () => Filtering.Lanczos3);
+	[AutoRegisterConfigKey] public static readonly ModConfigurationKey<bool> UNCOMPRESSED = new("Uncompressed Texture", "Uncompressed Texture", () => true);
+	[AutoRegisterConfigKey] public static readonly ModConfigurationKey<bool> DIRECT_LOAD = new("Direct Load", "Direct Load", () => true);
+	[AutoRegisterConfigKey] public static readonly ModConfigurationKey<bool> FORCE_EXACT_VARIANT = new("Force Exact Variant", "Force Exact Variant", () => true);
+	[AutoRegisterConfigKey] public static readonly ModConfigurationKey<bool> CRUNCH_COMPRESSED = new("Crunch Compression", "Use Crunch Compression", () => false);
+	[AutoRegisterConfigKey] public static readonly ModConfigurationKey<TextureCompression> PREFERRED_FORMAT = new("Preferred Texture Format", "Preferred Texture Format", () => TextureCompression.BC3_Crunched);
+	[AutoRegisterConfigKey] public static readonly ModConfigurationKey<bool> READABLE = new("Readable Texture", "Readable Texture", () => true);
+	[AutoRegisterConfigKey] public static readonly ModConfigurationKey<TextureFilterMode> FILTER_MODE = new("Texture Filter Mode", "Texture Filter Mode", () => TextureFilterMode.Anisotropic);
+	[AutoRegisterConfigKey] public static readonly ModConfigurationKey<TextureWrapMode> WRAP_MODE_U = new("Texture Wrap Mode U", "Texture Wrap Mode U", () => TextureWrapMode.Repeat);
+	[AutoRegisterConfigKey] public static readonly ModConfigurationKey<TextureWrapMode> WRAP_MODE_V = new("Texture Wrap Mode V", "Texture Wrap Mode V", () => TextureWrapMode.Clamp);
+	[AutoRegisterConfigKey] public static readonly ModConfigurationKey<ColorProfile> PREFERRED_PROFILE = new("Preferred Color Profile", "Preferred Color Profile", () => ColorProfile.sRGBAlpha);
 
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<int> ANISOTROPIC_LEVEL = new("Anisotropic Level", "Anisotropic Level", () => 16);
+	/// <summary>
+	/// Shared ownership/host permission check for any component.
+	/// Centralized to keep all patches consistent and reduce duplication.
+	/// </summary>
+	private static bool HasPermission(Component component) {
+		try {
+			if (component == null || component.Slot == null) {
+				Logger.LogPermission("Check", false, "Permission check failed: component or slot is null");
+				return false;
+			}
 
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<bool> MIPMAPS = new("Generate MipMaps", "Generate MipMaps", () => true);
+			// Get the component's slot owner (allocation info)
+			component.Slot.ReferenceID.ExtractIDs(out ulong slotPosition, out byte slotUser);
+			User slotAllocUser = component.World.GetUserByAllocationID(slotUser);
+			Logger.LogPermission("Slot Point", true, $"Slot allocation: Position={slotPosition}, UserID={slotUser}, User={slotAllocUser?.UserName}, Type={component.GetType().Name}");
 
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<bool> KEEP_ORIGINAL_MIPMAPS = new("Keep Original MipMaps", "Keep Original MipMaps", () => false);
+			// If the slot allocation isn't valid, fall back to component allocation.
+			if (slotAllocUser == null || slotPosition < slotAllocUser.AllocationIDStart) {
+				component.ReferenceID.ExtractIDs(out ulong componentPosition, out byte componentUser);
+				User componentAllocUser = component.World.GetUserByAllocationID(componentUser);
+				Logger.LogPermission("Instance", true, $"Instance allocation: Position={componentPosition}, UserID={componentUser}, User={componentAllocUser?.UserName}, Type={component.GetType().Name}");
 
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<Filtering> MIPMAP_FILTER = new("MipMap Filter", "MipMap Filter", () => Filtering.Lanczos3);
+				bool hasPermission = (componentAllocUser != null &&
+					componentPosition >= componentAllocUser.AllocationIDStart &&
+					(componentAllocUser == component.LocalUser || component.LocalUser.IsHost));
 
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<bool> UNCOMPRESSED = new("Uncompressed Texture", "Uncompressed Texture", () => true);
+				Logger.LogPermission("Instance Check", hasPermission, $"Permission check (instance): Owner={componentAllocUser?.UserName}, IsLocalUser={componentAllocUser == component.LocalUser}, IsHost={component.LocalUser.IsHost}, Result={hasPermission}, Type={component.GetType().Name}");
+				return hasPermission;
+			}
 
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<bool> DIRECT_LOAD = new("Direct Load", "Direct Load", () => true);
-
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<bool> FORCE_EXACT_VARIANT = new("Force Exact Variant", "Force Exact Variant", () => true);
-
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<bool> CRUNCH_COMPRESSED = new("Crunch Compression", "Use Crunch Compression", () => false);
-
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<TextureCompression> PREFERRED_FORMAT = new("Preferred Texture Format", "Preferred Texture Format", () => TextureCompression.BC3_Crunched);
-
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<bool> READABLE = new("Readable Texture", "Readable Texture", () => true);
-
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<TextureFilterMode> FILTER_MODE = new("Texture Filter Mode", "Texture Filter Mode", () => TextureFilterMode.Anisotropic);
-
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<TextureWrapMode> WRAP_MODE_U = new("Texture Wrap Mode U", "Texture Wrap Mode U", () => TextureWrapMode.Repeat);
-
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<TextureWrapMode> WRAP_MODE_V = new("Texture Wrap Mode V", "Texture Wrap Mode V", () => TextureWrapMode.Clamp);
-
-	[AutoRegisterConfigKey]
-	public static readonly ModConfigurationKey<ColorProfile> PREFERRED_PROFILE = new("Preferred Color Profile", "Preferred Color Profile", () => ColorProfile.sRGBAlpha);
-
+			bool result = slotAllocUser == component.LocalUser || component.LocalUser.IsHost;
+			Logger.LogPermission("Slot Check", result, $"Permission check (slot): Owner={slotAllocUser?.UserName}, IsLocalUser={slotAllocUser == component.LocalUser}, IsHost={component.LocalUser.IsHost}, Result={result}, Type={component.GetType().Name}");
+			return result;
+		} catch (Exception e) {
+			// If anything goes wrong, deny permission to be safe
+			Logger.LogError("Permission check error", e, LogCategory.Permission);
+			return false;
+		}
+	}
 
 	public override void OnEngineInit() {
 		Config = GetConfiguration();
@@ -196,20 +130,20 @@ public class ProtoFluxOverhaul : ResoniteMod {
 
 		Harmony harmony = new Harmony("com.Dexy.ProtoFluxOverhaul");
 		harmony.PatchAll();
-		
+
 		// Always log startup regardless of debug settings
 		ResoniteMod.Msg("[ProtoFluxOverhaul] Mod loaded successfully - Harmony patches applied");
 		Logger.LogUI("Startup", "ProtoFluxOverhaul successfully loaded and patched");
-		
+
 		Config.OnThisConfigurationChanged += (k) => {
 			if (k.Key != ENABLED) {
 				Engine.Current.GlobalCoroutineManager.StartTask(async () => {
 					await default(ToWorld);
-					foreach (var kvp in pannerCache.ToList()) {
+					foreach (var kvp in _pannerCache.ToList()) {
 						var panner = kvp.Value;
 						if (panner == null || panner.IsRemoved) {
 							// Clean up stale cache entries
-							pannerCache.Remove(kvp.Key);
+							_pannerCache.Remove(kvp.Key);
 							continue;
 						}
 
@@ -223,835 +157,23 @@ public class ProtoFluxOverhaul : ResoniteMod {
 							continue;
 						}
 
-						// The panner is now on the renderer's slot directly
-						var rendererSlot = kvp.Key;
-						var fresnelMaterial = rendererSlot.GetComponent<FresnelMaterial>();
+						// Panner/material/texture live on the PFO child slot
+						var pfoSlot = kvp.Key;
+						var fresnelMaterial = pfoSlot.GetComponent<FresnelMaterial>();
 						if (fresnelMaterial != null) {
 							try {
-								var farTexture = GetOrCreateSharedTexture(rendererSlot, Config.GetValue(WIRE_TEXTURE));
+								var farTexture = GetOrCreateSharedTexture(pfoSlot, Config.GetValue(WIRE_TEXTURE));
 								fresnelMaterial.FarTexture.Target = farTexture;
-								
-								var nearTexture = GetOrCreateSharedTexture(rendererSlot, Config.GetValue(WIRE_TEXTURE));
+
+								var nearTexture = GetOrCreateSharedTexture(pfoSlot, Config.GetValue(WIRE_TEXTURE));
 								fresnelMaterial.NearTexture.Target = nearTexture;
 							} catch (Exception ex) {
-								Logger.LogError($"Error updating textures for panner on slot {rendererSlot.Name}", ex, LogCategory.UI);
+								Logger.LogError($"Error updating textures for panner on slot {pfoSlot.Name}", ex, LogCategory.UI);
 							}
 						}
 					}
 				});
-			} 
+			}
 		};
-
-	}
-
-	[HarmonyPatch(typeof(ProtoFluxWireManager), "OnChanges")]
-	class ProtoFluxWireManager_OnChanges_Patch {
-		private static float ColorDistanceSq(in colorX a, in colorX b)
-		{
-			// Euclidean distance squared in RGB space
-			float3 d = a.rgb - b.rgb;
-			return d.x * d.x + d.y * d.y + d.z * d.z;
-		}
-
-		/// <summary>
-		/// Finds the closest matching palette field for the given original color.
-		/// Returns the IField from PlatformColorPalette so it can be used with ValueCopy for dynamic driving.
-		/// 
-		/// Note: Wire colors from proxies are multiplied by 1.5 (e.g., SYNC_FLOW becomes (1.05, 1.5, 1.5)).
-		/// We normalize bright colors before comparison to ensure correct hue matching.
-		/// 
-		/// Includes all palette shades: Neutrals, Hero, Mid, Sub, and Dark.
-		/// Uses RadiantUI_Constants for color matching (always available, even before PlatformColorPalette.OnStart runs).
-		/// </summary>
-		private static IField<colorX> FindClosestPaletteField(PlatformColorPalette palette, in colorX originalColor)
-		{
-			if (palette == null) return null;
-
-			// Normalize the original color if any channel exceeds 1.0 (due to MulRGB(1.5f) in wire colors)
-			// This ensures we match based on hue rather than brightness
-			float maxChannel = MathX.Max(originalColor.r, MathX.Max(originalColor.g, originalColor.b));
-			colorX normalizedOriginal = maxChannel > 1f 
-				? new colorX(originalColor.r / maxChannel, originalColor.g / maxChannel, originalColor.b / maxChannel, originalColor.a)
-				: originalColor;
-
-			// Build list of candidate colors using RadiantUI_Constants (static, always available)
-			// paired with their corresponding palette fields for ValueCopy driving
-			var candidates = new (colorX constantColor, IField<colorX> paletteField)[]
-			{
-				// Neutrals
-				(RadiantUI_Constants.Neutrals.DARK, palette.Neutrals.Dark),
-				(RadiantUI_Constants.Neutrals.MID, palette.Neutrals.Mid),
-				(RadiantUI_Constants.Neutrals.MIDLIGHT, palette.Neutrals.MidLight),
-				(RadiantUI_Constants.Neutrals.LIGHT, palette.Neutrals.Light),
-				// Hero colors (brightest)
-				(RadiantUI_Constants.Hero.YELLOW, palette.Hero.Yellow),
-				(RadiantUI_Constants.Hero.GREEN, palette.Hero.Green),
-				(RadiantUI_Constants.Hero.RED, palette.Hero.Red),
-				(RadiantUI_Constants.Hero.PURPLE, palette.Hero.Purple),
-				(RadiantUI_Constants.Hero.CYAN, palette.Hero.Cyan),
-				(RadiantUI_Constants.Hero.ORANGE, palette.Hero.Orange),
-				// Mid colors
-				(RadiantUI_Constants.MidLight.YELLOW, palette.Mid.Yellow),
-				(RadiantUI_Constants.MidLight.GREEN, palette.Mid.Green),
-				(RadiantUI_Constants.MidLight.RED, palette.Mid.Red),
-				(RadiantUI_Constants.MidLight.PURPLE, palette.Mid.Purple),
-				(RadiantUI_Constants.MidLight.CYAN, palette.Mid.Cyan),
-				(RadiantUI_Constants.MidLight.ORANGE, palette.Mid.Orange),
-				// Sub colors
-				(RadiantUI_Constants.Sub.YELLOW, palette.Sub.Yellow),
-				(RadiantUI_Constants.Sub.GREEN, palette.Sub.Green),
-				(RadiantUI_Constants.Sub.RED, palette.Sub.Red),
-				(RadiantUI_Constants.Sub.PURPLE, palette.Sub.Purple),
-				(RadiantUI_Constants.Sub.CYAN, palette.Sub.Cyan),
-				(RadiantUI_Constants.Sub.ORANGE, palette.Sub.Orange),
-				// Dark colors
-				(RadiantUI_Constants.Dark.YELLOW, palette.Dark.Yellow),
-				(RadiantUI_Constants.Dark.GREEN, palette.Dark.Green),
-				(RadiantUI_Constants.Dark.RED, palette.Dark.Red),
-				(RadiantUI_Constants.Dark.PURPLE, palette.Dark.Purple),
-				(RadiantUI_Constants.Dark.CYAN, palette.Dark.Cyan),
-				(RadiantUI_Constants.Dark.ORANGE, palette.Dark.Orange),
-			};
-
-			IField<colorX> closestField = null;
-			float closestDistSq = float.MaxValue;
-
-			foreach (var (constantColor, paletteField) in candidates)
-			{
-				float distSq = ColorDistanceSq(in normalizedOriginal, in constantColor);
-				if (distSq < closestDistSq)
-				{
-					closestDistSq = distSq;
-					closestField = paletteField;
-				}
-			}
-
-			return closestField;
-		}
-
-		private const string PFO_SLOT_NAME = "PFO_WireOverhaul";
-
-		/// <summary>
-		/// Gets or creates the child slot for all ProtoFluxOverhaul components on a wire.
-		/// </summary>
-		private static Slot GetOrCreatePFOSlot(Slot wireSlot)
-		{
-			if (wireSlot == null) return null;
-			return wireSlot.FindChild(PFO_SLOT_NAME) ?? wireSlot.AddSlot(PFO_SLOT_NAME);
-		}
-
-		/// <summary>
-		/// Helper to set up a ValueCopy component for driving a color field from a palette field.
-		/// Attaches the ValueCopy to the PFO child slot for organization.
-		/// Returns true if successfully linked, false if the target is already driven by something else.
-		/// </summary>
-		private static bool TryLinkWireColorCopy(Slot pfoSlot, IField<colorX> sourceField, IField<colorX> targetField)
-		{
-			if (pfoSlot == null || sourceField == null || targetField == null) return false;
-
-			// Skip if already driven by another component
-			if (targetField.IsDriven) return false;
-
-			// Attach ValueCopy to the PFO slot
-			var valueCopy = pfoSlot.AttachComponent<ValueCopy<colorX>>();
-
-			// Link source and target
-			valueCopy.Source.Target = sourceField;
-			valueCopy.Target.Target = targetField;
-			valueCopy.WriteBack.Value = false;
-
-			return true;
-		}
-
-		private static bool TryIsOutputWire(ProtoFluxWireManager wire, StripeWireMesh wireMesh, out bool isOutput)
-		{
-			isOutput = false;
-			if (wire == null) return false;
-
-			// Prefer the explicit wire type if it is correctly set.
-			if (wire.Type.Value == WireType.Output) { isOutput = true; return true; }
-			if (wire.Type.Value == WireType.Input) { isOutput = false; return true; }
-
-			// Fallback: infer from mesh tangent direction (engine Setup uses +/-X * TANGENT_MAGNITUDE).
-			if (wireMesh != null)
-			{
-				try
-				{
-					isOutput = wireMesh.Tangent0.Value.x > 0f;
-					return true;
-				}
-				catch { }
-			}
-			return false;
-		}
-
-		public static void Postfix(ProtoFluxWireManager __instance, SyncRef<MeshRenderer> ____renderer, SyncRef<StripeWireMesh> ____wireMesh) {
-			try {
-				// Skip if mod is disabled or required components are missing
-				if (!Config.GetValue(ENABLED) || 
-					__instance == null || 
-					!__instance.Enabled || 
-					____renderer?.Target == null || 
-					____wireMesh?.Target == null ||
-					__instance.Slot == null) return;
-				
-				// === User Permission Check ===
-				if (!WirePermissionHelper.HasPermission(__instance)) {
-					// Skip silently for unauthorized wires to reduce log spam
-					return;
-				}
-
-				// Get or create the PFO child slot for all additional mod components
-				var pfoSlot = GetOrCreatePFOSlot(__instance.Slot);
-				if (pfoSlot == null) return;
-
-				// === Optional: override wire colors from PlatformColorPalette ===
-				// Use ValueCopy to dynamically drive wire colors from the palette fields.
-				// This ensures wire colors update automatically when the palette changes.
-				if (Config.GetValue(USE_PLATFORM_COLOR_PALETTE) && !__instance.DeleteHighlight.Value)
-				{
-					// Skip if wire colors are already being driven by our ValueCopy components
-					// (OnChanges is called repeatedly; we only need to set up once)
-					if (__instance.StartColor.IsDriven || __instance.EndColor.IsDriven)
-					{
-						// Already set up - nothing to do
-					}
-					else
-					{
-						// Attach PlatformColorPalette to the PFO child slot
-						var palette = pfoSlot.GetComponentOrAttach<PlatformColorPalette>();
-						if (palette != null)
-						{
-							var wireMesh = ____wireMesh.Target;
-
-							// Get the original wire colors (set by engine from connector type colors)
-							// These are used to find the closest matching palette field
-							// IMPORTANT: Read these BEFORE any ValueCopy is set up, otherwise we'd get the palette color
-							colorX originalStartColor = __instance.StartColor.Value;
-							colorX originalEndColor = __instance.EndColor.Value;
-
-							// Find the closest matching palette FIELD for each end of the wire.
-							// This preserves the gradient and correctly maps any type color
-							// (float, float2, int, string, etc.) to its nearest palette equivalent.
-							var startField = FindClosestPaletteField(palette, in originalStartColor);
-							var endField = FindClosestPaletteField(palette, in originalEndColor);
-
-							// Set up ValueCopy components to drive wire colors from palette fields
-							// This creates a dynamic link - wire colors will update when palette changes
-							// All ValueCopy components are attached to the PFO child slot
-							if (startField != null)
-							{
-								TryLinkWireColorCopy(pfoSlot, startField, __instance.StartColor);
-								// Also drive the mesh color for immediate visual update
-								if (wireMesh != null)
-									TryLinkWireColorCopy(pfoSlot, startField, wireMesh.Color0);
-							}
-
-							if (endField != null)
-							{
-								TryLinkWireColorCopy(pfoSlot, endField, __instance.EndColor);
-								// Also drive the mesh color for immediate visual update
-								if (wireMesh != null)
-									TryLinkWireColorCopy(pfoSlot, endField, wireMesh.Color1);
-							}
-						}
-					}
-				}
-				
-			// === Material Setup ===
-			var renderer = ____renderer?.Target;
-			if (renderer == null) return;
-
-			if (!materialCache.TryGetValue(renderer, out var fresnelMaterial) || fresnelMaterial == null || fresnelMaterial.IsRemoved) {
-				var originalMaterial = renderer.Material.Target as FresnelMaterial;
-				if (originalMaterial == null) {
-					return;
-				}
-
-				// Check if a custom material already exists on the PFO slot (for multiplayer safety)
-				var existingMaterial = pfoSlot.GetComponent<FresnelMaterial>();
-				if (existingMaterial != null) {
-					// Use the existing custom material instead of creating a new one
-					materialCache[renderer] = existingMaterial;
-					fresnelMaterial = existingMaterial;
-				} else {
-					// Create a new material on the PFO slot
-					var newMaterial = pfoSlot.AttachComponent<FresnelMaterial>();
-					newMaterial.NearColor.Value = colorX.White;
-					newMaterial.FarColor.Value = colorX.White;
-					newMaterial.Sidedness.Value = originalMaterial.Sidedness.Value;
-					newMaterial.UseVertexColors.Value = originalMaterial.UseVertexColors.Value;
-					newMaterial.BlendMode.Value = originalMaterial.BlendMode.Value;
-					newMaterial.ZWrite.Value = originalMaterial.ZWrite.Value;
-					newMaterial.NearTextureScale.Value = originalMaterial.NearTextureScale.Value;
-					newMaterial.NearTextureOffset.Value = originalMaterial.NearTextureOffset.Value;
-					newMaterial.FarTextureScale.Value = originalMaterial.FarTextureScale.Value;
-					newMaterial.FarTextureOffset.Value = originalMaterial.FarTextureOffset.Value;
-
-					materialCache[renderer] = newMaterial;
-					fresnelMaterial = newMaterial;
-				}
-
-				// Use ReferenceCopy to drive the renderer's material from our custom material
-				// This creates a dynamic link instead of direct assignment
-				if (!renderer.Material.IsDriven) {
-					// Create ReferenceField and ReferenceCopy on the PFO slot
-					var materialSource = pfoSlot.GetComponentOrAttach<ReferenceField<IAssetProvider<Material>>>();
-					materialSource.Reference.Target = fresnelMaterial;
-
-					// Create ReferenceCopy to drive the renderer's material
-					var materialCopy = pfoSlot.GetComponentOrAttach<ReferenceCopy<IAssetProvider<Material>>>();
-					materialCopy.Source.Target = materialSource.Reference;
-					materialCopy.Target.Target = renderer.Material;
-					materialCopy.WriteBack.Value = false;
-				}
-			}
-
-				// === Wire Mesh Setup ===
-				var stripeMesh = ____wireMesh?.Target;
-				if (stripeMesh != null) {
-					stripeMesh.Profile.Value = ColorProfile.sRGB;
-				}
-
-				// === Animation Setup ===
-				// Get or create Panner2D for scrolling effect on the PFO slot
-				if (!pannerCache.TryGetValue(pfoSlot, out var panner)) {
-					panner = pfoSlot.GetComponentOrAttach<Panner2D>();
-					pannerCache[pfoSlot] = panner;
-				}
-
-				try {
-					panner.Speed = Config.GetValue(SCROLL_SPEED);
-					panner.Repeat = Config.GetValue(SCROLL_REPEAT);
-				} catch (System.NullReferenceException) {
-					Logger.LogWarning($"Skipping uninitialized Panner2D in patch for {__instance.Slot.Name}");
-					return;
-				}
-
-				var baseSpeed = Config.GetValue(SCROLL_SPEED);
-				// The engine wire Type isn't always reliable in modded contexts; infer direction from mesh if needed.
-				bool isOutputDir = false;
-				TryIsOutputWire(__instance, ____wireMesh.Target, out isOutputDir);
-				bool flipDirection = !isOutputDir; // inputs flip
-				float directionFactor = flipDirection ? -1f : 1f;
-				panner.Speed = new float2(baseSpeed.x * directionFactor, baseSpeed.y);
-
-				var farTexture = GetOrCreateSharedTexture(pfoSlot, Config.GetValue(WIRE_TEXTURE));
-				fresnelMaterial.FarTexture.Target = farTexture;
-
-				var nearTexture = GetOrCreateSharedTexture(pfoSlot, Config.GetValue(WIRE_TEXTURE));
-				fresnelMaterial.NearTexture.Target = nearTexture;
-
-				// === Texture Offset Setup ===
-				// Setup texture offset drivers if they don't exist
-				if (!fresnelMaterial.FarTextureOffset.IsLinked && panner.Target == null) {
-					panner.Target = fresnelMaterial.FarTextureOffset;
-				}
-
-				if (!fresnelMaterial.NearTextureOffset.IsLinked) {
-					// Create a ValueDriver on the PFO slot to link NearTextureOffset to the same panner output
-					ValueDriver<float2> newNearDrive = pfoSlot.GetComponentOrAttach<ValueDriver<float2>>();
-					
-					if (!newNearDrive.DriveTarget.IsLinkValid && panner.Target != null)
-					{
-						newNearDrive.DriveTarget.Target = fresnelMaterial.NearTextureOffset;
-						newNearDrive.ValueSource.Target = panner.Target;
-					}
-				}
-			}
-			catch (Exception e) {
-				Logger.LogError("Error in ProtoFluxOverhaul OnChanges patch", e, LogCategory.UI);
-			}
-		}
-	}
-
-	/// Creates or retrieves a shared FresnelMaterial for wire rendering
-	/// Creates or retrieves a texture with specified settings directly on the wire slot
-	private static StaticTexture2D GetOrCreateSharedTexture(Slot slot, Uri uri) {
-		if (slot == null) {
-			throw new ArgumentNullException(nameof(slot));
-		}
-		
-		StaticTexture2D texture = slot.GetComponentOrAttach<StaticTexture2D>();
-		texture.URL.Value = uri;
-
-		texture.FilterMode.Value = Config.GetValue(FILTER_MODE);
-		texture.MipMaps.Value = Config.GetValue(MIPMAPS);
-		texture.Uncompressed.Value = Config.GetValue(UNCOMPRESSED);
-		texture.CrunchCompressed.Value = Config.GetValue(CRUNCH_COMPRESSED);
-		texture.DirectLoad.Value = Config.GetValue(DIRECT_LOAD);
-		texture.ForceExactVariant.Value = Config.GetValue(FORCE_EXACT_VARIANT);
-		texture.AnisotropicLevel.Value = Config.GetValue(ANISOTROPIC_LEVEL);
-		texture.WrapModeU.Value = Config.GetValue(WRAP_MODE_U);
-		texture.WrapModeV.Value = Config.GetValue(WRAP_MODE_V);
-		texture.KeepOriginalMipMaps.Value = Config.GetValue(KEEP_ORIGINAL_MIPMAPS);
-		texture.MipMapFilter.Value = Config.GetValue(MIPMAP_FILTER);
-		texture.Readable.Value = Config.GetValue(READABLE);
-		texture.PowerOfTwoAlignThreshold.Value = 0.05f;
-		
-		return texture;
-	}
-
-
-
-	// Audio initialization is now handled on-demand by ProtoFluxSounds using engine's optimized patterns
-
-	// Shared wire permission helper
-	public static class WirePermissionHelper {
-		public static bool HasPermission(ProtoFluxWireManager instance) {
-			try {
-				if (instance == null || instance.Slot == null) {
-					Logger.LogPermission("Check", false, "Permission check failed: instance or slot is null");
-					return false;
-				}
-
-				// Get the wire's owner
-				instance.Slot.ReferenceID.ExtractIDs(out ulong position, out byte user);
-				User wirePointAllocUser = instance.World.GetUserByAllocationID(user);
-				Logger.LogPermission("Wire Point", true, $"Wire point allocation: Position={position}, UserID={user}, User={wirePointAllocUser?.UserName}");
-				
-				if (wirePointAllocUser == null || position < wirePointAllocUser.AllocationIDStart) {
-					instance.ReferenceID.ExtractIDs(out ulong position1, out byte user1);
-					User instanceAllocUser = instance.World.GetUserByAllocationID(user1);
-					Logger.LogPermission("Instance", true, $"Instance allocation: Position={position1}, UserID={user1}, User={instanceAllocUser?.UserName}");
-					
-					// Allow the wire owner to modify
-					bool hasPermission = (instanceAllocUser != null && 
-						   position1 >= instanceAllocUser.AllocationIDStart &&
-						   (instanceAllocUser == instance.LocalUser || instance.LocalUser.IsHost));
-					
-					Logger.LogPermission("Instance Check", hasPermission, $"Permission check (instance): Owner={instanceAllocUser?.UserName}, IsLocalUser={instanceAllocUser == instance.LocalUser}, IsHost={instance.LocalUser.IsHost}, Result={hasPermission}");
-					return hasPermission;
-				}
-				
-				// Allow the wire owner to modify
-				bool result = wirePointAllocUser == instance.LocalUser || instance.LocalUser.IsHost;
-				Logger.LogPermission("Wire Check", result, $"Permission check (wire): Owner={wirePointAllocUser?.UserName}, IsLocalUser={wirePointAllocUser == instance.LocalUser}, IsHost={instance.LocalUser.IsHost}, Result={result}");
-				return result;
-			}
-			catch (Exception e) {
-				// If anything goes wrong, deny permission to be safe
-				Logger.LogError("Permission check error", e, LogCategory.Permission);
-				return false;
-			}
-		}
-	}
-
-	// Patches for wire-related events
-	[HarmonyPatch(typeof(ProtoFluxWireManager))]
-	public class ProtoFluxWireManager_Patches {
-		[HarmonyPatch("OnDestroy")]
-		[HarmonyPostfix]
-		public static void OnDestroy_Postfix(ProtoFluxWireManager __instance, SyncRef<MeshRenderer> ____renderer)
-		{
-			try
-			{
-				// === Material Cleanup ===
-				// Clean up the cached material when wire is destroyed
-				var renderer = ____renderer?.Target;
-				if (renderer != null && materialCache.TryGetValue(renderer, out var cachedMaterial)) {
-					// Remove from cache
-					materialCache.Remove(renderer);
-					
-					// Remove the material component if it exists and wasn't already removed
-					if (cachedMaterial != null && !cachedMaterial.IsRemoved) {
-						cachedMaterial.Destroy();
-						Logger.LogWire("Cleanup", "Wire material removed from destroyed wire");
-					}
-				}
-
-				// === Renderer Slot Cleanup ===
-				// Clean up components from renderer's slot (FresnelMaterial and StaticTexture2D are attached here)
-				if (renderer?.Slot != null) {
-					// Clean up any FresnelMaterial components that might not be in cache
-					var fresnelMaterials = renderer.Slot.GetComponents<FresnelMaterial>().ToList();
-					foreach (var material in fresnelMaterials) {
-						if (material != null && !material.IsRemoved) {
-							material.Destroy();
-							Logger.LogWire("Cleanup", "Additional FresnelMaterial removed from renderer slot");
-						}
-					}
-
-					// Clean up StaticTexture2D components from renderer's slot
-					var textures = renderer.Slot.GetComponents<StaticTexture2D>().ToList();
-					foreach (var texture in textures) {
-						if (texture != null && !texture.IsRemoved) {
-							texture.Destroy();
-							Logger.LogWire("Cleanup", "StaticTexture2D removed from renderer slot");
-						}
-					}
-				}
-
-				// === Renderer Slot Additional Cleanup ===
-				// Clean up Panner2D and ValueDriver components from the renderer's slot
-				if (renderer?.Slot != null) {
-					// Clean up Panner2D components
-					var panners = renderer.Slot.GetComponents<Panner2D>().ToList();
-					foreach (var panner in panners) {
-						if (panner != null && !panner.IsRemoved) {
-							panner.Destroy();
-							Logger.LogWire("Cleanup", "Panner2D component removed from renderer slot");
-						}
-					}
-
-					// Clean up ValueDriver components (used for texture offset animation)
-					var valueDrivers = renderer.Slot.GetComponents<ValueDriver<float2>>().ToList();
-					foreach (var driver in valueDrivers) {
-						if (driver != null && !driver.IsRemoved) {
-							driver.Destroy();
-							Logger.LogWire("Cleanup", "ValueDriver removed from renderer slot");
-						}
-					}
-				}
-
-				// === Panner Cache Cleanup ===
-				// Clean up the cached panner when wire is destroyed (after components are destroyed)
-				if (renderer?.Slot != null && pannerCache.ContainsKey(renderer.Slot)) {
-					pannerCache.Remove(renderer.Slot);
-					Logger.LogWire("Cleanup", "Panner removed from cache for destroyed wire");
-				}
-
-				// Skip if disabled
-				if (!Config.GetValue(ENABLED)) {
-					Logger.LogWire("Delete", "Wire delete sound skipped: Mod disabled");
-					return;
-				}
-
-				// Skip if required components are missing
-				if (__instance == null || !__instance.Enabled || __instance.Slot == null) {
-					Logger.LogWire("Delete", "Wire delete sound skipped: Missing components");
-					return;
-				}
-
-				// Only process if this is an actual user deletion (DeleteHighlight = true)
-				if (!__instance.DeleteHighlight.Value) {
-					// This is a system cleanup, not a user deletion - skip silently
-					return;
-				}
-
-				// Play delete sound if we have permission for user-initiated deletion
-				bool hasPermission = WirePermissionHelper.HasPermission(__instance);
-				if (hasPermission)
-				{
-					Logger.LogWire("Delete", $"Playing wire delete sound at position {__instance.Slot.GlobalPosition}");
-					ProtoFluxSounds.OnWireDeleted(__instance.World, __instance.Slot.GlobalPosition);
-				} else {
-					Logger.LogWire("Delete", $"Wire delete sound skipped: Insufficient permissions for user {__instance.LocalUser?.UserName}");
-				}
-			}
-			catch (Exception e)
-			{
-				Logger.LogError("Error handling wire cleanup", e, LogCategory.Wire);
-			}
-		}
-	}
-
-	[HarmonyPatch(typeof(ProtoFluxTool))]
-	public class ProtoFluxTool_Patches {
-
-																																																																																																																																																																																																																																																													// Helper method for permission checks
-		private static bool HasPermission(Component component) {
-			try {
-				if (component == null || component.Slot == null) {
-					Logger.LogPermission("Check", false, "Permission check failed: instance or slot is null");
-					return false;
-				}
-
-				// Get the wire's owner
-				component.Slot.ReferenceID.ExtractIDs(out ulong position, out byte user);
-				User wirePointAllocUser = component.World.GetUserByAllocationID(user);
-				Logger.LogPermission("Wire Point", true, $"Wire point allocation: Position={position}, UserID={user}, User={wirePointAllocUser?.UserName}");
-				
-				if (wirePointAllocUser == null || position < wirePointAllocUser.AllocationIDStart) {
-					component.ReferenceID.ExtractIDs(out ulong position1, out byte user1);
-					User instanceAllocUser = component.World.GetUserByAllocationID(user1);
-					Logger.LogPermission("Instance", true, $"Instance allocation: Position={position1}, UserID={user1}, User={instanceAllocUser?.UserName}");
-					
-					// Allow the wire owner to modify
-					bool hasPermission = (instanceAllocUser != null && 
-						   position1 >= instanceAllocUser.AllocationIDStart &&
-						   (instanceAllocUser == component.LocalUser || component.LocalUser.IsHost));
-					
-					Logger.LogPermission("Instance Check", hasPermission, $"Permission check (instance): Owner={instanceAllocUser?.UserName}, IsLocalUser={instanceAllocUser == component.LocalUser}, IsHost={component.LocalUser.IsHost}, Result={hasPermission}");
-					return hasPermission;
-				}
-				
-				// Allow the wire owner to modify
-				bool result = wirePointAllocUser == component.LocalUser || component.LocalUser.IsHost;
-				Logger.LogPermission("Wire Check", result, $"Permission check (wire): Owner={wirePointAllocUser?.UserName}, IsLocalUser={wirePointAllocUser == component.LocalUser}, IsHost={component.LocalUser.IsHost}, Result={result}");
-				return result;
-			}
-			catch (Exception e) {
-				// If anything goes wrong, deny permission to be safe
-				Logger.LogError("Permission check error", e, LogCategory.Permission);
-				return false;
-			}
-		}
-
-		// Patch for wire grab start
-		[HarmonyPatch("StartDraggingWire")]
-		[HarmonyPrefix]
-		public static void StartDraggingWire_Prefix(ProtoFluxTool __instance, ProtoFluxElementProxy proxy) {
-			try {
-				// Skip if disabled or no wire sounds
-				if (!Config.GetValue(ENABLED) || !Config.GetValue(WIRE_SOUNDS)) {
-					Logger.LogWire("Grab", "Wire grab sound skipped: Mod or wire sounds disabled");
-					return;
-				}
-
-				// Only play sound if we have permission
-				bool hasPermission = proxy != null && HasPermission(proxy);
-				if (hasPermission) {
-					Logger.LogWire("Grab", $"Playing wire grab sound at position {proxy.Slot.GlobalPosition}");
-					ProtoFluxSounds.OnWireGrabbed(__instance.World, proxy.Slot.GlobalPosition);
-				} else {
-					Logger.LogWire("Grab", $"Wire grab sound skipped: Proxy={proxy != null}, HasPermission={hasPermission}");
-				}
-			}
-			catch (Exception e) {
-				Logger.LogError("Error in wire grab sound", e, LogCategory.Wire);
-			}
-		}
-
-		// Patch for wire connection (Input-Output)
-		[HarmonyPatch(typeof(ProtoFluxTool), "TryConnect", new Type[] { typeof(ProtoFluxInputProxy), typeof(ProtoFluxOutputProxy) })]
-		[HarmonyPostfix]
-		public static void TryConnect_InputOutput_Postfix(ProtoFluxTool __instance, ProtoFluxInputProxy input, ProtoFluxOutputProxy output) {
-			try {
-				// Skip if disabled or no wire sounds
-				if (!Config.GetValue(ENABLED) || !Config.GetValue(WIRE_SOUNDS)) {
-					Logger.LogWire("Connect", "Wire connect sound skipped: Mod or wire sounds disabled");
-					return;
-				}
-
-				// Only play sound if we have permission
-				bool hasPermission = input != null && HasPermission(input);
-				if (input != null && output != null && hasPermission) {
-						Logger.LogWire("Connect", $"Playing wire connect sound (Input-Output) at position {input.Slot.GlobalPosition}");
-						ProtoFluxSounds.OnWireConnected(__instance.World, input.Slot.GlobalPosition);
-				} else {
-					Logger.LogWire("Connect", $"Wire connect sound skipped: Input={input != null}, Output={output != null}, HasPermission={hasPermission}");
-				}
-			}
-			catch (Exception e) {
-				Logger.LogError("Error in wire connect sound (Input-Output)", e, LogCategory.Wire);
-			}
-		}
-
-		// Patch for wire connection (Impulse-Operation)
-		[HarmonyPatch(typeof(ProtoFluxTool), "TryConnect", new Type[] { typeof(ProtoFluxImpulseProxy), typeof(ProtoFluxOperationProxy) })]
-		[HarmonyPostfix]
-		public static void TryConnect_ImpulseOperation_Postfix(ProtoFluxTool __instance, ProtoFluxImpulseProxy impulse, ProtoFluxOperationProxy operation) {
-			try {
-				// Skip if disabled or no wire sounds
-				if (!Config.GetValue(ENABLED) || !Config.GetValue(WIRE_SOUNDS)) {
-					Logger.LogWire("Connect", "Wire connect sound skipped: Mod or wire sounds disabled");
-					return;
-				}
-
-				// Only play sound if we have permission
-				bool hasPermission = impulse != null && HasPermission(impulse);
-				if (impulse != null && operation != null && hasPermission) {
-					Logger.LogWire("Connect", $"Playing wire connect sound (Impulse-Operation) at position {impulse.Slot.GlobalPosition}");
-					ProtoFluxSounds.OnWireConnected(__instance.World, impulse.Slot.GlobalPosition);
-				} else {
-					Logger.LogWire("Connect", $"Wire connect sound skipped: Impulse={impulse != null}, Operation={operation != null}, HasPermission={hasPermission}");
-				}
-			}
-			catch (Exception e) {
-				Logger.LogError("Error in wire connect sound (Impulse-Operation)", e, LogCategory.Wire);
-			}
-		}
-
-		// Patch for wire connection (Node-Input-Output)
-		[HarmonyPatch(typeof(ProtoFluxTool), "TryConnect", new Type[] { typeof(ProtoFluxNode), typeof(ISyncRef), typeof(INodeOutput) })]
-		[HarmonyPostfix]
-		public static void TryConnect_NodeInputOutput_Postfix(ProtoFluxTool __instance, ProtoFluxNode node, ISyncRef input, INodeOutput output) {
-			try {
-				// Skip if disabled or no wire sounds
-				if (!Config.GetValue(ENABLED) || !Config.GetValue(WIRE_SOUNDS)) {
-					Logger.LogWire("Connect", "Wire connect sound skipped: Mod or wire sounds disabled");
-					return;
-				}
-
-				// Only play sound if we have permission
-				bool hasPermission = node != null && HasPermission(node);
-				if (node != null && input != null && output != null && hasPermission) {
-					Logger.LogWire("Connect", $"Playing wire connect sound (Node-Input-Output) at position {node.Slot.GlobalPosition}");
-					ProtoFluxSounds.OnWireConnected(__instance.World, node.Slot.GlobalPosition);
-				} else {
-					Logger.LogWire("Connect", $"Wire connect sound skipped: Node={node != null}, Input={input != null}, Output={output != null}, HasPermission={hasPermission}");
-				}
-			}
-			catch (Exception e) {
-				Logger.LogError("Error in wire connect sound (Node-Input-Output)", e, LogCategory.Wire);
-			}
-		}
-
-		// Patch for wire deletion
-		[HarmonyPatch("OnPrimaryRelease")]
-		[HarmonyPostfix]
-		public static void OnPrimaryRelease_Postfix(ProtoFluxTool __instance) {
-			try {
-				// Skip if disabled or no wire sounds
-				if (!Config.GetValue(ENABLED) || !Config.GetValue(WIRE_SOUNDS)) {
-					Logger.LogWire("Delete", "Wire delete sound skipped: Mod or wire sounds disabled");
-					return;
-				}
-
-				// Check if we're deleting wires (using the cut line)
-				if (__instance.GetType().GetField("_cutWires", BindingFlags.NonPublic | BindingFlags.Instance)?.GetValue(__instance) is HashSet<ProtoFluxWireManager> cutWires && 
-					cutWires.Count > 0) {
-					// Play delete sound for cut wires
-					foreach (var wire in cutWires) {
-						bool hasPermission = wire != null && !wire.IsRemoved && HasPermission(wire);
-						if (hasPermission) {
-							Logger.LogWire("Delete", $"Playing wire delete sound (cut) at position {wire.Slot.GlobalPosition}");
-							ProtoFluxSounds.OnWireDeleted(__instance.World, wire.Slot.GlobalPosition);
-						} else {
-							Logger.LogWire("Delete", $"Wire delete sound skipped (cut): Wire={wire != null}, IsRemoved={wire?.IsRemoved}, HasPermission={hasPermission}");
-						}
-					}
-				}
-			}
-			catch (Exception e) {
-				Logger.LogError("Error in wire delete sound", e, LogCategory.Wire);
-			}
-		}
-
-		// Patch for node creation (SpawnNode with Type)
-		[HarmonyPatch("SpawnNode", new Type[] { typeof(System.Type), typeof(Action<ProtoFluxNode>) })]
-		[HarmonyPostfix]
-		public static void SpawnNode_Type_Postfix(ProtoFluxTool __instance, System.Type nodeType, Action<ProtoFluxNode> setup, ProtoFluxNode __result) {
-			try {
-				// Skip if disabled or no node sounds
-				if (!Config.GetValue(ENABLED) || !Config.GetValue(NODE_SOUNDS)) {
-					Logger.LogNode("Create", "Node create sound skipped: Mod or node sounds disabled");
-					return;
-				}
-
-				// Only play sound if node was successfully created and we have permission
-				if (__result != null && __result.Slot != null && HasPermission(__result)) {
-					Logger.LogNode("Create", $"Playing node create sound (type) at position {__result.Slot.GlobalPosition}");
-					ProtoFluxSounds.OnNodeCreated(__instance.World, __result.Slot.GlobalPosition);
-				} else {
-					Logger.LogNode("Create", $"Node create sound skipped (type): Node={__result != null}, Slot={__result?.Slot != null}, HasPermission={__result != null && HasPermission(__result)}");
-				}
-			}
-			catch (Exception e) {
-				Logger.LogError("Error in node create sound (type)", e, LogCategory.Node);
-			}
-		}
-
-		// Patch for node creation (SpawnNode generic)
-		[HarmonyPatch("SpawnNode", new Type[] { typeof(Action<ProtoFluxNode>) })]
-		[HarmonyPostfix]
-		public static void SpawnNode_Generic_Postfix(ProtoFluxTool __instance, Action<ProtoFluxNode> setup, ProtoFluxNode __result) {
-			try {
-				// Skip if disabled or no node sounds
-				if (!Config.GetValue(ENABLED) || !Config.GetValue(NODE_SOUNDS)) {
-					Logger.LogNode("Create", "Node create sound skipped: Mod or node sounds disabled");
-					return;
-				}
-
-				// Only play sound if node was successfully created and we have permission
-				if (__result != null && __result.Slot != null && HasPermission(__result)) {
-					Logger.LogNode("Create", $"Playing node create sound (generic) at position {__result.Slot.GlobalPosition}");
-					ProtoFluxSounds.OnNodeCreated(__instance.World, __result.Slot.GlobalPosition);
-				} else {
-					Logger.LogNode("Create", $"Node create sound skipped (generic): Node={__result != null}, Slot={__result?.Slot != null}, HasPermission={__result != null && HasPermission(__result)}");
-				}
-			}
-			catch (Exception e) {
-				Logger.LogError("Error in node create sound (generic)", e, LogCategory.Node);
-			}
-		}
-	}
-
-	// Patch for Grabbable component to detect node grabbing
-	[HarmonyPatch(typeof(Grabbable))]
-	public class Grabbable_Patches {
-
-		// Helper method for permission checks on grabbable
-		private static bool HasPermission(Grabbable grabbable) {
-			try {
-				if (grabbable == null || grabbable.Slot == null) {
-					Logger.LogPermission("Check", false, "Permission check failed: grabbable or slot is null");
-					return false;
-				}
-
-				// Get the grabbable's owner
-				grabbable.Slot.ReferenceID.ExtractIDs(out ulong position, out byte user);
-				User grabbableAllocUser = grabbable.World.GetUserByAllocationID(user);
-				Logger.LogPermission("Grabbable Point", true, $"Grabbable point allocation: Position={position}, UserID={user}, User={grabbableAllocUser?.UserName}");
-				
-				if (grabbableAllocUser == null || position < grabbableAllocUser.AllocationIDStart) {
-					grabbable.ReferenceID.ExtractIDs(out ulong position1, out byte user1);
-					User instanceAllocUser = grabbable.World.GetUserByAllocationID(user1);
-					Logger.LogPermission("Instance", true, $"Instance allocation: Position={position1}, UserID={user1}, User={instanceAllocUser?.UserName}");
-					
-					// Allow the grabbable owner to modify
-					bool hasPermission = (instanceAllocUser != null && 
-						   position1 >= instanceAllocUser.AllocationIDStart &&
-						   (instanceAllocUser == grabbable.LocalUser || grabbable.LocalUser.IsHost));
-					
-					Logger.LogPermission("Instance Check", hasPermission, $"Permission check (instance): Owner={instanceAllocUser?.UserName}, IsLocalUser={instanceAllocUser == grabbable.LocalUser}, IsHost={grabbable.LocalUser.IsHost}, Result={hasPermission}");
-					return hasPermission;
-				}
-				
-				// Allow the grabbable owner to modify
-				bool result = grabbableAllocUser == grabbable.LocalUser || grabbable.LocalUser.IsHost;
-				Logger.LogPermission("Grabbable Check", result, $"Permission check (grabbable): Owner={grabbableAllocUser?.UserName}, IsLocalUser={grabbableAllocUser == grabbable.LocalUser}, IsHost={grabbable.LocalUser.IsHost}, Result={result}");
-				return result;
-			}
-			catch (Exception e) {
-				// If anything goes wrong, deny permission to be safe
-				Logger.LogError("Permission check error", e, LogCategory.Permission);
-				return false;
-			}
-		}
-
-		// Patch for Grab method to detect when objects are grabbed
-		[HarmonyPatch("Grab")]
-		[HarmonyPostfix]
-		public static void Grab_Postfix(Grabbable __instance, Grabber grabber, Slot holdSlot, bool supressEvents) {
-			try {
-				// Skip if disabled or no node sounds
-				if (!Config.GetValue(ENABLED) || !Config.GetValue(NODE_SOUNDS)) {
-					Logger.LogNode("Grab", "Node grab sound skipped: Mod or node sounds disabled");
-					return;
-				}
-
-				// Only handle grab events (not suppressed events)
-				if (!supressEvents && __instance.IsGrabbed && HasPermission(__instance)) {
-					// Check if this grabbable belongs to a ProtoFlux node
-					// The Grabbable is attached to the parent slot of ProtoFluxNodeVisual (same slot as ProtoFluxNode)
-					var protoFluxNode = __instance.Slot.GetComponent<ProtoFluxNode>();
-					if (protoFluxNode != null) {
-						Logger.LogNode("Grab", $"Playing node grab sound at position {protoFluxNode.Slot.GlobalPosition} (direct ProtoFluxNode approach)");
-						ProtoFluxSounds.OnNodeGrabbed(__instance.World, protoFluxNode.Slot.GlobalPosition);
-					} else {
-						// Fallback: check for ProtoFluxNodeVisual in case the structure is different
-						var nodeVisual = __instance.Slot.FindChild("<NODE_UI>")?.GetComponent<ProtoFluxNodeVisual>();
-						if (nodeVisual != null && nodeVisual.Node?.Target != null) {
-							var node = nodeVisual.Node.Target;
-							Logger.LogNode("Grab", $"Playing node grab sound at position {node.Slot.GlobalPosition} (using ProtoFluxNodeVisual approach)");
-							ProtoFluxSounds.OnNodeGrabbed(__instance.World, node.Slot.GlobalPosition);
-						} else {
-							// Additional debugging: log what components we found
-							var allComponents = __instance.Slot.GetComponents<Component>();
-							var componentNames = string.Join(", ", allComponents.Select(c => c.GetType().Name));
-							Logger.LogNode("Grab", $"Grabbable does not belong to a ProtoFlux node. Found components: {componentNames}");
-						}
-					}
-				} else {
-					Logger.LogNode("Grab", $"Node grab sound skipped: SupressEvents={supressEvents}, IsGrabbed={__instance.IsGrabbed}, HasPermission={HasPermission(__instance)}");
-				}
-			}
-			catch (Exception e) {
-				Logger.LogError("Error in node grab sound", e, LogCategory.Node);
-			}
-		}
 	}
 }
-
