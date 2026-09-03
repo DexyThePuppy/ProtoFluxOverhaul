@@ -15,7 +15,7 @@ using static ProtoFluxOverhaul.Logger;
 namespace ProtoFluxOverhaul;
 
 public partial class ProtoFluxOverhaul : ResoniteMod {
-	internal const string VERSION = "1.5.0";
+	internal const string VERSION = "1.5.1";
 	public override string Name => "ProtoFluxOverhaul";
 	public override string Author => "Dexy, NepuShiro";
 	public override string Version => VERSION;
