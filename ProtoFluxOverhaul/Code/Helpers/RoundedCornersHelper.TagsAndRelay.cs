@@ -1,10 +1,8 @@
-using System;
-using System.Linq;
-using System.Reflection;
 using FrooxEngine;
 using FrooxEngine.ProtoFlux;
 using FrooxEngine.UIX;
-using static ProtoFluxOverhaul.Logger;
+
+using ProtoFlux.Runtimes.Execution;
 
 namespace ProtoFluxOverhaul
 {
@@ -56,44 +54,17 @@ namespace ProtoFluxOverhaul
 		{
 			if (node == null) return false;
 
-			var nodeType = node.GetType();
-
-			// Check for IsPassthrough property (ValueRelay, ObjectRelay, etc.)
-			var isPassthroughProp = nodeType.GetProperty("IsPassthrough", BindingFlags.Public | BindingFlags.Instance);
-			if (isPassthroughProp != null)
+			try
 			{
-				try
-				{
-					var value = isPassthroughProp.GetValue(node);
-					if (value is bool isPassthrough && isPassthrough)
-					{
-						return true;
-					}
-				}
-				catch { }
+				var instance = node.NodeInstance;
+				if (instance == null) return false;
+				if (instance.IsPassthrough) return true;
+				if (instance is IExecutionNode exec && exec.IsOperationPassthrough(0))
+					return true;
 			}
+			catch { }
 
-			// Check for IsOperationPassthrough method (CallRelay, ContinuationRelay, AsyncCallRelay)
-			var isOpPassthroughMethod = nodeType.GetMethod("IsOperationPassthrough", BindingFlags.Public | BindingFlags.Instance);
-			if (isOpPassthroughMethod != null)
-			{
-				try
-				{
-					// These nodes are passthrough if the method exists and returns true for index 0
-					var result = isOpPassthroughMethod.Invoke(node, new object[] { 0 });
-					if (result is bool isPassthrough && isPassthrough)
-					{
-						return true;
-					}
-				}
-				catch { }
-			}
-
-			// Fallback: check by type name for known relay types
-			string typeName = nodeType.Name;
-			return typeName.Contains("Relay") ||
-			       typeName == "ContinuouslyChangingValueRelay`1" ||
-			       typeName == "ContinuouslyChangingObjectRelay`1";
+			return false;
 		}
 
 		/// <summary>
@@ -109,8 +80,7 @@ namespace ProtoFluxOverhaul
 
 			// Find the background Image (the _bgImage from ProtoFluxNodeVisual)
 			// It's typically the first Image in the node UI with BG_COLOR tint
-			var bgImage = nodeUISlot.GetComponentsInChildren<Image>()
-				.FirstOrDefault(img => img != null && !img.IsRemoved &&
+			var bgImage = nodeUISlot.GetComponentInChildren<Image>(static img => img != null && !img.IsRemoved &&
 				                       img.Slot != null && !img.Slot.IsRemoved &&
 				                       img.Slot.Name != "Connector" &&
 				                       img.Slot.Name != "Shading" &&

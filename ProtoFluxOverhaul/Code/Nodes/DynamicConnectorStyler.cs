@@ -1,5 +1,4 @@
 using System;
-using System.Linq;
 using Elements.Core;
 using FrooxEngine;
 using FrooxEngine.ProtoFlux;
@@ -110,14 +109,13 @@ namespace ProtoFluxOverhaul
 			if (styleLabelBackground)
 			{
 				var parentSlot = connectorImage.Slot.Parent;
-				var labelBackgroundImage = parentSlot?.GetComponentsInChildren<Image>()
-					.FirstOrDefault(img => img.Slot.Name != "Connector" && img.Slot != connectorImage.Slot);
+				var labelBackgroundImage = parentSlot?.GetComponentInChildren<Image>(img => img.Slot.Name != "Connector" && img.Slot != connectorImage.Slot);
 
 				if (labelBackgroundImage != null)
 				{
 					bool usePalette = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.USE_PLATFORM_COLOR_PALETTE);
 					float labelScale = RoundedCornersHelper.CONNECTOR_LABEL_SPRITE_SCALE;
-					RoundedCornersHelper.ApplyRoundedCorners(labelBackgroundImage, true, null, usePalette ? false : true, labelScale);
+					RoundedCornersHelper.ApplyRoundedCorners(labelBackgroundImage, true, null, !usePalette, labelScale);
 
 					// Align vertical offsets with base ProtoFlux layout (only adjust Y values)
 					RectTransform labelRect = labelBackgroundImage.RectTransform;
@@ -206,13 +204,6 @@ namespace ProtoFluxOverhaul
 
 				// === User Permission Check ===
 				if (!PermissionHelper.HasPermission(instance)) return;
-
-				// Find wire point slot for audio setup
-				var wirePointSlot = ui.Current?.FindChild("<WIRE_POINT>");
-				if (wirePointSlot != null)
-				{
-					WireHelper.CreateAudioClipsSlot(wirePointSlot);
-				}
 
 				// Find the connector image that was just created
 				var connectorImage = ui.Current?.GetComponentInChildren<Image>(image => image.Slot.Name == "Connector");

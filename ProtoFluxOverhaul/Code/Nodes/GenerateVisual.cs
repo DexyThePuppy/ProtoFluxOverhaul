@@ -1,12 +1,10 @@
 using System;
-using System.Linq;
 using System.Reflection;
 using Elements.Core;
 using FrooxEngine;
 using FrooxEngine.ProtoFlux;
 using FrooxEngine.UIX;
 using HarmonyLib;
-using ProtoFlux.Core;
 using ProtoFlux.Runtimes.Execution.Nodes.Actions;
 using static ProtoFluxOverhaul.Logger;
 
@@ -31,9 +29,8 @@ namespace ProtoFluxOverhaul
 
 				// Log entry for debugging regeneration issues
 				var slotTag = __instance.Slot.Tag;
-				var slotRefId = __instance.Slot.ReferenceID.ToString();
 				var nodeName = __instance.Node?.Target?.GetType().Name ?? "Unknown";
-				Logger.LogUI("GenerateVisual Entry", $"Processing node '{nodeName}', Slot={__instance.Slot.Name}, RefID={slotRefId}, Tag='{slotTag ?? "(null)"}'");
+				Logger.LogUI("GenerateVisual Entry", $"Processing node '{nodeName}', Slot={__instance.Slot.Name}, RefID={__instance.Slot.ReferenceID}, Tag='{slotTag ?? "(null)"}'");
 
 				// Skip if already styled by ProtoFluxOverhaul (prevents duplicate processing)
 				if (RoundedCornersHelper.HasPFOTag(__instance.Slot))
@@ -47,11 +44,6 @@ namespace ProtoFluxOverhaul
 				// === User Permission Check ===
 				if (!PermissionHelper.HasPermission(__instance)) return;
 
-				// === Mark node as styled EARLY to prevent reprocessing if later code fails ===
-				// This must happen before any code that could throw an exception
-				RoundedCornersHelper.AddPFOTag(__instance.Slot);
-				Logger.LogUI("Tag", $"Added ProtoFluxOverhaul tag via GenerateVisual (early)");
-
 				// Get the node's type color for potential background use
 				colorX nodeTypeColor;
 				var node = __instance.Node.Target;
@@ -61,7 +53,7 @@ namespace ProtoFluxOverhaul
 					if (nodeType.IsSubclassOf(typeof(UpdateBase)) || nodeType.IsSubclassOf(typeof(UserUpdateBase)))
 					{
 						// Check if it's an async update node
-						bool isAsync = nodeType.GetInterfaces().Any(i => i == typeof(IAsyncNodeOperation));
+						bool isAsync = typeof(IAsyncNodeOperation).IsAssignableFrom(nodeType);
 						nodeTypeColor = isAsync ? DatatypeColorHelper.ASYNC_FLOW_COLOR : DatatypeColorHelper.SYNC_FLOW_COLOR;
 					}
 					else
@@ -83,11 +75,8 @@ namespace ProtoFluxOverhaul
 				}
 
 				// Find all connector slots in the hierarchy (skip removed/destroyed)
-				var connectorSlots = __instance.Slot.GetComponentsInChildren<Image>()
-					.Where(img => img != null && !img.IsRemoved &&
-					              img.Slot != null && !img.Slot.IsRemoved &&
-					              img.Slot.Name == "Connector")
-					.ToList();
+				var connectorSlots = __instance.Slot.GetComponentsInChildren<Image>(static img => img != null && !img.IsRemoved &&
+					img.Slot != null && !img.Slot.IsRemoved && img.Slot.Name == "Connector");
 
 				foreach (var connectorImage in connectorSlots)
 				{

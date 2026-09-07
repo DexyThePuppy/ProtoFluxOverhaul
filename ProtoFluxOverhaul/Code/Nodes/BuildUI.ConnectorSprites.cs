@@ -1,47 +1,12 @@
 using FrooxEngine;
-using HarmonyLib;
-using ResoniteModLoader;
 using FrooxEngine.ProtoFlux;
-using FrooxEngine.UIX;
 using Elements.Core;
 using System;
-using System.Collections.Generic;
-using Elements.Assets;
 using System.Linq;
-using System.Reflection;
 using ProtoFlux.Core;
-using ProtoFlux.Runtimes.Execution.Nodes.Actions;
-using FrooxEngine.ProtoFlux.CoreNodes;
-using Renderite.Shared;
-using static ProtoFluxOverhaul.Logger;
 
 namespace ProtoFluxOverhaul {
     public partial class ProtoFluxNodeVisual_BuildUI_Patch {
-        // Cache for shared sprite provider
-        private static readonly Dictionary<(Slot, bool), SpriteProvider> connectorSpriteCache = new Dictionary<(Slot, bool), SpriteProvider>();
-
-        private static Dictionary<(Slot, bool), SpriteProvider> callConnectorSpriteCache = new Dictionary<(Slot, bool), SpriteProvider>();
-
-        // Cache for vector connector sprite providers (int = vector size: 2, 3, 4)
-        private static readonly Dictionary<(Slot, bool, int), SpriteProvider> vectorConnectorSpriteCache = new Dictionary<(Slot, bool, int), SpriteProvider>();
-
-        /// <summary>
-        /// Determines if a connector should use the Call sprite based on its type
-        /// </summary>
-        private static bool ShouldUseCallConnector(ImpulseType? impulseType, bool isOperation = false, bool isAsync = false) {
-            // If it's any ImpulseType, use the flow connector
-            if (impulseType.HasValue) {
-                return true;
-            }
-            
-            // For operations, check if it's a flow connector
-            if (isOperation) {
-                return true; // Operations use flow connectors
-            }
-            
-            return false;
-        }
-
         /// <summary>
         /// Determines if a type should be treated as a reference type for connector texture
         /// </summary>
@@ -64,16 +29,9 @@ namespace ProtoFluxOverhaul {
             // 2. Check for generic reference types
             if (type.IsGenericType) {
                 var genericTypeDef = type.GetGenericTypeDefinition();
-                var genericArgs = type.GetGenericArguments();
 
-                // Common reference-like generic patterns
-                string[] referenceGenericPatterns = {
-                    "SyncRef`1", "RelayRef`1", "RefProxy`1", 
-                    "SyncRef", "RelayRef", "RefProxy"
-                };
-
-                if (referenceGenericPatterns.Any(pattern => 
-                    genericTypeDef.Name.StartsWith(pattern))) {
+                string genericName = genericTypeDef.Name;
+                if (genericName.StartsWith("SyncRef") || genericName.StartsWith("RelayRef") || genericName.StartsWith("RefProxy")) {
                     Logger.LogUI("Reference Detection", $"Type matches reference generic pattern: {type.FullName}");
                     return true;
                 }
@@ -119,8 +77,7 @@ namespace ProtoFluxOverhaul {
         /// </summary>
         private static int GetConnectorDimensionFromProxy(Slot connectorSlot) {
             // Add debugging to see what proxies we find
-            var allComponents = connectorSlot.GetComponentsInParents<Component>().Where(c => c.GetType().Name.Contains("Proxy")).ToList();
-            Logger.LogUI("Proxy Debug", $"Found proxy components in hierarchy for slot {connectorSlot.Name}: {string.Join(", ", allComponents.Select(c => c.GetType().Name))}");
+            Logger.LogUI("Proxy Debug", $"Found proxy components in hierarchy for slot {connectorSlot.Name}: {string.Join(", ", connectorSlot.GetComponentsInParents<Component>().Where(c => c.GetType().Name.Contains("Proxy")).Select(c => c.GetType().Name))}");
             
             // Check for Impulse/Operation connectors first - these should NOT use vector textures
             var impulseProxy = connectorSlot.GetComponent<ProtoFluxImpulseProxy>();
@@ -192,7 +149,7 @@ namespace ProtoFluxOverhaul {
         /// </summary>
         public static SpriteProvider GetOrCreateSharedConnectorSprite(Slot slot, bool isOutput, ImpulseType? impulseType = null, bool isOperation = false, bool isAsync = false) {
             // Check if this should use the Call connector
-            if (ShouldUseCallConnector(impulseType, isOperation, isAsync)) {
+            if (impulseType.HasValue || isOperation) {
                 return GetOrCreateSharedCallConnectorSprite(slot, isOutput);
             }
             
@@ -205,210 +162,49 @@ namespace ProtoFluxOverhaul {
             // If connectorDimension is -1, it means this is an Impulse connector, so skip vector logic
             // If connectorDimension is -2, it means this is a Reference connector, so skip vector logic
             
-            var cacheKey = (slot, isOutput);
-            
-            // Check cache first
-            if (connectorSpriteCache.TryGetValue(cacheKey, out var cachedProvider)) {
-                return cachedProvider;
-            }
-
-            // Create organized hierarchy under __TEMP
-            var tempSlot = slot.World.RootSlot.FindChild("__TEMP") ?? slot.World.RootSlot.AddSlot("__TEMP", false);
-            var modSlot = tempSlot.FindChild("ProtoFluxOverhaul") ?? tempSlot.AddSlot("ProtoFluxOverhaul", false);
-            var userSlot = modSlot.FindChild(slot.LocalUser.UserName) ?? modSlot.AddSlot(slot.LocalUser.UserName, false);
-            var spritesSlot = userSlot.FindChild("Sprites") ?? userSlot.AddSlot("Sprites", false);
-            var spriteSlot = spritesSlot.FindChild(isOutput ? "Output" : "Input") ?? 
-                            spritesSlot.AddSlot(isOutput ? "Output" : "Input", false);
-
-            // Create sprite provider
-            SpriteProvider spriteProvider = spriteSlot.GetComponentOrAttach<SpriteProvider>();
-
-            // Ensure cleanup when user leaves
-            userSlot.GetComponentOrAttach<DestroyOnUserLeave>().TargetUser.Target = slot.LocalUser;
-
-            // Set up the texture if not already set
-            if (spriteProvider.Texture.Target == null) {
-                var texture = spriteProvider.Slot.AttachComponent<StaticTexture2D>();
-                texture.URL.Value = isOutput ? 
-                    ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.CONNECTOR_INPUT_TEXTURE) : 
-                    ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.CONNECTOR_INPUT_TEXTURE);
-                texture.FilterMode.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.FILTER_MODE);
-                texture.WrapModeU.Value = TextureWrapMode.Clamp;
-                texture.WrapModeV.Value = TextureWrapMode.Clamp;
-                texture.MipMaps.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.MIPMAPS);
-                texture.MipMapFilter.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.MIPMAP_FILTER);
-                texture.AnisotropicLevel.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.ANISOTROPIC_LEVEL);
-                texture.KeepOriginalMipMaps.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.KEEP_ORIGINAL_MIPMAPS);
-                texture.CrunchCompressed.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.CRUNCH_COMPRESSED);
-                texture.Readable.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.READABLE);
-                texture.Uncompressed.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.UNCOMPRESSED);
-                texture.DirectLoad.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.DIRECT_LOAD);
-                texture.ForceExactVariant.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.FORCE_EXACT_VARIANT);
-                texture.PreferredFormat.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.PREFERRED_FORMAT);
-                texture.PreferredProfile.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.PREFERRED_PROFILE);
-                
-                spriteProvider.Texture.Target = texture;
-                spriteProvider.Rect.Value = !isOutput ? 
-                    new Rect(0f, 0f, 1f, 1f) :    // Inputs (left) normal orientation
-                    new Rect(1f, 0f, -1f, 1f);    // Outputs (right) flipped
-                spriteProvider.Scale.Value = 1.0f;
-                spriteProvider.FixedSize.Value = 16f; // Match the RectTransform width
-                spriteProvider.Borders.Value = new float4(0f, 0f, 0.0001f, 0f); // x=0, y=0, z=0.01, w=0
-            }
-
-            // Cache the provider
-            connectorSpriteCache[cacheKey] = spriteProvider;
-
-            return spriteProvider;
+            var kind = isOutput ? "Output" : "Input";
+            var uri = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.CONNECTOR_INPUT_TEXTURE);
+            return SharedAssets.GetSharedSprite(slot.World, $"PFO_Sprite_Connector_{kind}", uri, flipHorizontal: isOutput, textureRole: "Connector");
         }
 
         /// <summary>
         /// Creates or retrieves a shared sprite provider for the Call connector image
         /// </summary>
         public static SpriteProvider GetOrCreateSharedCallConnectorSprite(Slot slot, bool isOutput) {
-            var cacheKey = (slot, isOutput);
-            
-            // Check cache first
-            if (callConnectorSpriteCache.TryGetValue(cacheKey, out var cachedProvider)) {
-                return cachedProvider;
-            }
-
-            // Create organized hierarchy under __TEMP
-            var tempSlot = slot.World.RootSlot.FindChild("__TEMP") ?? slot.World.RootSlot.AddSlot("__TEMP", false);
-            var modSlot = tempSlot.FindChild("ProtoFluxOverhaul") ?? tempSlot.AddSlot("ProtoFluxOverhaul", false);
-            var userSlot = modSlot.FindChild(slot.LocalUser.UserName) ?? modSlot.AddSlot(slot.LocalUser.UserName, false);
-            var spritesSlot = userSlot.FindChild("Sprites") ?? userSlot.AddSlot("Sprites", false);
-            var spriteSlot = spritesSlot.FindChild(isOutput ? "CallOutput" : "CallInput") ?? 
-                            spritesSlot.AddSlot(isOutput ? "CallOutput" : "CallInput", false);
-
-            // Create sprite provider
-            SpriteProvider spriteProvider = spriteSlot.GetComponentOrAttach<SpriteProvider>();
-
-            // Ensure cleanup when user leaves
-            userSlot.GetComponentOrAttach<DestroyOnUserLeave>().TargetUser.Target = slot.LocalUser;
-
-            // Set up the texture if not already set
-            if (spriteProvider.Texture.Target == null) {
-                var texture = spriteProvider.Slot.AttachComponent<StaticTexture2D>();
-                texture.URL.Value = isOutput ? 
-                    ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.CALL_CONNECTOR_OUTPUT_TEXTURE) : 
-                    ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.CALL_CONNECTOR_INPUT_TEXTURE);
-                texture.FilterMode.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.FILTER_MODE);
-                texture.WrapModeU.Value = TextureWrapMode.Clamp;
-                texture.WrapModeV.Value = TextureWrapMode.Clamp;
-                texture.MipMaps.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.MIPMAPS);
-                texture.MipMapFilter.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.MIPMAP_FILTER);
-                texture.AnisotropicLevel.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.ANISOTROPIC_LEVEL);
-                texture.KeepOriginalMipMaps.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.KEEP_ORIGINAL_MIPMAPS);
-                texture.CrunchCompressed.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.CRUNCH_COMPRESSED);
-                texture.Readable.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.READABLE);
-                texture.Uncompressed.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.UNCOMPRESSED);
-                texture.DirectLoad.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.DIRECT_LOAD);
-                texture.ForceExactVariant.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.FORCE_EXACT_VARIANT);
-                texture.PreferredFormat.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.PREFERRED_FORMAT);
-                texture.PreferredProfile.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.PREFERRED_PROFILE);
-                
-                spriteProvider.Texture.Target = texture;
-                spriteProvider.Rect.Value = !isOutput ? 
-                    new Rect(0f, 0f, 1f, 1f) :    // Inputs (left) normal orientation
-                    new Rect(1f, 0f, -1f, 1f);    // Outputs (right) flipped
-                spriteProvider.Scale.Value = 1.0f;
-                spriteProvider.FixedSize.Value = 16f; // Match the RectTransform width
-                spriteProvider.Borders.Value = new float4(0f, 0f, 0.0001f, 0f); // x=0, y=0, z=0.01, w=0
-            }
-
-            // Cache the provider
-            callConnectorSpriteCache[cacheKey] = spriteProvider;
-
-            return spriteProvider;
+            var kind = isOutput ? "Output" : "Input";
+            var uri = isOutput
+                ? ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.CALL_CONNECTOR_OUTPUT_TEXTURE)
+                : ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.CALL_CONNECTOR_INPUT_TEXTURE);
+            return SharedAssets.GetSharedSprite(slot.World, $"PFO_Sprite_Call_{kind}", uri, flipHorizontal: isOutput, textureRole: isOutput ? "CallOutput" : "CallInput");
         }
 
         /// <summary>
         /// Creates or retrieves a shared sprite provider for vector connector images
         /// </summary>
         public static SpriteProvider GetOrCreateSharedVectorConnectorSprite(Slot slot, bool isOutput, int vectorSize) {
-            var cacheKey = (slot, isOutput, vectorSize);
-            
-            // Check cache first
-            if (vectorConnectorSpriteCache.TryGetValue(cacheKey, out var cachedProvider)) {
-                return cachedProvider;
+            Uri textureUrl;
+            switch (vectorSize) {
+                case 1:
+                    textureUrl = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.CONNECTOR_INPUT_TEXTURE);
+                    break;
+                case 2:
+                    textureUrl = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.VECTOR_X1_CONNECTOR_TEXTURE);
+                    break;
+                case 3:
+                    textureUrl = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.VECTOR_X2_CONNECTOR_TEXTURE);
+                    break;
+                case 4:
+                    textureUrl = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.VECTOR_X3_CONNECTOR_TEXTURE);
+                    break;
+                default:
+                    textureUrl = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.CONNECTOR_INPUT_TEXTURE);
+                    break;
             }
 
-            // Create organized hierarchy under __TEMP
-            var tempSlot = slot.World.RootSlot.FindChild("__TEMP") ?? slot.World.RootSlot.AddSlot("__TEMP", false);
-            var modSlot = tempSlot.FindChild("ProtoFluxOverhaul") ?? tempSlot.AddSlot("ProtoFluxOverhaul", false);
-            var userSlot = modSlot.FindChild(slot.LocalUser.UserName) ?? modSlot.AddSlot(slot.LocalUser.UserName, false);
-            var spritesSlot = userSlot.FindChild("Sprites") ?? userSlot.AddSlot("Sprites", false);
-            var spriteSlot = spritesSlot.FindChild($"Vector{vectorSize}{(isOutput ? "Output" : "Input")}") ?? 
-                            spritesSlot.AddSlot($"Vector{vectorSize}{(isOutput ? "Output" : "Input")}", false);
-
-            // Create sprite provider
-            SpriteProvider spriteProvider = spriteSlot.GetComponentOrAttach<SpriteProvider>();
-
-            // Ensure cleanup when user leaves
-            userSlot.GetComponentOrAttach<DestroyOnUserLeave>().TargetUser.Target = slot.LocalUser;
-
-            // Set up the texture if not already set
-            if (spriteProvider.Texture.Target == null) {
-                var texture = spriteProvider.Slot.AttachComponent<StaticTexture2D>();
-                
-                // Get the appropriate texture URL based on vector size
-                Uri textureUrl;
-                switch (vectorSize) {
-                    case 1:
-                        textureUrl = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.CONNECTOR_INPUT_TEXTURE);
-                        Logger.LogUI("Texture Selection", $"Vector size {vectorSize} -> Using X1 texture: {textureUrl}");
-                        break;
-                    case 2:
-                        textureUrl = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.VECTOR_X1_CONNECTOR_TEXTURE);
-                        Logger.LogUI("Texture Selection", $"Vector size {vectorSize} -> Using X2 texture: {textureUrl}");
-                        break;
-                    case 3:
-                        textureUrl = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.VECTOR_X2_CONNECTOR_TEXTURE);
-                        Logger.LogUI("Texture Selection", $"Vector size {vectorSize} -> Using X3 texture: {textureUrl}");
-                        break;
-                    case 4:
-                        textureUrl = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.VECTOR_X3_CONNECTOR_TEXTURE);
-                        Logger.LogUI("Texture Selection", $"Vector size {vectorSize} -> Using X4 texture: {textureUrl}");
-                        break;
-                    default:
-                        // Fallback to regular connector texture
-                        textureUrl = isOutput ? 
-                            ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.CONNECTOR_INPUT_TEXTURE) : 
-                            ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.CONNECTOR_INPUT_TEXTURE);
-                        Logger.LogUI("Texture Selection", $"Vector size {vectorSize} (fallback) -> Using regular texture: {textureUrl}");
-                        break;
-                }
-                
-                texture.URL.Value = textureUrl;
-                texture.FilterMode.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.FILTER_MODE);
-                texture.WrapModeU.Value = TextureWrapMode.Clamp;
-                texture.WrapModeV.Value = TextureWrapMode.Clamp;
-                texture.MipMaps.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.MIPMAPS);
-                texture.MipMapFilter.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.MIPMAP_FILTER);
-                texture.AnisotropicLevel.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.ANISOTROPIC_LEVEL);
-                texture.KeepOriginalMipMaps.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.KEEP_ORIGINAL_MIPMAPS);
-                texture.CrunchCompressed.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.CRUNCH_COMPRESSED);
-                texture.Readable.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.READABLE);
-                texture.Uncompressed.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.UNCOMPRESSED);
-                texture.DirectLoad.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.DIRECT_LOAD);
-                texture.ForceExactVariant.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.FORCE_EXACT_VARIANT);
-                texture.PreferredFormat.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.PREFERRED_FORMAT);
-                texture.PreferredProfile.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.PREFERRED_PROFILE);
-                
-                spriteProvider.Texture.Target = texture;
-                spriteProvider.Rect.Value = !isOutput ? 
-                    new Rect(0f, 0f, 1f, 1f) :    // Inputs (left) normal orientation
-                    new Rect(1f, 0f, -1f, 1f);    // Outputs (right) flipped
-                spriteProvider.Scale.Value = 1.0f;
-                spriteProvider.FixedSize.Value = 16f; // Match the RectTransform width
-                spriteProvider.Borders.Value = new float4(0f, 0f, 0.0001f, 0f); // x=0, y=0, z=0.01, w=0
-            }
-
-            // Cache the provider
-            vectorConnectorSpriteCache[cacheKey] = spriteProvider;
-
-            return spriteProvider;
+            Logger.LogUI("Texture Selection", $"Vector size {vectorSize} -> {textureUrl}");
+            var kind = isOutput ? "Output" : "Input";
+            var textureRole = vectorSize >= 2 && vectorSize <= 4 ? $"Vector{vectorSize - 1}" : "Connector";
+            return SharedAssets.GetSharedSprite(slot.World, $"PFO_Sprite_Vector{vectorSize}_{kind}", textureUrl, flipHorizontal: isOutput, textureRole: textureRole);
         }
     }
 }

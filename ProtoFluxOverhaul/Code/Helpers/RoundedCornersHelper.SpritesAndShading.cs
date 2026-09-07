@@ -1,15 +1,72 @@
-using System;
+using System.Runtime.CompilerServices;
+
 using Elements.Assets;
 using Elements.Core;
+
 using FrooxEngine;
+using FrooxEngine.ProtoFlux;
 using FrooxEngine.UIX;
+
 using Renderite.Shared;
-using static ProtoFluxOverhaul.Logger;
 
 namespace ProtoFluxOverhaul
 {
 	public static partial class RoundedCornersHelper
 	{
+		private sealed class NodeMaterialOverrideState
+		{
+			public IAssetProvider<Material> Original;
+			public IAssetProvider<Material> Applied;
+		}
+
+		private static readonly ConditionalWeakTable<Image, NodeMaterialOverrideState> NodeMaterialOverrides = new();
+
+		private static bool IsNodeBackgroundImage(Image image)
+		{
+			var parent = image?.Slot?.Parent;
+			// BuildUI creates the node background as its first direct Image child.
+			// Later Image siblings, buttons, headers and shading use native materials.
+			return parent?.Name == ProtoFluxNodeVisual.SLOT_NAME
+				&& parent.GetComponent<ProtoFluxNodeVisual>() != null
+				&& ReferenceEquals(parent.FindChild("Image")?.GetComponent<Image>(), image);
+		}
+
+		private static void ApplyNodeMaterialOverride(Image image)
+		{
+			if (image == null || image.IsRemoved || image.World == null) return;
+			bool ownsBinding = NativeAssetFallback.IsDrivenByUs(image.Material);
+			if (image.Material.IsDriven && !ownsBinding) return;
+
+			bool isBackground = IsNodeBackgroundImage(image);
+			var source = isBackground ? UserAssetOverrides.GetMaterialReference(image.World, "Node") : null;
+			if (source != null)
+			{
+				var state = NodeMaterialOverrides.GetValue(image, static key => new NodeMaterialOverrideState
+				{
+					// A saved native binding can outlive this process's restoration state.
+					Original = NativeAssetFallback.IsDrivenByUs(key.Material)
+						? key.World.GetDefaultUI_ZWrite() : key.Material.Target
+				});
+				if (NativeAssetFallback.Bind(image.Slot, image.Material, source, image.World.GetDefaultUI_ZWrite()))
+					state.Applied = image.Material.RawTarget;
+			}
+			else if (NodeMaterialOverrides.TryGetValue(image, out var state))
+			{
+				// Restore a tracked assignment when the override disappears or the
+				// image is no longer the main background, without clearing authored refs.
+				bool restore = ownsBinding || image.Material.RawTarget == state.Applied;
+				NativeAssetFallback.Release(image.Material);
+				if (restore && !image.Material.IsDriven)
+					image.Material.Target = state.Original != null && !state.Original.IsRemoved ? state.Original : null;
+				NodeMaterialOverrides.Remove(image);
+			}
+			else if (ownsBinding && NativeAssetFallback.Release(image.Material))
+			{
+				// Repair a saved binding that no longer targets the main background.
+				image.Material.Target = isBackground ? image.World.GetDefaultUI_ZWrite() : null;
+			}
+		}
+
 		private static void EnsureShadingOverlay(
 			Image hostImage,
 			bool invertShading,
@@ -38,6 +95,7 @@ namespace ProtoFluxOverhaul
 
 			// Image
 			var shadingImage = shadingSlot.GetComponentOrAttach<Image>();
+			ApplyNodeMaterialOverride(shadingImage);
 			shadingImage.PreserveAspect.Value = true;
 			// If we intend to control FixedSize, ensure NineSliceSizing uses FixedSize so Sprite.FixedSize is respected.
 			// Otherwise keep it consistent with the host image.
@@ -52,32 +110,16 @@ namespace ProtoFluxOverhaul
 			enabledCopy.Target.Target = shadingImage.EnabledField;
 			enabledCopy.WriteBack.Value = false;
 
-			// Sprite provider + texture
+			// Sprite provider + shared texture
 			var spriteProvider = shadingSlot.GetComponentOrAttach<SpriteProvider>();
-			var texture = spriteProvider.Slot.GetComponentOrAttach<StaticTexture2D>();
-
-			// Shading texture choice is independent of which rounded sprite style we use.
-			// Connector labels use the header-style sprite (isHeader=true) but should still use normal shading.
 			var shadingUrl = invertShading
 				? ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.SHADING_INVERTED_TEXTURE)
 				: ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.SHADING_TEXTURE);
-			texture.URL.Value = shadingUrl;
-			texture.FilterMode.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.FILTER_MODE);
-			texture.WrapModeU.Value = TextureWrapMode.Clamp;
-			texture.WrapModeV.Value = TextureWrapMode.Clamp;
-			texture.MipMaps.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.MIPMAPS);
-			texture.MipMapFilter.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.MIPMAP_FILTER);
-			texture.AnisotropicLevel.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.ANISOTROPIC_LEVEL);
-			texture.KeepOriginalMipMaps.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.KEEP_ORIGINAL_MIPMAPS);
-			texture.CrunchCompressed.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.CRUNCH_COMPRESSED);
-			texture.Readable.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.READABLE);
-			texture.Uncompressed.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.UNCOMPRESSED);
-			texture.DirectLoad.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.DIRECT_LOAD);
-			texture.ForceExactVariant.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.FORCE_EXACT_VARIANT);
-			texture.PreferredFormat.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.PREFERRED_FORMAT);
-			texture.PreferredProfile.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.PREFERRED_PROFILE);
-
-			spriteProvider.Texture.Target = texture;
+			SharedAssets.BindSharedTexture(
+				spriteProvider.Slot, spriteProvider.Texture,
+				invertShading ? "PFO_Tex_ShadingInverted" : "PFO_Tex_Shading",
+				shadingUrl,
+				clamp: true, textureRole: invertShading ? "ShadingInverted" : "Shading");
 			spriteProvider.Rect.Value = new Elements.Core.Rect(0f, 0f, 1f, 1f);
 			spriteProvider.Borders.Value = new float4(0.5f, 0.5f, 0.5f, 0.5f);
 
@@ -115,10 +157,20 @@ namespace ProtoFluxOverhaul
 			shadingImage.Sprite.Target = spriteProvider;
 		}
 
+		private static void ApplyNodeSpriteTexture(SpriteProvider sprite, bool isHeader)
+		{
+			var textureUrl = ProtoFluxOverhaul.Config.GetValue(isHeader
+				? ProtoFluxOverhaul.NODE_BACKGROUND_HEADER_TEXTURE : ProtoFluxOverhaul.NODE_BACKGROUND_TEXTURE);
+			SharedAssets.BindSharedTexture(sprite.Slot, sprite.Texture,
+				isHeader ? "PFO_Tex_NodeHeader" : "PFO_Tex_NodeBackground",
+				textureUrl, clamp: true, textureRole: isHeader ? "NodeHeader" : "NodeBackground");
+		}
+
 		public static void ApplyRoundedCorners(Image image, bool isHeader = false, colorX? headerColor = null, bool preserveOriginalColor = false, float? spriteScaleOverride = null, bool invertShading = false)
 		{
 			// Safety check - don't process removed/destroyed components
 			if (image == null || image.IsRemoved || image.Slot == null || image.Slot.IsRemoved) return;
+			ApplyNodeMaterialOverride(image);
 
 			// Store original color if we need to preserve it
 			colorX originalColor = image.Tint.Value;
@@ -126,20 +178,18 @@ namespace ProtoFluxOverhaul
 			// For backgrounds, check if we need to update the tint even if sprite provider exists
 			if (image.Sprite.Target is SpriteProvider existingSpriteProvider)
 			{
+				// Reapplying styling must also pick up a changed profile. Keep shared
+				// external sprites and explicitly driven texture references intact.
+				if (existingSpriteProvider.Slot.IsChildOf(image.Slot, includeSelf: true)
+					&& (!existingSpriteProvider.Texture.IsDriven || NativeAssetFallback.IsDrivenByUs(existingSpriteProvider.Texture)))
+					ApplyNodeSpriteTexture(existingSpriteProvider, isHeader);
 				// If this is a background and we have a header color and the config is enabled, update the tint
 				if (!isHeader && !preserveOriginalColor && headerColor.HasValue && ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.USE_HEADER_COLOR_FOR_BACKGROUND))
 				{
-					// Drive the header color to prevent changes over time
-					var headerColorField = image.Slot.GetComponentOrAttach<ValueField<colorX>>();
-					headerColorField.Value.Value = headerColor.Value;
-					var headerColorDriver = image.Slot.GetComponentOrAttach<ValueDriver<colorX>>();
-
-					// Only link if the target is not already linked
-					if (!TryLinkValueDriver(headerColorDriver, image.Tint, headerColorField.Value))
-					{
+					if (!TrySetColorIfUndriven(image.Tint, headerColor.Value))
 						Logger.LogUI("Header Color Background Update", "Skipped tint override; existing drive detected");
-					}
-					Logger.LogUI("Header Color Background Update", $"Updated existing background tint to header color: R:{headerColor.Value.r:F2} G:{headerColor.Value.g:F2} B:{headerColor.Value.b:F2}");
+					else
+						Logger.LogUI("Header Color Background Update", $"Updated existing background tint to header color: R:{headerColor.Value.r:F2} G:{headerColor.Value.g:F2} B:{headerColor.Value.b:F2}");
 				}
 
 				// Ensure shading overlay exists even if the rounded sprite already exists
@@ -153,34 +203,15 @@ namespace ProtoFluxOverhaul
 			var spriteProvider = image.Slot.AttachComponent<SpriteProvider>();
 			Logger.LogUI("Sprite Provider", $"Created SpriteProvider for {(isHeader ? "header" : "background")}");
 
-			// Set up the texture
-			var texture = spriteProvider.Slot.AttachComponent<StaticTexture2D>();
-			texture.URL.Value = isHeader
-				? ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.NODE_BACKGROUND_HEADER_TEXTURE)
-				: ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.NODE_BACKGROUND_TEXTURE);
-			texture.FilterMode.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.FILTER_MODE);
-			texture.WrapModeU.Value = TextureWrapMode.Clamp;
-			texture.WrapModeV.Value = TextureWrapMode.Clamp;
-			texture.MipMaps.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.MIPMAPS);
-			texture.MipMapFilter.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.MIPMAP_FILTER);
-			texture.AnisotropicLevel.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.ANISOTROPIC_LEVEL);
-			texture.KeepOriginalMipMaps.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.KEEP_ORIGINAL_MIPMAPS);
-			texture.CrunchCompressed.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.CRUNCH_COMPRESSED);
-			texture.Readable.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.READABLE);
-			texture.Uncompressed.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.UNCOMPRESSED);
-			texture.DirectLoad.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.DIRECT_LOAD);
-			texture.ForceExactVariant.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.FORCE_EXACT_VARIANT);
-			texture.PreferredFormat.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.PREFERRED_FORMAT);
-			texture.PreferredProfile.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.PREFERRED_PROFILE);
+			ApplyNodeSpriteTexture(spriteProvider, isHeader);
 
 			Logger.LogUI("Texture Setup", $"Set up texture for {(isHeader ? "header" : "background")}");
 
 			// Configure the sprite provider based on the image settings
-			spriteProvider.Texture.Target = texture;
 			spriteProvider.Rect.Value = new Elements.Core.Rect(0f, 0f, 1f, 1f); // x:0 y:0 width:1 height:1
 			spriteProvider.Borders.Value = new float4(0.5f, 0.5f, 0.5f, 0.5f); // x:0.5 y:0 z:0 w:0
 			// Default sprite scales:
-			// - Label backgrounds (preserveOriginalColor): 0.02f
+			// - Label backgrounds (preserveOriginalColor): 0.03f
 			// - Header: 0.05f
 			// - Background: 0.09f
 			float defaultScale = preserveOriginalColor ? 0.03f : (isHeader ? 0.05f : 0.09f);
@@ -194,31 +225,17 @@ namespace ProtoFluxOverhaul
 			// Apply color logic
 			if (preserveOriginalColor)
 			{
-				// Drive the original color for connector labels to prevent changes over time
-				var originalColorField = image.Slot.GetComponentOrAttach<ValueField<colorX>>();
-				originalColorField.Value.Value = originalColor;
-				var originalColorDriver = image.Slot.GetComponentOrAttach<ValueDriver<colorX>>();
-
-				// Only link if the target is not already linked
-				if (!TryLinkValueDriver(originalColorDriver, image.Tint, originalColorField.Value))
-				{
+				if (!TrySetColorIfUndriven(image.Tint, originalColor))
 					Logger.LogUI("Rounded Corners", "Skipped original color preservation; existing drive detected");
-				}
-				Logger.LogUI("Color Preserved", $"Preserved original color for connector label: R:{originalColor.r:F2} G:{originalColor.g:F2} B:{originalColor.b:F2}");
+				else
+					Logger.LogUI("Color Preserved", $"Preserved original color for connector label: R:{originalColor.r:F2} G:{originalColor.g:F2} B:{originalColor.b:F2}");
 			}
 			else if (!isHeader && headerColor.HasValue && ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.USE_HEADER_COLOR_FOR_BACKGROUND))
 			{
-				// Drive header color to background if config option is enabled to prevent changes over time
-				var headerColorField = image.Slot.GetComponentOrAttach<ValueField<colorX>>();
-				headerColorField.Value.Value = headerColor.Value;
-				var headerColorDriver = image.Slot.GetComponentOrAttach<ValueDriver<colorX>>();
-
-				// Only link if the target is not already linked
-				if (!TryLinkValueDriver(headerColorDriver, image.Tint, headerColorField.Value))
-				{
+				if (!TrySetColorIfUndriven(image.Tint, headerColor.Value))
 					Logger.LogUI("Rounded Corners", "Skipped header background color update; existing drive detected");
-				}
-				Logger.LogUI("Header Color Background", $"Applied header color to background: R:{headerColor.Value.r:F2} G:{headerColor.Value.g:F2} B:{headerColor.Value.b:F2}");
+				else
+					Logger.LogUI("Header Color Background", $"Applied header color to background: R:{headerColor.Value.r:F2} G:{headerColor.Value.g:F2} B:{headerColor.Value.b:F2}");
 			}
 
 			// Preserve color and tint settings

@@ -30,6 +30,12 @@
 
 The mod comes with extensive configurable options organized into several categories:
 
+### Avatar asset overrides
+
+Turn on **Create Avatar Overrides** in the mod configuration to add **Materials**, **Textures**, and **Sounds** under `User Root > Avatar > ProtoFluxOverhaul`. Existing overrides are preserved, and the toggle resets itself afterward.
+
+Edit material settings or texture/sound `URL` fields, then save your avatar to carry them between worlds. Edits to existing providers apply live; missing or removed overrides use the mod defaults.
+
 ### Basic Settings
 
 | Setting | Default | Description |
@@ -42,6 +48,7 @@ The mod comes with extensive configurable options organized into several categor
 | `Auto Rebuild Selected Nodes` | `false` | Rebuild selected nodes to apply styling (local-only visuals) |
 | `Enable Header Background` | `true` | Enable the header background image |
 | `Enable Footer Category Text` | `true` | Enable the category text at the bottom of nodes |
+| `Create Avatar Overrides` | `false` | Add missing material, texture, and sound overrides to the equipped avatar, then reset to off |
 
 ### Animation Settings
 
@@ -81,7 +88,7 @@ The mod comes with extensive configurable options organized into several categor
 | `Audio Min Distance` | `0.1` | Minimum distance for 3D audio falloff |
 | `Audio Max Distance` | `25.0` | Maximum distance for 3D audio falloff |
 
-> **Note**: To switch a wire's appearance, it needs to be destroyed and re-created - simply reconnecting will reuse the old wire.
+> **Note**: If an older wire or node does not pick up the live override bindings, rebuild its visuals once. Later edits to its selected avatar providers apply through those bindings.
 
 ## ⚙️ Advanced Configuration
 

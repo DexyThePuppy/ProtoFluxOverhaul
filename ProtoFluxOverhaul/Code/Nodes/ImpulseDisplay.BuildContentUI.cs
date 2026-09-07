@@ -17,10 +17,14 @@ namespace ProtoFluxOverhaul
 		private const string IMPULSE_DISPLAY_TYPE =
 			"FrooxEngine.ProtoFlux.Runtimes.Execution.Nodes.ImpulseDisplay";
 
+		private static FieldInfo TimelineRootField;
+
 		public static MethodBase TargetMethod()
 		{
 			var t = AccessTools.TypeByName(IMPULSE_DISPLAY_TYPE);
-			return t == null ? null : AccessTools.Method(t, "BuildContentUI");
+			if (t == null) return null;
+			TimelineRootField = AccessTools.Field(t, "_timelineRoot");
+			return AccessTools.Method(t, "BuildContentUI");
 		}
 
 		public static void Postfix(object __instance, ProtoFluxNodeVisual visual, UIBuilder ui)
@@ -33,8 +37,7 @@ namespace ProtoFluxOverhaul
 				// Respect the same ownership/permission behavior as other node UI patches
 				if (!PermissionHelper.HasPermission(visual)) return;
 
-				var timelineRootField = AccessTools.Field(__instance.GetType(), "_timelineRoot");
-				var timelineRef = timelineRootField?.GetValue(__instance) as SyncRef<Slot>;
+				var timelineRef = TimelineRootField?.GetValue(__instance) as SyncRef<Slot>;
 				var timelineSlot = timelineRef?.Target;
 				if (timelineSlot == null) return;
 

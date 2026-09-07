@@ -19,7 +19,8 @@ public partial class ProtoFluxOverhaul
 			try
 			{
 				// === Cache cleanup (renderer->material) ===
-				var renderer = ____renderer?.Target;
+				// Engine OnDestroy already removed the renderer; Target hides removed objects.
+				var renderer = ____renderer?.RawTarget;
 				if (renderer != null)
 				{
 					_materialCache.Remove(renderer);
@@ -34,7 +35,7 @@ public partial class ProtoFluxOverhaul
 				var pfoSlot = FindPfoSlot(__instance?.Slot);
 				if (pfoSlot != null)
 				{
-					_pannerCache.Remove(pfoSlot);
+					_wireVisualApplied.Remove(pfoSlot);
 
 					bool isRealDelete = false;
 					try
@@ -83,7 +84,7 @@ public partial class ProtoFluxOverhaul
 				}
 
 				// Play delete sound if we have permission for user-initiated deletion
-				bool hasPermission = HasPermission(__instance);
+				bool hasPermission = PermissionHelper.HasPermission(__instance);
 				if (hasPermission)
 				{
 					Logger.LogWire("Delete", $"Playing wire delete sound at position {__instance.Slot.GlobalPosition}");

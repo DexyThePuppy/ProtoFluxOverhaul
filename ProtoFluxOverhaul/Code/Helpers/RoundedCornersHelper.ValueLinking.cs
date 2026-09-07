@@ -1,6 +1,6 @@
 using Elements.Core;
+
 using FrooxEngine;
-using FrooxEngine.UIX;
 
 namespace ProtoFluxOverhaul
 {
@@ -21,23 +21,15 @@ namespace ProtoFluxOverhaul
 			return true;
 		}
 
-		public static bool TryLinkValueDriver(ValueDriver<colorX> driver, IField<colorX> targetField, IValue<colorX> sourceValue)
+		/// <summary>
+		/// Sets a color field without attaching <see cref="ValueField{T}"/> (an IValueSource
+		/// that ProtoFlux input drop can pick up as a grab value).
+		/// </summary>
+		public static bool TrySetColorIfUndriven(IField<colorX> field, in colorX value)
 		{
-			if (driver == null || targetField == null || sourceValue == null)
+			if (field == null || field.IsDriven)
 				return false;
-
-			if (targetField.IsDriven)
-				return false;
-
-			if (driver.DriveTarget.IsLinkValid)
-			{
-				if (driver.DriveTarget.Target == targetField && driver.ValueSource.Target == sourceValue)
-					return true;
-				return false;
-			}
-
-			driver.DriveTarget.Target = targetField;
-			driver.ValueSource.Target = sourceValue;
+			field.Value = value;
 			return true;
 		}
 	}

@@ -1,10 +1,7 @@
-using System;
-using Elements.Assets;
 using Elements.Core;
+
 using FrooxEngine;
 using FrooxEngine.UIX;
-using Renderite.Shared;
-using static ProtoFluxOverhaul.Logger;
 
 namespace ProtoFluxOverhaul
 {
@@ -29,15 +26,6 @@ namespace ProtoFluxOverhaul
 			return slot;
 		}
 
-		/// <summary>
-		/// Attaches a new ValueCopy component to the given slot.
-		/// </summary>
-		private static ValueCopy<T> AttachValueCopy<T>(Slot slot)
-		{
-			if (slot == null) return null;
-			return slot.AttachComponent<ValueCopy<T>>();
-		}
-
 		private static InteractionElement.ColorDriver EnsurePrimaryButtonColorDriver(Button button, Image bgImage)
 		{
 			if (button == null || bgImage == null) return null;
@@ -56,42 +44,14 @@ namespace ProtoFluxOverhaul
 			return driver;
 		}
 
-		private static StaticTexture2D EnsureConfiguredTextureOnSpriteProvider(
-			SpriteProvider spriteProvider,
-			Uri url,
-			bool clamp = true)
+		private static (SpriteProvider provider, float? fixedSize) EnsureButtonSpriteUsesNodeBackground(Image bgImage)
 		{
-			if (spriteProvider == null) return null;
-			var texture = spriteProvider.Slot.GetComponent<StaticTexture2D>() ?? spriteProvider.Slot.AttachComponent<StaticTexture2D>();
-
-			texture.URL.Value = url;
-			texture.FilterMode.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.FILTER_MODE);
-			texture.WrapModeU.Value = clamp ? TextureWrapMode.Clamp : ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.WRAP_MODE_U);
-			texture.WrapModeV.Value = clamp ? TextureWrapMode.Clamp : ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.WRAP_MODE_V);
-			texture.MipMaps.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.MIPMAPS);
-			texture.MipMapFilter.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.MIPMAP_FILTER);
-			texture.AnisotropicLevel.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.ANISOTROPIC_LEVEL);
-			texture.KeepOriginalMipMaps.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.KEEP_ORIGINAL_MIPMAPS);
-			texture.CrunchCompressed.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.CRUNCH_COMPRESSED);
-			texture.Readable.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.READABLE);
-			texture.Uncompressed.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.UNCOMPRESSED);
-			texture.DirectLoad.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.DIRECT_LOAD);
-			texture.ForceExactVariant.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.FORCE_EXACT_VARIANT);
-			texture.PreferredFormat.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.PREFERRED_FORMAT);
-			texture.PreferredProfile.Value = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.PREFERRED_PROFILE);
-
-			spriteProvider.Texture.Target = texture;
-			return texture;
-		}
-
-		private static (SpriteProvider provider, float? scale, float? fixedSize) EnsureButtonSpriteUsesNodeBackground(Image bgImage)
-		{
-			if (bgImage == null || ProtoFluxOverhaul.Config == null) return (null, null, null);
+			if (bgImage == null || ProtoFluxOverhaul.Config == null) return (null, null);
+			ApplyNodeMaterialOverride(bgImage);
 
 			var existingProvider = bgImage.Sprite.Target as SpriteProvider;
-			if (existingProvider == null) return (null, null, null);
+			if (existingProvider == null) return (null, null);
 
-			float? existingScale = existingProvider.Scale.Value;
 			float? existingFixedSize = existingProvider.FixedSize.Value;
 
 			// If the sprite provider is not under this image slot, it's likely shared (e.g. RadiantUI style).
@@ -122,15 +82,13 @@ namespace ProtoFluxOverhaul
 			providerToUse.Rect.Value = new Elements.Core.Rect(0f, 0f, 1f, 1f);
 			providerToUse.Borders.Value = new float4(0.5f, 0.5f, 0.5f, 0.5f);
 
-			var url = ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.NODE_BACKGROUND_TEXTURE);
-			EnsureConfiguredTextureOnSpriteProvider(providerToUse, url, clamp: true);
+			ApplyNodeSpriteTexture(providerToUse, isHeader: false);
 
-			// IMPORTANT: return the scale of the provider actually assigned to the image.
+			// Return the fixed size of the provider actually assigned to the image.
 			// If we cloned to PFO_ButtonSprite, that's the one we want to match for the shading overlay.
 			var activeProvider = bgImage.Sprite.Target as SpriteProvider;
-			float? activeScale = activeProvider?.Scale.Value ?? existingScale;
 			float? activeFixedSize = activeProvider?.FixedSize.Value ?? existingFixedSize;
-			return (providerToUse, activeScale, activeFixedSize);
+			return (providerToUse, activeFixedSize);
 		}
 
 		public static void ApplyProtoFluxNodeButtonTheme(
@@ -152,9 +110,9 @@ namespace ProtoFluxOverhaul
 				if (bgImage == null) continue;
 
 				// === ALWAYS APPLY: Texture and Shading ===
-				// Replace ONLY the underlying texture on the existing button sprite (do not attach a new sprite provider).
+				// Bind the background texture, making a local sprite copy when the original is shared.
 				// IMPORTANT: for buttons we want the shading overlay to match the sprite provider *FixedSize* (not Scale).
-				var (buttonSpriteProvider, _, buttonSpriteFixedSize) = EnsureButtonSpriteUsesNodeBackground(bgImage);
+				var (buttonSpriteProvider, buttonSpriteFixedSize) = EnsureButtonSpriteUsesNodeBackground(bgImage);
 
 				// If this button contains a TextEditor, it's effectively a text field / input widget.
 				// In that case we want the inverted shading texture (same as headers/labels) for better visual contrast.
@@ -184,9 +142,8 @@ namespace ProtoFluxOverhaul
 					var pfoSlot = GetOrCreateButtonPFOSlot(button.Slot);
 					if (pfoSlot != null && !button.BaseColor.IsDriven)
 					{
-						var baseCopy = AttachValueCopy<colorX>(pfoSlot);
-						if (baseCopy != null)
-							TryLinkValueCopy(baseCopy, nodeBackgroundImage.Tint, button.BaseColor);
+						var baseCopy = pfoSlot.AttachComponent<ValueCopy<colorX>>();
+						TryLinkValueCopy(baseCopy, nodeBackgroundImage.Tint, button.BaseColor);
 					}
 				}
 				else if (usePlatformPalette && palette != null)
@@ -206,38 +163,33 @@ namespace ProtoFluxOverhaul
 						// Only set up if not already driven (prevents duplicate components)
 						if (!driver.NormalColor.IsDriven)
 						{
-							var normalCopy = AttachValueCopy<colorX>(pfoSlot);
-							if (normalCopy != null)
-								TryLinkValueCopy(normalCopy, palette.Neutrals.Mid, driver.NormalColor);
+							var normalCopy = pfoSlot.AttachComponent<ValueCopy<colorX>>();
+							TryLinkValueCopy(normalCopy, palette.Neutrals.Mid, driver.NormalColor);
 						}
 
 						if (!driver.HighlightColor.IsDriven)
 						{
-							var highlightCopy = AttachValueCopy<colorX>(pfoSlot);
-							if (highlightCopy != null)
-								TryLinkValueCopy(highlightCopy, palette.Neutrals.Light, driver.HighlightColor);
+							var highlightCopy = pfoSlot.AttachComponent<ValueCopy<colorX>>();
+							TryLinkValueCopy(highlightCopy, palette.Neutrals.Light, driver.HighlightColor);
 						}
 
 						if (!driver.PressColor.IsDriven)
 						{
-							var pressCopy = AttachValueCopy<colorX>(pfoSlot);
-							if (pressCopy != null)
-								TryLinkValueCopy(pressCopy, palette.Neutrals.Dark, driver.PressColor);
+							var pressCopy = pfoSlot.AttachComponent<ValueCopy<colorX>>();
+							TryLinkValueCopy(pressCopy, palette.Neutrals.Dark, driver.PressColor);
 						}
 
 						if (!driver.DisabledColor.IsDriven)
 						{
-							var disabledCopy = AttachValueCopy<colorX>(pfoSlot);
-							if (disabledCopy != null)
-								TryLinkValueCopy(disabledCopy, palette.Neutrals.MidLight, driver.DisabledColor);
+							var disabledCopy = pfoSlot.AttachComponent<ValueCopy<colorX>>();
+							TryLinkValueCopy(disabledCopy, palette.Neutrals.MidLight, driver.DisabledColor);
 						}
 
 						// Also drive label color from palette
 						if (button.Label != null && !button.Label.Color.IsDriven)
 						{
-							var textCopy = AttachValueCopy<colorX>(pfoSlot);
-							if (textCopy != null)
-								TryLinkValueCopy(textCopy, palette.Neutrals.Light, button.Label.Color);
+							var textCopy = pfoSlot.AttachComponent<ValueCopy<colorX>>();
+							TryLinkValueCopy(textCopy, palette.Neutrals.Light, button.Label.Color);
 						}
 					}
 				}

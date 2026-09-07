@@ -1,6 +1,6 @@
-using System;
 using System.Collections.Generic;
 using FrooxEngine;
+using Renderite.Shared;
 
 namespace ProtoFluxOverhaul;
 
@@ -9,8 +9,19 @@ public partial class ProtoFluxOverhaul
 	// Internal organization slot name for all per-wire mod components
 	private const string PfoWireSlotName = "PFO_WireOverhaul";
 
-	private static readonly Dictionary<Slot, Panner2D> _pannerCache = new Dictionary<Slot, Panner2D>();
-	private static readonly Dictionary<MeshRenderer, FresnelMaterial> _materialCache = new Dictionary<MeshRenderer, FresnelMaterial>();
+	private static readonly Dictionary<MeshRenderer, IAssetProvider<Material>> _materialCache = new Dictionary<MeshRenderer, IAssetProvider<Material>>();
+
+	/// <summary>
+	/// Last wire visual state applied on a PFO slot (avoids redundant sync writes; OnChanges is transform-hot).
+	/// </summary>
+	private struct WireVisualAppliedState
+	{
+		public bool IsOutput;
+		public int AssetVersion;
+		public int OverrideRevision;
+	}
+
+	private static readonly Dictionary<Slot, WireVisualAppliedState> _wireVisualApplied = new Dictionary<Slot, WireVisualAppliedState>();
 
 	/// <summary>
 	/// Gets or creates the child slot for all ProtoFluxOverhaul components on a wire.
@@ -30,32 +41,38 @@ public partial class ProtoFluxOverhaul
 		return wireSlot.FindChild(PfoWireSlotName);
 	}
 
-	/// <summary>
-	/// Creates or retrieves a texture with specified settings directly on the wire slot.
-	/// </summary>
-	private static StaticTexture2D GetOrCreateSharedTexture(Slot slot, Uri uri)
+	private static bool TryWireVisualFastPath(
+		Slot pfoSlot,
+		MeshRenderer renderer,
+		StripeWireMesh stripeMesh,
+		bool isOutput,
+		int overrideRevision)
 	{
-		if (slot == null)
-			throw new ArgumentNullException(nameof(slot));
+		if (pfoSlot == null || renderer == null || stripeMesh == null)
+			return false;
 
-		StaticTexture2D texture = slot.GetComponentOrAttach<StaticTexture2D>();
-		texture.URL.Value = uri;
+		if (!_wireVisualApplied.TryGetValue(pfoSlot, out var applied))
+			return false;
 
-		texture.FilterMode.Value = Config.GetValue(FILTER_MODE);
-		texture.MipMaps.Value = Config.GetValue(MIPMAPS);
-		texture.Uncompressed.Value = Config.GetValue(UNCOMPRESSED);
-		texture.CrunchCompressed.Value = Config.GetValue(CRUNCH_COMPRESSED);
-		texture.DirectLoad.Value = Config.GetValue(DIRECT_LOAD);
-		texture.ForceExactVariant.Value = Config.GetValue(FORCE_EXACT_VARIANT);
-		texture.AnisotropicLevel.Value = Config.GetValue(ANISOTROPIC_LEVEL);
-		texture.WrapModeU.Value = Config.GetValue(WRAP_MODE_U);
-		texture.WrapModeV.Value = Config.GetValue(WRAP_MODE_V);
-		texture.KeepOriginalMipMaps.Value = Config.GetValue(KEEP_ORIGINAL_MIPMAPS);
-		texture.MipMapFilter.Value = Config.GetValue(MIPMAP_FILTER);
-		texture.Readable.Value = Config.GetValue(READABLE);
-		texture.PowerOfTwoAlignThreshold.Value = 0.05f;
+		if (applied.IsOutput != isOutput || applied.AssetVersion != SharedAssets.Version || applied.OverrideRevision != overrideRevision)
+			return false;
+		if (stripeMesh.Profile.Value != ColorProfile.sRGB)
+			return false;
+		if (!_materialCache.TryGetValue(renderer, out var material) || material == null || material.IsRemoved)
+			return false;
 
-		return texture;
+		return renderer.Material.Target == material;
+	}
+
+	private static void RememberWireVisualApplied(Slot pfoSlot, bool isOutput, int overrideRevision)
+	{
+		if (pfoSlot == null) return;
+		_wireVisualApplied[pfoSlot] = new WireVisualAppliedState
+		{
+			IsOutput = isOutput,
+			AssetVersion = SharedAssets.Version,
+			OverrideRevision = overrideRevision,
+		};
 	}
 }
 

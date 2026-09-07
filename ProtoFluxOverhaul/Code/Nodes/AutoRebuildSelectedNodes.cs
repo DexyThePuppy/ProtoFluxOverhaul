@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using FrooxEngine;
 using FrooxEngine.ProtoFlux;
 using HarmonyLib;
@@ -11,6 +12,8 @@ public partial class ProtoFluxOverhaul
 	[HarmonyPatch(typeof(ProtoFluxTool))]
 	public class ProtoFluxTool_AutoRebuildSelectedNodes_Patch
 	{
+		private static readonly FieldInfo SelectedNodesField = AccessTools.Field(typeof(ProtoFluxTool), "_selectedNodes");
+
 		// Track nodes we've already rebuilt to prevent double-processing
 		private static readonly HashSet<ProtoFluxNode> _rebuiltNodes = new HashSet<ProtoFluxNode>();
 		private static bool _isRebuilding = false;
@@ -43,8 +46,7 @@ public partial class ProtoFluxOverhaul
 				}
 
 				// Access the protected _selectedNodes list via reflection
-				var selectedNodesField = AccessTools.Field(typeof(ProtoFluxTool), "_selectedNodes");
-				var selected = selectedNodesField?.GetValue(__instance) as SyncRefList<ProtoFluxNodeVisual>;
+				var selected = SelectedNodesField?.GetValue(__instance) as SyncRefList<ProtoFluxNodeVisual>;
 				if (selected == null || selected.Count == 0)
 				{
 					Logger.LogUI("AutoRebuild", $"Skipping: No selected nodes (selected={selected != null}, count={selected?.Count ?? 0})");
@@ -55,11 +57,9 @@ public partial class ProtoFluxOverhaul
 
 				// Collect nodes to rebuild (can't modify list while iterating)
 				// Only rebuild nodes we haven't already processed
-				// NOTE: We skip strict ownership checks here because:
-				// 1. ProtoFluxNodeVisual is local-only UI (not synced)
-				// 2. User explicitly selected the node with the tool
-				// 3. Rebuilding only affects local visual appearance
-				var nodesToRebuild = new List<ProtoFluxNode>();
+				// Headless opt-in: host-allocated flux is skipped by HasPermission, so AutoRebuild
+				// is the selection-scoped networked rebuild (BypassPermissionChecks for selected nodes).
+				var nodesToRebuild = new List<ProtoFluxNode>(selected.Count);
 				foreach (var visual in selected)
 				{
 					if (visual == null)
@@ -112,10 +112,7 @@ public partial class ProtoFluxOverhaul
 				Logger.LogUI("AutoRebuild", $"Rebuilding {nodesToRebuild.Count} node(s)...");
 
 				_isRebuilding = true;
-				// Bypass permission checks during auto-rebuild since:
-				// 1. User explicitly selected these nodes with ProtoFluxTool
-				// 2. Visual is local-only (not synced)
-				// 3. Rebuilding only affects local appearance
+				// Selection-scoped networked rebuild for headless hosts (and any skipped auto-style).
 				PermissionHelper.BypassPermissionChecks = true;
 				try
 				{

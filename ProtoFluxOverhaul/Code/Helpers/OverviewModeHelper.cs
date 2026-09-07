@@ -1,47 +1,47 @@
 using System;
-using System.Reflection;
+using System.Runtime.CompilerServices;
+
 using FrooxEngine;
 using FrooxEngine.ProtoFlux;
-using ProtoFlux.Core;
+using FrooxEngine.UIX;
+
 using static ProtoFluxOverhaul.Logger;
 
 namespace ProtoFluxOverhaul
 {
-	// Helper class for overview mode access
 	public static class OverviewModeHelper
 	{
+		private static readonly ConditionalWeakTable<ProtoFluxNodeVisual, Image> CachedOverviewImages = new ConditionalWeakTable<ProtoFluxNodeVisual, Image>();
+
+		internal static Image GetOverviewImage(ProtoFluxNodeVisual instance)
+		{
+			if (instance?.Slot == null) return null;
+
+			if (CachedOverviewImages.TryGetValue(instance, out var cached) && cached != null && !cached.IsRemoved)
+				return cached;
+
+			var found = instance.Slot.GetComponentInChildren<Image>(static img => img.Slot.Name == "Overview");
+
+			CachedOverviewImages.Remove(instance);
+			if (found != null)
+				CachedOverviewImages.Add(instance, found);
+
+			return found;
+		}
+
 		public static bool GetOverviewMode(User user)
 		{
 			try
 			{
-				// First, try to get overview mode from any active ProtoFluxTool
-				var activeTools = user.GetActiveTools();
-				foreach (var tool in activeTools)
-				{
-					if (tool is ProtoFluxTool protoFluxTool)
-					{
-						// Use reflection to access the protected OverviewMode property
-						var overviewModeProperty = typeof(ProtoFluxTool).GetProperty("OverviewMode",
-							BindingFlags.NonPublic | BindingFlags.Instance);
-						if (overviewModeProperty != null)
-						{
-							return (bool)overviewModeProperty.GetValue(protoFluxTool);
-						}
-					}
-				}
-
-				// Fallback: Access ProtofluxUserEditSettings directly (original method)
+				if (user == null) return false;
 				var settings = user.GetComponent<ProtofluxUserEditSettings>();
 				return settings != null && settings.OverviewMode.Value;
 			}
 			catch (Exception e)
 			{
 				Logger.LogError("Failed to get overview mode", e, LogCategory.UI);
-				// Fallback to settings approach
-				var settings = user.GetComponent<ProtofluxUserEditSettings>();
-				return settings != null && settings.OverviewMode.Value;
+				return false;
 			}
 		}
 	}
 }
-

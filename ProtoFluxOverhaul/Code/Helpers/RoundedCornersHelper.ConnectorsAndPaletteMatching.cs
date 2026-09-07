@@ -1,10 +1,9 @@
-using System;
 using Elements.Core;
+
 using FrooxEngine;
 using FrooxEngine.ProtoFlux;
-using FrooxEngine.UIX;
+
 using ProtoFlux.Core;
-using static ProtoFluxOverhaul.Logger;
 
 namespace ProtoFluxOverhaul
 {
@@ -87,70 +86,98 @@ namespace ProtoFluxOverhaul
 		public static (IField<colorX> field, colorX constantColor) FindClosestPaletteFieldWithConstant(PlatformColorPalette palette, colorX originalColor)
 		{
 			if (palette == null) return (null, originalColor);
+			int index = FindClosestPaletteIndex(originalColor);
+			return index < 0 ? (null, originalColor) : (GetPaletteField(palette, index), PaletteColors[index]);
+		}
 
-			// Normalize the original color if any channel exceeds 1.0 (due to MulRGB(1.5f) in wire colors)
+		// Match against stable engine colors, then select the live field on this node's palette.
+		// Keep this order: equal distances select the first candidate, including across shades.
+		private static readonly colorX[] PaletteColors =
+		{
+			RadiantUI_Constants.Neutrals.DARK,
+			RadiantUI_Constants.Neutrals.MID,
+			RadiantUI_Constants.Neutrals.MIDLIGHT,
+			RadiantUI_Constants.Neutrals.LIGHT,
+			RadiantUI_Constants.Hero.YELLOW,
+			RadiantUI_Constants.Hero.GREEN,
+			RadiantUI_Constants.Hero.RED,
+			RadiantUI_Constants.Hero.PURPLE,
+			RadiantUI_Constants.Hero.CYAN,
+			RadiantUI_Constants.Hero.ORANGE,
+			RadiantUI_Constants.MidLight.YELLOW,
+			RadiantUI_Constants.MidLight.GREEN,
+			RadiantUI_Constants.MidLight.RED,
+			RadiantUI_Constants.MidLight.PURPLE,
+			RadiantUI_Constants.MidLight.CYAN,
+			RadiantUI_Constants.MidLight.ORANGE,
+			RadiantUI_Constants.Sub.YELLOW,
+			RadiantUI_Constants.Sub.GREEN,
+			RadiantUI_Constants.Sub.RED,
+			RadiantUI_Constants.Sub.PURPLE,
+			RadiantUI_Constants.Sub.CYAN,
+			RadiantUI_Constants.Sub.ORANGE,
+			RadiantUI_Constants.Dark.YELLOW,
+			RadiantUI_Constants.Dark.GREEN,
+			RadiantUI_Constants.Dark.RED,
+			RadiantUI_Constants.Dark.PURPLE,
+			RadiantUI_Constants.Dark.CYAN,
+			RadiantUI_Constants.Dark.ORANGE,
+		};
+
+		private static int FindClosestPaletteIndex(colorX originalColor)
+		{
 			float maxChannel = MathX.Max(originalColor.r, MathX.Max(originalColor.g, originalColor.b));
 			colorX normalizedOriginal = maxChannel > 1f
 				? new colorX(originalColor.r / maxChannel, originalColor.g / maxChannel, originalColor.b / maxChannel, originalColor.a)
 				: originalColor;
 
-			// Build list of candidate colors using RadiantUI_Constants for matching (always available)
-			// and palette fields for ValueCopy driving (to support per-node customization)
-			var candidates = new (colorX color, IField<colorX> field)[]
-			{
-				// Neutrals - use RadiantUI_Constants for color matching
-				(RadiantUI_Constants.Neutrals.DARK, palette.Neutrals.Dark),
-				(RadiantUI_Constants.Neutrals.MID, palette.Neutrals.Mid),
-				(RadiantUI_Constants.Neutrals.MIDLIGHT, palette.Neutrals.MidLight),
-				(RadiantUI_Constants.Neutrals.LIGHT, palette.Neutrals.Light),
-				// Hero colors (brightest)
-				(RadiantUI_Constants.Hero.YELLOW, palette.Hero.Yellow),
-				(RadiantUI_Constants.Hero.GREEN, palette.Hero.Green),
-				(RadiantUI_Constants.Hero.RED, palette.Hero.Red),
-				(RadiantUI_Constants.Hero.PURPLE, palette.Hero.Purple),
-				(RadiantUI_Constants.Hero.CYAN, palette.Hero.Cyan),
-				(RadiantUI_Constants.Hero.ORANGE, palette.Hero.Orange),
-				// Mid colors
-				(RadiantUI_Constants.MidLight.YELLOW, palette.Mid.Yellow),
-				(RadiantUI_Constants.MidLight.GREEN, palette.Mid.Green),
-				(RadiantUI_Constants.MidLight.RED, palette.Mid.Red),
-				(RadiantUI_Constants.MidLight.PURPLE, palette.Mid.Purple),
-				(RadiantUI_Constants.MidLight.CYAN, palette.Mid.Cyan),
-				(RadiantUI_Constants.MidLight.ORANGE, palette.Mid.Orange),
-				// Sub colors
-				(RadiantUI_Constants.Sub.YELLOW, palette.Sub.Yellow),
-				(RadiantUI_Constants.Sub.GREEN, palette.Sub.Green),
-				(RadiantUI_Constants.Sub.RED, palette.Sub.Red),
-				(RadiantUI_Constants.Sub.PURPLE, palette.Sub.Purple),
-				(RadiantUI_Constants.Sub.CYAN, palette.Sub.Cyan),
-				(RadiantUI_Constants.Sub.ORANGE, palette.Sub.Orange),
-				// Dark colors
-				(RadiantUI_Constants.Dark.YELLOW, palette.Dark.Yellow),
-				(RadiantUI_Constants.Dark.GREEN, palette.Dark.Green),
-				(RadiantUI_Constants.Dark.RED, palette.Dark.Red),
-				(RadiantUI_Constants.Dark.PURPLE, palette.Dark.Purple),
-				(RadiantUI_Constants.Dark.CYAN, palette.Dark.Cyan),
-				(RadiantUI_Constants.Dark.ORANGE, palette.Dark.Orange),
-			};
-
-			IField<colorX> closestField = null;
-			colorX closestConstant = originalColor;
+			int closestIndex = -1;
 			float closestDistSq = float.MaxValue;
-
-			foreach (var (candidateColor, field) in candidates)
+			for (int i = 0; i < PaletteColors.Length; i++)
 			{
-				float3 d = normalizedOriginal.rgb - candidateColor.rgb;
-				float distSq = d.x * d.x + d.y * d.y + d.z * d.z;
-				if (distSq < closestDistSq)
+				float3 difference = normalizedOriginal.rgb - PaletteColors[i].rgb;
+				float distanceSq = difference.x * difference.x + difference.y * difference.y + difference.z * difference.z;
+				if (distanceSq < closestDistSq)
 				{
-					closestDistSq = distSq;
-					closestField = field;
-					closestConstant = candidateColor;
+					closestDistSq = distanceSq;
+					closestIndex = i;
 				}
 			}
-
-			return (closestField, closestConstant);
+			return closestIndex;
 		}
+
+		private static IField<colorX> GetPaletteField(PlatformColorPalette palette, int index) => index switch
+		{
+			0 => palette.Neutrals.Dark,
+			1 => palette.Neutrals.Mid,
+			2 => palette.Neutrals.MidLight,
+			3 => palette.Neutrals.Light,
+			4 => palette.Hero.Yellow,
+			5 => palette.Hero.Green,
+			6 => palette.Hero.Red,
+			7 => palette.Hero.Purple,
+			8 => palette.Hero.Cyan,
+			9 => palette.Hero.Orange,
+			10 => palette.Mid.Yellow,
+			11 => palette.Mid.Green,
+			12 => palette.Mid.Red,
+			13 => palette.Mid.Purple,
+			14 => palette.Mid.Cyan,
+			15 => palette.Mid.Orange,
+			16 => palette.Sub.Yellow,
+			17 => palette.Sub.Green,
+			18 => palette.Sub.Red,
+			19 => palette.Sub.Purple,
+			20 => palette.Sub.Cyan,
+			21 => palette.Sub.Orange,
+			22 => palette.Dark.Yellow,
+			23 => palette.Dark.Green,
+			24 => palette.Dark.Red,
+			25 => palette.Dark.Purple,
+			26 => palette.Dark.Cyan,
+			27 => palette.Dark.Orange,
+			_ => null
+		};
 
 		public static IField<colorX> GetConnectorTintSource(PlatformColorPalette palette, bool isOutput, ImpulseType? impulseType, bool isOperation, bool isAsync, bool isReference, colorX? originalColor = null)
 		{
@@ -185,67 +212,19 @@ namespace ProtoFluxOverhaul
 		public static IField<colorX> FindClosestSubPaletteField(PlatformColorPalette palette, colorX originalColor)
 		{
 			if (palette == null) return null;
-
-			// Normalize the original color if any channel exceeds 1.0
-			float maxChannel = MathX.Max(originalColor.r, MathX.Max(originalColor.g, originalColor.b));
-			colorX normalizedOriginal = maxChannel > 1f
-				? new colorX(originalColor.r / maxChannel, originalColor.g / maxChannel, originalColor.b / maxChannel, originalColor.a)
-				: originalColor;
-
-			// Build list of candidate colors from all palette shades using RadiantUI_Constants for matching
-			// Compare against all shades to find the color family, then return corresponding Sub version from palette
-			var candidates = new (colorX color, IField<colorX> subField)[]
+			int index = FindClosestPaletteIndex(originalColor);
+			if (index < 0) return palette.Sub.Cyan;
+			if (index < 4) return palette.Neutrals.Mid;
+			return ((index - 4) % 6) switch
 			{
-				// Neutrals -> use Mid neutral for Sub equivalent
-				(RadiantUI_Constants.Neutrals.DARK, palette.Neutrals.Mid),
-				(RadiantUI_Constants.Neutrals.MID, palette.Neutrals.Mid),
-				(RadiantUI_Constants.Neutrals.MIDLIGHT, palette.Neutrals.Mid),
-				(RadiantUI_Constants.Neutrals.LIGHT, palette.Neutrals.Mid),
-				// Hero colors -> Sub versions
-				(RadiantUI_Constants.Hero.YELLOW, palette.Sub.Yellow),
-				(RadiantUI_Constants.Hero.GREEN, palette.Sub.Green),
-				(RadiantUI_Constants.Hero.RED, palette.Sub.Red),
-				(RadiantUI_Constants.Hero.PURPLE, palette.Sub.Purple),
-				(RadiantUI_Constants.Hero.CYAN, palette.Sub.Cyan),
-				(RadiantUI_Constants.Hero.ORANGE, palette.Sub.Orange),
-				// Mid colors -> Sub versions
-				(RadiantUI_Constants.MidLight.YELLOW, palette.Sub.Yellow),
-				(RadiantUI_Constants.MidLight.GREEN, palette.Sub.Green),
-				(RadiantUI_Constants.MidLight.RED, palette.Sub.Red),
-				(RadiantUI_Constants.MidLight.PURPLE, palette.Sub.Purple),
-				(RadiantUI_Constants.MidLight.CYAN, palette.Sub.Cyan),
-				(RadiantUI_Constants.MidLight.ORANGE, palette.Sub.Orange),
-				// Sub colors -> same Sub versions
-				(RadiantUI_Constants.Sub.YELLOW, palette.Sub.Yellow),
-				(RadiantUI_Constants.Sub.GREEN, palette.Sub.Green),
-				(RadiantUI_Constants.Sub.RED, palette.Sub.Red),
-				(RadiantUI_Constants.Sub.PURPLE, palette.Sub.Purple),
-				(RadiantUI_Constants.Sub.CYAN, palette.Sub.Cyan),
-				(RadiantUI_Constants.Sub.ORANGE, palette.Sub.Orange),
-				// Dark colors -> Sub versions (slightly brighter than dark)
-				(RadiantUI_Constants.Dark.YELLOW, palette.Sub.Yellow),
-				(RadiantUI_Constants.Dark.GREEN, palette.Sub.Green),
-				(RadiantUI_Constants.Dark.RED, palette.Sub.Red),
-				(RadiantUI_Constants.Dark.PURPLE, palette.Sub.Purple),
-				(RadiantUI_Constants.Dark.CYAN, palette.Sub.Cyan),
-				(RadiantUI_Constants.Dark.ORANGE, palette.Sub.Orange),
+				0 => palette.Sub.Yellow,
+				1 => palette.Sub.Green,
+				2 => palette.Sub.Red,
+				3 => palette.Sub.Purple,
+				4 => palette.Sub.Cyan,
+				5 => palette.Sub.Orange,
+				_ => palette.Sub.Cyan
 			};
-
-			IField<colorX> closestField = palette.Sub.Cyan; // Default
-			float closestDistSq = float.MaxValue;
-
-			foreach (var (color, subField) in candidates)
-			{
-				float3 d = normalizedOriginal.rgb - color.rgb;
-				float distSq = d.x * d.x + d.y * d.y + d.z * d.z;
-				if (distSq < closestDistSq)
-				{
-					closestDistSq = distSq;
-					closestField = subField;
-				}
-			}
-
-			return closestField;
 		}
 
 		public static IField<colorX> GetLabelBackgroundTintSource(PlatformColorPalette palette, bool isOutput, ImpulseType? impulseType, bool isOperation, bool isAsync, bool isReference, colorX? originalColor = null)

@@ -1,4 +1,5 @@
 using System;
+using FrooxEngine;
 using FrooxEngine.ProtoFlux;
 using HarmonyLib;
 
@@ -9,10 +10,11 @@ public partial class ProtoFluxOverhaul
 	[HarmonyPatch(typeof(ProtoFluxTool))]
 	public class ProtoFluxTool_SpawnNodeSounds_Patch
 	{
-		// Patch for node creation (SpawnNode with Type)
-		[HarmonyPatch("SpawnNode", new Type[] { typeof(Type), typeof(Action<ProtoFluxNode>) })]
+		// Every SpawnNode overload, including SpawnNode<T>, creates exactly one slot
+		// here. Visual generation and rebuilding do not use this method.
+		[HarmonyPatch("GenerateSlotNode", new Type[] { typeof(Type) })]
 		[HarmonyPostfix]
-		public static void SpawnNode_Type_Postfix(ProtoFluxTool __instance, Type nodeType, Action<ProtoFluxNode> setup, ProtoFluxNode __result)
+		public static void GenerateSlotNode_Postfix(ProtoFluxTool __instance, Type type, Slot __result)
 		{
 			try
 			{
@@ -23,53 +25,44 @@ public partial class ProtoFluxOverhaul
 					return;
 				}
 
-				// Only play sound if node was successfully created and we have permission
-				if (__result != null && __result.Slot != null && HasPermission(__result))
-				{
-					Logger.LogNode("Create", $"Playing node create sound (type) at position {__result.Slot.GlobalPosition}");
-					ProtoFluxSounds.OnNodeCreated(__instance.World, __result.Slot.GlobalPosition);
-				}
-				else
-				{
-					Logger.LogNode("Create", $"Node create sound skipped (type): Node={__result != null}, Slot={__result?.Slot != null}, HasPermission={__result != null && HasPermission(__result)}");
-				}
+				if (!IsLocalSoundTool(__instance) || __result == null || __result.IsRemoved)
+					return;
+
+				var world = __instance.World;
+				var nodeSlot = __result;
+				// GenerateSlotNode returns before SpawnNode attaches the component. Queue
+				// this until the current world action finishes, including node setup.
+				world.RunSynchronously(() => PlayCreatedNode(world, nodeSlot, type),
+					immediatellyIfPossible: false);
 			}
 			catch (Exception e)
 			{
-				Logger.LogError("Error in node create sound (type)", e, Logger.LogCategory.Node);
+				Logger.LogError("Error scheduling node create sound", e, Logger.LogCategory.Node);
 			}
 		}
 
-		// Patch for node creation (SpawnNode generic)
-		[HarmonyPatch("SpawnNode", new Type[] { typeof(Action<ProtoFluxNode>) })]
-		[HarmonyPostfix]
-		public static void SpawnNode_Generic_Postfix(ProtoFluxTool __instance, Action<ProtoFluxNode> setup, ProtoFluxNode __result)
+		private static void PlayCreatedNode(World world, Slot nodeSlot, Type nodeType)
 		{
 			try
 			{
-				// Skip if disabled or no node sounds
-				if (!Config.GetValue(ENABLED) || !Config.GetValue(NODE_SOUNDS))
-				{
-					Logger.LogNode("Create", "Node create sound skipped: Mod or node sounds disabled");
+				if (world == null || world.IsDisposed || world.IsDestroyed
+					|| nodeSlot == null || nodeSlot.IsRemoved || nodeSlot.World != world
+					|| !Config.GetValue(ENABLED) || !Config.GetValue(NODE_SOUNDS))
 					return;
-				}
 
-				// Only play sound if node was successfully created and we have permission
-				if (__result != null && __result.Slot != null && HasPermission(__result))
-				{
-					Logger.LogNode("Create", $"Playing node create sound (generic) at position {__result.Slot.GlobalPosition}");
-					ProtoFluxSounds.OnNodeCreated(__instance.World, __result.Slot.GlobalPosition);
-				}
-				else
-				{
-					Logger.LogNode("Create", $"Node create sound skipped (generic): Node={__result != null}, Slot={__result?.Slot != null}, HasPermission={__result != null && HasPermission(__result)}");
-				}
+				var node = nodeSlot.GetComponent<ProtoFluxNode>();
+				// Failed attachment or a setup callback that removes the node must not
+				// produce a creation sound for an empty slot.
+				if (node == null || node.IsRemoved || nodeType == null || !nodeType.IsInstanceOfType(node))
+					return;
+
+				Logger.LogNode("Create", $"Playing node create sound at position {nodeSlot.GlobalPosition}");
+				ProtoFluxSounds.OnNodeCreated(world, nodeSlot.GlobalPosition);
 			}
 			catch (Exception e)
 			{
-				Logger.LogError("Error in node create sound (generic)", e, Logger.LogCategory.Node);
+				Logger.LogError("Error in node create sound", e, Logger.LogCategory.Node);
 			}
 		}
 	}
 }
-

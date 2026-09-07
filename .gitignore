@@ -396,8 +396,4 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
-/ProtoFluxBindings
-/FrooxEngine
-/ProtoFlux.Core
-
 /References

@@ -1,5 +1,4 @@
 using System;
-using System.Linq;
 using System.Reflection;
 using Elements.Core;
 using FrooxEngine;
@@ -7,7 +6,6 @@ using FrooxEngine.ProtoFlux;
 using FrooxEngine.UIX;
 using HarmonyLib;
 using ProtoFlux.Runtimes.Execution.Nodes.Actions;
-using Renderite.Shared;
 using static ProtoFluxOverhaul.Logger;
 
 namespace ProtoFluxOverhaul
@@ -17,21 +15,26 @@ namespace ProtoFluxOverhaul
 	public class ProtoFluxNodeVisual_UpdateNodeStatus_Patch
 	{
 		private static readonly FieldInfo bgImageField = AccessTools.Field(typeof(ProtoFluxNodeVisual), "_bgImage");
+		private static readonly FieldInfo overviewBgField = AccessTools.Field(typeof(ProtoFluxNodeVisual), "_overviewBg");
 
 		public static bool Prefix(ProtoFluxNodeVisual __instance)
 		{
 			try
 			{
-				// Skip if disabled or not using header color for background
 				if (!ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.ENABLED)) return true;
-				if (!ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.USE_HEADER_COLOR_FOR_BACKGROUND)) return true;
 
-				// Get background image
 				var bgImageRef = (SyncRef<Image>)bgImageField.GetValue(__instance);
 				if (bgImageRef?.Target == null) return true;
 
-				// === User Permission Check ===
 				if (!PermissionHelper.HasPermission(__instance)) return true;
+
+				var bgImage = bgImageRef.Target;
+				// Palette (and other) drives must not be overwritten by the engine Tint write.
+				if (bgImage.Tint.IsDriven)
+					return false;
+
+				if (!ProtoFluxOverhaul.Config.GetValue(ProtoFluxOverhaul.USE_HEADER_COLOR_FOR_BACKGROUND))
+					return true;
 
 				// Get the node's type color as base
 				colorX baseColor;
@@ -41,7 +44,7 @@ namespace ProtoFluxOverhaul
 					var nodeType = node.GetType();
 					if (nodeType.IsSubclassOf(typeof(UpdateBase)) || nodeType.IsSubclassOf(typeof(UserUpdateBase)))
 					{
-						bool isAsync = nodeType.GetInterfaces().Any(i => i == typeof(IAsyncNodeOperation));
+						bool isAsync = typeof(IAsyncNodeOperation).IsAssignableFrom(nodeType);
 						baseColor = isAsync ? DatatypeColorHelper.ASYNC_FLOW_COLOR : DatatypeColorHelper.SYNC_FLOW_COLOR;
 					}
 					else
@@ -75,30 +78,17 @@ namespace ProtoFluxOverhaul
 					finalColor = MathX.LerpUnclamped(finalColor, colorX.Red, 0.5f);
 				}
 
-				// Update the ValueField source so the driver propagates the new color
-				var bgImage = bgImageRef.Target;
-				var colorField = bgImage.Slot.GetComponent<ValueField<colorX>>();
-				if (colorField != null)
+				if (!bgImage.Tint.IsDriven)
 				{
-					colorField.Value.Value = finalColor;
-					Logger.LogUI("UpdateNodeStatus", $"Updated ValueField for status color: R:{finalColor.r:F2} G:{finalColor.g:F2} B:{finalColor.b:F2}");
+					bgImage.Tint.Value = finalColor;
+					Logger.LogUI("UpdateNodeStatus", $"Set tint for status color: R:{finalColor.r:F2} G:{finalColor.g:F2} B:{finalColor.b:F2}");
 				}
 				else
 				{
-					// Fallback: if no ValueField exists, set directly
-					if (!bgImage.Tint.IsDriven)
-					{
-						bgImage.Tint.Value = finalColor;
-						Logger.LogUI("UpdateNodeStatus", $"Set tint directly (no driver): R:{finalColor.r:F2} G:{finalColor.g:F2} B:{finalColor.b:F2}");
-					}
-					else
-					{
-						Logger.LogUI("UpdateNodeStatus", "Skipped: tint is driven but no ValueField found");
-					}
+					Logger.LogUI("UpdateNodeStatus", "Skipped: tint is already driven");
 				}
 
 				// Also update overview background if it exists
-				var overviewBgField = AccessTools.Field(typeof(ProtoFluxNodeVisual), "_overviewBg");
 				var overviewBg = (FieldDrive<colorX>)overviewBgField.GetValue(__instance);
 				if (overviewBg.IsLinkValid)
 				{

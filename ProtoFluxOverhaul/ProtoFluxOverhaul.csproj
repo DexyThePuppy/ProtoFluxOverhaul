@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<RootNamespace>ProtoFluxOverhaul</RootNamespace>
@@ -6,7 +6,6 @@
 		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
 		<TargetFramework>net10.0</TargetFramework>
 		<FileAlignment>512</FileAlignment>
-		<LangVersion>10.0</LangVersion>
 		<Nullable>disable</Nullable>
 		<Deterministic>true</Deterministic>
 		<!-- Change CopyToMods to true if you'd like builds to be moved into the Mods folder automatically-->
@@ -22,49 +21,60 @@
 		<ResonitePath Condition="Exists('B:\SteamLibrary\steamapps\common\Resonite\')">B:\SteamLibrary\steamapps\common\Resonite\</ResonitePath>
 	</PropertyGroup>
 
+	<PropertyGroup>
+		<ResoniteRoot>$([MSBuild]::EnsureTrailingSlash('$(ResonitePath)'))</ResoniteRoot>
+		<!-- Compile against the official RML release, including when running through MonkeyLoader. -->
+		<ResoniteModLoaderPath Condition="'$(ResoniteModLoaderPath)'==''">$(ResoniteRoot)Libraries\ResoniteModLoader.dll</ResoniteModLoaderPath>
+	</PropertyGroup>
+
 	<ItemGroup>
 		<Reference Include="ResoniteModLoader">
-		    <HintPath>$(ResonitePath)Libraries\ResoniteModLoader.dll</HintPath>
+		    <HintPath>$(ResoniteModLoaderPath)</HintPath>
 		    <Private>False</Private>
 		</Reference>
 		<Reference Include="HarmonyLib">
-		    <HintPath>$(ResonitePath)rml_libs\0Harmony.dll</HintPath>
-		    <HintPath Condition="Exists('$(ResonitePath)0Harmony.dll')">$(ResonitePath)0Harmony.dll</HintPath>
-		    <HintPath Condition="Exists('$(ResonitePath)rml_libs\0Harmony.dll')">$(ResonitePath)rml_libs\0Harmony.dll</HintPath>
-		    <HintPath Condition="Exists('$(ResonitePath)Libraries\0Harmony.dll')">$(ResonitePath)Libraries\0Harmony.dll</HintPath>
+		    <HintPath>$(ResoniteRoot)rml_libs\0Harmony.dll</HintPath>
+		    <HintPath Condition="Exists('$(ResoniteRoot)0Harmony.dll')">$(ResoniteRoot)0Harmony.dll</HintPath>
+		    <HintPath Condition="Exists('$(ResoniteRoot)rml_libs\0Harmony.dll')">$(ResoniteRoot)rml_libs\0Harmony.dll</HintPath>
+		    <HintPath Condition="Exists('$(ResoniteRoot)Libraries\0Harmony.dll')">$(ResoniteRoot)Libraries\0Harmony.dll</HintPath>
 			<Private>False</Private>
 		</Reference>
 		<Reference Include="FrooxEngine">
-		    <HintPath>$(ResonitePath)FrooxEngine.dll</HintPath>
+		    <HintPath>$(ResoniteRoot)FrooxEngine.dll</HintPath>
 		    <Private>False</Private>
 		</Reference>
 		<Reference Include="Elements.Core">
-		    <HintPath>$(ResonitePath)Elements.Core.dll</HintPath>
+		    <HintPath>$(ResoniteRoot)Elements.Core.dll</HintPath>
 		    <Private>False</Private>
 		</Reference>
 		<Reference Include="Awwdio">
-		    <HintPath>$(ResonitePath)Awwdio.dll</HintPath>
+		    <HintPath>$(ResoniteRoot)Awwdio.dll</HintPath>
 		    <Private>False</Private>
 		</Reference>
 		<Reference Include="Elements.Assets">
-		    <HintPath>$(ResonitePath)Elements.Assets.dll</HintPath>
+		    <HintPath>$(ResoniteRoot)Elements.Assets.dll</HintPath>
+		    <Private>False</Private>
+		</Reference>
+		<Reference Include="SkyFrost.Base.Models">
+		    <HintPath>$(ResoniteRoot)SkyFrost.Base.Models.dll</HintPath>
 		    <Private>False</Private>
 		</Reference>
 		<Reference Include="ProtoFlux.Core">
-		    <HintPath>$(ResonitePath)ProtoFlux.Core.dll</HintPath>
+		    <HintPath>$(ResoniteRoot)ProtoFlux.Core.dll</HintPath>
 		    <Private>False</Private>
 		</Reference>
 		<Reference Include="ProtoFlux.Nodes.FrooxEngine">
-		    <HintPath>$(ResonitePath)ProtoFlux.Nodes.FrooxEngine.dll</HintPath>
+		    <HintPath>$(ResoniteRoot)ProtoFlux.Nodes.FrooxEngine.dll</HintPath>
+		    <Private>False</Private>
 		</Reference>
 		<Reference Include="Renderite.Shared">
-		    <HintPath>$(ResonitePath)Renderite.Shared.dll</HintPath>
+		    <HintPath>$(ResoniteRoot)Renderite.Shared.dll</HintPath>
 		    <Private>False</Private>
 		</Reference>
 	</ItemGroup>
 
 	<Target Name="PostBuild" AfterTargets="PostBuildEvent" Condition="'$(CopyToMods)'=='true'">
-		<Message Text="Attempting to copy $(TargetFileName) to $(ResonitePath)rml_mods" Importance="high" />
-		<Copy SourceFiles="$(TargetDir)$(TargetFileName)" DestinationFolder="$(ResonitePath)rml_mods" ContinueOnError="true" />
+		<Message Text="Attempting to copy $(TargetFileName) to $(ResoniteRoot)rml_mods" Importance="high" />
+		<Copy SourceFiles="$(TargetDir)$(TargetFileName)" DestinationFolder="$(ResoniteRoot)rml_mods" />
 	</Target>
 </Project>

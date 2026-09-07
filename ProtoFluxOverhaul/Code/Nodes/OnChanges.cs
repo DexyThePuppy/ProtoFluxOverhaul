@@ -1,5 +1,4 @@
 using System;
-using System.Linq;
 using FrooxEngine;
 using FrooxEngine.ProtoFlux;
 using FrooxEngine.UIX;
@@ -12,6 +11,7 @@ namespace ProtoFluxOverhaul
 	[HarmonyPatch(typeof(ProtoFluxNodeVisual), "OnChanges")]
 	public class ProtoFluxNodeVisual_OnChanges_Patch
 	{
+
 		public static void Postfix(ProtoFluxNodeVisual __instance)
 		{
 			try
@@ -31,9 +31,10 @@ namespace ProtoFluxOverhaul
 				bool overviewModeEnabled = OverviewModeHelper.GetOverviewMode(__instance.LocalUser);
 
 				// Find our custom TitleParent>Header slot and Overview slot
-				var titleParent = __instance.Slot.FindChild("TitleParent");
-				var overviewSlot = __instance.Slot.GetComponentsInChildren<Image>()
-					.FirstOrDefault(img => img.Slot.Name == "Overview");
+				var header = __instance.Slot.FindChild("TitleParent")?.FindChild("Header");
+				// A skipped or failed style pass must not hide the engine's only node name.
+				if (string.IsNullOrWhiteSpace(header?.GetComponentInChildren<Text>()?.Content.Value)) return;
+				var overviewSlot = OverviewModeHelper.GetOverviewImage(__instance);
 
 				// Only toggle header visibility if there's an overview slot
 				if (overviewSlot != null)
@@ -41,23 +42,16 @@ namespace ProtoFluxOverhaul
 					bool baseHeaderVisible = !overviewModeEnabled;
 					bool baseOverviewVisible = overviewModeEnabled;
 
-					// Update header visibility: if driven by our hover driver, update its FalseValue; otherwise set directly
-					if (titleParent != null)
+					// Update the base visibility of our hover driver when present.
+					var headerDriver = header.GetComponent<BooleanValueDriver<bool>>();
+					if (headerDriver != null && headerDriver.TargetField.Target == header.ActiveSelf_Field)
 					{
-						var header = titleParent.FindChild("Header");
-						if (header != null)
-						{
-							var headerDriver = header.GetComponent<BooleanValueDriver<bool>>();
-							if (headerDriver != null && headerDriver.TargetField.Target == header.ActiveSelf_Field)
-							{
-								headerDriver.FalseValue.Value = baseHeaderVisible;
-								headerDriver.TrueValue.Value = true;
-							}
-							else
-							{
-								header.ActiveSelf = baseHeaderVisible;
-							}
-						}
+						headerDriver.FalseValue.Value = baseHeaderVisible;
+						headerDriver.TrueValue.Value = true;
+					}
+					else
+					{
+						header.ActiveSelf = baseHeaderVisible;
 					}
 
 					// Update overview visibility: if driven by our hover driver, update its FalseValue; otherwise set directly
@@ -74,15 +68,8 @@ namespace ProtoFluxOverhaul
 				}
 				else
 				{
-					// No overview slot found, keep header visible
-					if (titleParent != null)
-					{
-						var header = titleParent.FindChild("Header");
-						if (header != null)
-						{
-							header.ActiveSelf = true;
-						}
-					}
+					// No overview slot found, keep header visible.
+					header.ActiveSelf = true;
 				}
 			}
 			catch (Exception e)
